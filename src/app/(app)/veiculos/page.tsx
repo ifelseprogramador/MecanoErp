@@ -14,7 +14,7 @@ export default async function VehiclesPage({ searchParams }: PageProps<"/veiculo
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Veículos</h1>
-        <Button render={<Link href="/veiculos/novo" />}>
+        <Button nativeButton={false} render={<Link href="/veiculos/novo" />}>
           <Plus className="h-4 w-4" />
           Novo veículo
         </Button>

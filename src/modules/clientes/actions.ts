@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { withOrg } from "@/core/auth";
 import type { ActionResult } from "@/core/action-result";
@@ -22,19 +23,24 @@ export async function createCustomer(
     return { ok: false, errors: parsed.error.flatten().fieldErrors };
   }
 
+  let customerId: string;
   try {
     const [customer] = await db
       .insert(customers)
       .values({ ...parsed.data, organizationId })
       .returning({ id: customers.id });
-
-    log.info("clientes.criar.sucesso", { customerId: customer.id });
-    revalidatePath("/clientes");
-    return { ok: true };
+    customerId = customer.id;
+    log.info("clientes.criar.sucesso", { customerId });
   } catch (err) {
     log.error("clientes.criar.falhou", { err });
     return { ok: false, message: "Não foi possível salvar o cliente. Tente novamente." };
   }
+
+  // `redirect()` funciona lançando um erro especial que o Next.js
+  // reconhece — precisa ficar FORA do try/catch acima, senão o catch
+  // genérico o trata como uma falha de verdade.
+  revalidatePath("/clientes");
+  redirect(`/clientes/${customerId}`);
 }
 
 export async function updateCustomer(

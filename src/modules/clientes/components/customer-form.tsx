@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,11 +28,29 @@ export function CustomerForm({
   const [state, formAction, isPending] = useActionState(action, initialState);
   const errors = state.errors ?? {};
 
+  // A criação redireciona no servidor (nunca chega aqui com ok:true); isto
+  // só dispara na edição, onde o usuário fica na mesma página e precisa de
+  // uma confirmação visual de que salvou.
+  useEffect(() => {
+    if (state.ok) {
+      toast.success("Cliente salvo.");
+    }
+  }, [state]);
+
   return (
-    <form action={formAction} className="flex flex-col gap-4">
+    // A key muda quando o registro é salvo (novo `updatedAt` chega do
+    // servidor via revalidatePath) — força o React a remontar os campos
+    // não controlados (Select/defaultValue) com os dados frescos, em vez
+    // de tentar reaproveitar a instância antiga com um defaultValue novo
+    // (o que o Base UI rejeita com um aviso).
+    <form key={customer?.updatedAt?.toString()} action={formAction} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
         <Label htmlFor="type">Tipo</Label>
-        <Select name="type" defaultValue={customer?.type ?? "pf"}>
+        <Select
+          name="type"
+          items={{ pf: "Pessoa física", pj: "Pessoa jurídica" }}
+          defaultValue={customer?.type ?? "pf"}
+        >
           <SelectTrigger id="type" className="w-full">
             <SelectValue />
           </SelectTrigger>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { resolveIcon } from "@/core/resolve-icon";
 import type { ModuleDefinition } from "@/core/registry";
 
 /**
@@ -22,7 +23,12 @@ export function SidebarNav({
 
   const items = [
     { slug: "dashboard", label: "Painel", href: "/", icon: LayoutDashboard },
-    ...modules.map((m) => ({ slug: m.slug, label: m.label, href: m.href, icon: m.icon })),
+    ...modules.map((m) => ({
+      slug: m.slug,
+      label: m.label,
+      href: m.href,
+      icon: resolveIcon(m.iconName),
+    })),
   ];
 
   return (

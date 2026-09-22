@@ -8,7 +8,7 @@ export default function NotFound() {
       <p className="text-muted-foreground max-w-md text-sm">
         O endereço que você acessou não existe ou foi movido.
       </p>
-      <Button render={<Link href="/">Voltar ao início</Link>} />
+      <Button nativeButton={false} render={<Link href="/">Voltar ao início</Link>} />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import type { LucideIcon } from "lucide-react";
+import type { icons as LucideIcons } from "lucide-react";
 
 /**
  * Metadados que cada módulo declara em `modules/<modulo>/module.ts`. O
@@ -12,7 +12,15 @@ import type { LucideIcon } from "lucide-react";
 export interface ModuleDefinition {
   slug: string;
   label: string;
-  icon: LucideIcon;
+  /**
+   * Nome do ícone do lucide-react (ex.: "Users", "Car") — string, não o
+   * componente. `getEnabledModules()` é lido por Server Components e
+   * passado para componentes cliente (sidebar/drawer); React não permite
+   * serializar uma função (o componente do ícone) nessa fronteira, então
+   * o valor aqui precisa ser só dado. `core/resolve-icon.tsx` resolve o
+   * nome para o componente do lado do cliente.
+   */
+  iconName: keyof typeof LucideIcons;
   /** Rota base do módulo dentro de `app/(app)/`. */
   href: string;
   /** Ordem no menu lateral, crescente. */

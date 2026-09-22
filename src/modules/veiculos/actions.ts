@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { withOrg } from "@/core/auth";
 import type { ActionResult } from "@/core/action-result";
@@ -30,16 +31,14 @@ export async function createVehicle(
     return { ok: false, errors: parsed.error.flatten().fieldErrors };
   }
 
+  let vehicleId: string;
   try {
     const [vehicle] = await db
       .insert(vehicles)
       .values({ ...parsed.data, organizationId })
       .returning({ id: vehicles.id });
-
-    log.info("veiculos.criar.sucesso", { vehicleId: vehicle.id });
-    revalidatePath("/veiculos");
-    revalidatePath(`/clientes/${parsed.data.customerId}`);
-    return { ok: true };
+    vehicleId = vehicle.id;
+    log.info("veiculos.criar.sucesso", { vehicleId });
   } catch (err) {
     if (isUniqueViolation(err)) {
       log.warn("veiculos.criar.placa_duplicada", { plate: parsed.data.plate });
@@ -48,6 +47,12 @@ export async function createVehicle(
     log.error("veiculos.criar.falhou", { err });
     return { ok: false, message: "Não foi possível salvar o veículo. Tente novamente." };
   }
+
+  // `redirect()` fica fora do try/catch pelo mesmo motivo documentado em
+  // modules/clientes/actions.ts#createCustomer.
+  revalidatePath("/veiculos");
+  revalidatePath(`/clientes/${parsed.data.customerId}`);
+  redirect(`/veiculos/${vehicleId}`);
 }
 
 export async function updateVehicle(

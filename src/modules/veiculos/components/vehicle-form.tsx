@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,11 +40,25 @@ export function VehicleForm({
   const [state, formAction, isPending] = useActionState(action, initialState);
   const errors = state.errors ?? {};
 
+  // A criação redireciona no servidor; isto só dispara na edição (ver
+  // modules/clientes/components/customer-form.tsx).
+  useEffect(() => {
+    if (state.ok) {
+      toast.success("Veículo salvo.");
+    }
+  }, [state]);
+
   return (
-    <form action={formAction} className="flex flex-col gap-4">
+    // Ver o comentário equivalente em
+    // modules/clientes/components/customer-form.tsx.
+    <form key={vehicle?.updatedAt?.toString()} action={formAction} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
         <Label htmlFor="customerId">Cliente</Label>
-        <Select name="customerId" defaultValue={vehicle?.customerId ?? defaultCustomerId}>
+        <Select
+          name="customerId"
+          items={Object.fromEntries(customers.map((c) => [c.id, c.name]))}
+          defaultValue={vehicle?.customerId ?? defaultCustomerId}
+        >
           <SelectTrigger id="customerId" className="w-full">
             <SelectValue placeholder="Selecione um cliente" />
           </SelectTrigger>
@@ -85,7 +100,7 @@ export function VehicleForm({
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="fuel">Combustível</Label>
-        <Select name="fuel" defaultValue={vehicle?.fuel ?? undefined}>
+        <Select name="fuel" items={FUEL_LABELS} defaultValue={vehicle?.fuel ?? undefined}>
           <SelectTrigger id="fuel" className="w-full">
             <SelectValue placeholder="Selecione" />
           </SelectTrigger>

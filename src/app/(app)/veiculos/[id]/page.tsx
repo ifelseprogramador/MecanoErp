@@ -24,7 +24,7 @@ export default async function VehicleDetailPage({ params }: PageProps<"/veiculos
         <ConfirmDeleteButton
           title="Remover veículo"
           description="Essa ação não pode ser desfeita. O veículo só pode ser removido se não tiver ordens de serviço vinculadas."
-          onConfirm={() => deleteVehicle(vehicle.id)}
+          onConfirm={deleteVehicle.bind(null, vehicle.id)}
           redirectTo="/veiculos"
         />
       </div>

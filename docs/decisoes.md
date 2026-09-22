@@ -64,6 +64,55 @@ Breaking changes do Next 16 relevantes para este projeto:
   servidor para erros de Server Component — usado como o "código de erro"
   mostrado ao usuário (ver `core/logger.ts` / `src/app/error.tsx`).
 
+## 2026-09-22 — Bugs reais achados testando contra o Supabase de verdade
+
+Todos só apareceram rodando a aplicação de ponta a ponta (login real +
+criar cliente + criar veículo) — nenhum quebrava `tsc`/build/lint/testes
+unitários, porque são erros de runtime do React Server Components ou de
+UX. Registrados aqui para não reintroduzir o mesmo erro em módulo novo:
+
+- **Função passada de Server para Client Component**: `ModuleDefinition`
+  guardava o ícone como o componente do lucide-react (`icon: LucideIcon`).
+  `(app)/layout.tsx` (Server Component) passa `modules` para
+  `SidebarNav`/`MobileNav` (Client Components) — React não serializa uma
+  função nessa fronteira. Corrigido guardando `iconName: string` (nome do
+  ícone) no registry e resolvendo para o componente só do lado do cliente,
+  via `core/resolve-icon.tsx` (usa o export `icons` do lucide-react).
+  **Regra geral**: nenhum campo de dado que atravessa Server → Client pode
+  ser função/componente/classe — só o nome/id, resolvido no lado do
+  cliente.
+- **Closure passada como Server Action**: `onConfirm={() =>
+deleteCustomer(customer.id)}` (arrow function nova, criada no Server
+  Component) também não serializa. `deleteCustomer` é uma Server Action de
+  verdade e por isso pode atravessar a fronteira, mas só a referência dela
+  — use `.bind(null, id)` (como já era feito com `updateCustomer`), nunca
+  embrulhe numa arrow function.
+- **Sem feedback depois de criar um registro**: `createCustomer`/
+  `createVehicle` só faziam `revalidatePath` + `return {ok:true}` — a tela
+  não navegava nem mostrava nada, parecia que o clique não tinha feito
+  nada (apesar de o registro ter sido salvo). Corrigido: toda Server
+  Action de **criar** agora chama `redirect()` para a ficha do registro
+  recém-criado (sempre FORA do `try/catch` — `redirect()` funciona lançando
+  um erro especial que um `catch` genérico engoliria). Ações de
+  **editar** continuam retornando `{ok:true}` (o usuário já está na
+  página certa) e o form mostra um toast de sucesso via `useEffect`
+  observando `state.ok`.
+- **`Select` do Base UI não mostra o label sozinho**: diferente do Select
+  do Radix, `Select.Value` (usado dentro de `SelectTrigger`) só mostra o
+  **valor bruto** salvo (`"pf"`, o UUID do cliente) a menos que o `Select`
+  raiz receba a prop `items` com o mapa valor → label
+  (`items={{ pf: "Pessoa física", ... }}` ou, para listas dinâmicas,
+  `items={Object.fromEntries(lista.map(x => [x.id, x.label]))}`). Todo
+  `Select` novo precisa dessa prop, senão mostra o valor cru ao invés do
+  texto legível.
+- **`defaultValue` mudando depois de montado**: depois de salvar um
+  registro, o Server Component busca dados frescos e repassa como prop —
+  mas o form (Client Component) não remonta sozinho, e o Base UI avisa
+  quando um campo não controlado recebe um `defaultValue` novo depois de
+  inicializado. Corrigido dando `key={registro?.updatedAt?.toString()}`
+  no `<form>` de criar/editar, forçando remontagem com os valores certos
+  a cada save.
+
 ## 2026-09-22 — Nome do projeto: MecanoErp
 
 Pasta local e repositório GitHub (`ifelseprogramador/MecanoErp`) usam

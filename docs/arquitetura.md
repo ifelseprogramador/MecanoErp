@@ -100,8 +100,22 @@ aplicação do mesmo padrão. Ao criar um módulo novo, copiar essa estrutura:
 4. `actions.ts` retornando sempre `ActionResult` (`@/core/action-result`):
    `{ ok, errors?, message? }`, nunca um `throw` que o form precise
    adivinhar como exibir. Log de entrada (`log.info`) e de erro
-   (`log.error`) em cada action.
+   (`log.error`) em cada action. Ação de **criar**: `redirect()` para a
+   ficha do registro após salvar (sempre fora do `try/catch`). Ação de
+   **editar**: retorna `{ok:true}` e deixa o form mostrar um toast (ver
+   `customer-form.tsx`/`vehicle-form.tsx`).
 5. Reaproveitar `components/search-box.tsx` e
-   `components/confirm-delete-button.tsx` em vez de duplicar.
-6. Testes de `validation.ts` sempre; testes de lógica de negócio pura
+   `components/confirm-delete-button.tsx` em vez de duplicar. No
+   `ConfirmDeleteButton`, passar a Server Action com `.bind(null, id)`,
+   nunca uma arrow function nova — ver `docs/decisoes.md` (2026-09-22).
+6. Todo `Select` do formulário precisa da prop `items` (mapa valor →
+   label) no componente raiz — sem ela o Base UI mostra o valor bruto em
+   vez do texto legível. Ver `docs/decisoes.md` (2026-09-22).
+7. Se o módulo aparece no menu (`module.ts`), o `iconName` é uma string
+   (nome do ícone do lucide-react), nunca o componente — ver
+   `core/resolve-icon.tsx` e `docs/decisoes.md` (2026-09-22).
+8. Dar `key={registro?.updatedAt?.toString()}` no `<form>` de criar/editar
+   para os campos não controlados (Select) remontarem com dado fresco
+   depois de salvar.
+9. Testes de `validation.ts` sempre; testes de lógica de negócio pura
    (cálculos, máquinas de estado) sempre.

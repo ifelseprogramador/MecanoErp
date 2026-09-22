@@ -7,7 +7,7 @@
  * (`custom_migrations`) para o script ser idempotente: rodar de novo não
  * tenta recriar policy/constraint já existente.
  */
-import "dotenv/config";
+import "./load-env";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import postgres from "postgres";

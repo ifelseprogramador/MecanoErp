@@ -14,7 +14,7 @@ export default async function CustomersPage({ searchParams }: PageProps<"/client
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Clientes</h1>
-        <Button render={<Link href="/clientes/novo" />}>
+        <Button nativeButton={false} render={<Link href="/clientes/novo" />}>
           <Plus className="h-4 w-4" />
           Novo cliente
         </Button>

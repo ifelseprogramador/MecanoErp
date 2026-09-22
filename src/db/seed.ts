@@ -6,7 +6,7 @@
  * Usa a service role key do Supabase (bypassa RLS e confirmação de
  * e-mail) — nunca rode este script fora de um ambiente que você controla.
  */
-import "dotenv/config";
+import "./load-env";
 import { createClient } from "@supabase/supabase-js";
 import { eq } from "drizzle-orm";
 import postgres from "postgres";

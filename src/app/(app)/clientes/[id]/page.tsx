@@ -31,7 +31,7 @@ export default async function CustomerDetailPage({ params }: PageProps<"/cliente
         <ConfirmDeleteButton
           title="Remover cliente"
           description="Essa ação não pode ser desfeita. O cliente só pode ser removido se não tiver veículos ou ordens de serviço vinculados."
-          onConfirm={() => deleteCustomer(customer.id)}
+          onConfirm={deleteCustomer.bind(null, customer.id)}
           redirectTo="/clientes"
         />
       </div>
@@ -50,6 +50,7 @@ export default async function CustomerDetailPage({ params }: PageProps<"/cliente
           <Button
             variant="outline"
             size="sm"
+            nativeButton={false}
             render={<Link href={`/veiculos/novo?customerId=${customer.id}`} />}
           >
             <Plus className="h-4 w-4" />
