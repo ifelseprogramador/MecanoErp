@@ -240,25 +240,61 @@ pego por tsc/build/lint/testes unitários — todos de runtime/DOM):
   rápida sumir — sem erro, sem log, só não chegam. A correção foi guardar
   o canal já inscrito num `ref` e reaproveitá-lo em todo `.send()`.
 - **Espelho só mostrava fundo cinza (bug relatado pelo usuário em teste
-  manual real)**: a causa era CSS ausente, não Realtime. A classe crua
-  `Replayer` (diferente do pacote `rrweb-player`) não injeta seu próprio
-  CSS — `node_modules/rrweb/dist/style.css` nunca tinha sido importado.
-  Sem ele, `.replayer-mouse`/`.replayer-mouse-tail` (o cursor e o canvas
-  do rastro do mouse que o `Replayer` cria) ficam sem
-  `position: absolute` e empilham em fluxo normal **acima** do iframe,
-  cada um do tamanho da tela gravada (ex.: 720px) — o wrapper acaba com o
-  dobro da altura (1440px) e o conteúdo real fica fora da janela visível
-  de 480px, sem nenhum erro no console. Corrigido importando
-  `rrweb/dist/style.css` em `live-session-viewer.tsx`. Diagnosticado
-  inspecionando `getBoundingClientRect()` do `.replayer-wrapper` e do
-  `<iframe>` via Playwright — a altura exatamente dobrada foi a pista.
-  Também foi adicionado, à parte (defensivo, para reconexão do admin
-  depois que uma sessão já está `active`): um aperto de mão
-  `viewer-ready` — o admin avisa por broadcast assim que confirma
-  inscrito no canal (`SUBSCRIBED`), e quem grava responde com
-  `record.takeFullSnapshot()` só se já estiver gravando (evita reenvio
-  redundante no caminho comum). Também diagnóstico visível: badge
-  vermelho de "erro de conexão" em `CHANNEL_ERROR`/`TIMED_OUT`.
+  manual real — não reproduzia numa oficina de teste vazia, só com dados
+  reais)**: duas causas empilhadas, achadas em duas rodadas de depuração.
+  1. **CSS ausente**: a classe crua `Replayer` (diferente do pacote
+     `rrweb-player`) não injeta seu próprio CSS —
+     `node_modules/rrweb/dist/style.css` nunca tinha sido importado. Sem
+     ele, `.replayer-mouse`/`.replayer-mouse-tail` (cursor e canvas do
+     rastro do mouse que o `Replayer` cria) ficam sem
+     `position: absolute` e empilham em fluxo normal **acima** do
+     iframe, cada um do tamanho da tela gravada — o wrapper acaba com o
+     dobro da altura e o conteúdo real fica fora da janela visível, sem
+     nenhum erro no console. Diagnosticado inspecionando
+     `getBoundingClientRect()` do `.replayer-wrapper` via Playwright — a
+     altura exatamente dobrada foi a pista. Corrigido importando
+     `rrweb/dist/style.css` em `live-session-viewer.tsx`.
+  2. **A causa de verdade, mais profunda**: o instantâneo completo do
+     rrweb (`FullSnapshot`, o DOM inteiro da tela gravada) passa de
+     **200KB mesmo numa oficina vazia** — bem acima do limite de tamanho
+     de mensagem do Supabase Realtime Broadcast. `channel.send()`
+     retorna `"ok"` (a chamada REST é aceita) mas o Realtime descarta o
+     payload silenciosamente rio abaixo quando é grande demais — sem
+     erro nenhum de nenhum lado. Numa oficina de teste vazia isso quase
+     passava despercebido (perto do limite); com dados reais (o caso do
+     usuário) sempre falhava. Corrigido trocando a arquitetura: o
+     instantâneo completo não vai mais pelo Broadcast — o lado do
+     usuário salva no banco via Server Action (`saveFullSnapshot`,
+     coluna `live_sessions.last_full_snapshot`) e o admin busca sob
+     demanda (`getFullSnapshot`) com **polling curto** (a cada 700ms, até
+     30s) ao montar o visualizador — precisa ser polling, não uma
+     tentativa única, porque existe uma corrida real entre a sessão
+     virar `active` e o lado do usuário terminar de iniciar a gravação e
+     salvar o primeiro instantâneo (150-350ms na prática). Só os eventos
+     **incrementais** (mutações, mouse, cliques — algumas centenas de
+     bytes cada) continuam indo pelo Broadcast, dentro do limite.
+     Enquanto o instantâneo não chega, os incrementais que forem
+     chegando ficam num buffer local e são aplicados assim que o
+     `Replayer` é criado.
+  - Um aperto de mão `viewer-ready` (admin avisa por broadcast que
+    acabou de se inscrever) tinha sido adicionado numa tentativa anterior
+    de corrigir isto fazendo `record.takeFullSnapshot()` — só piorava:
+    um instantâneo novo mid-stream faz o rrweb fazer um "checkout" (nova
+    numeração de nós do lado de quem grava) enquanto o admin já tinha
+    montado o replayer com o instantâneo anterior, causando uma enxurrada
+    de `Node with id X not found` e `target.setAttribute is not a
+function` nos incrementais seguintes. Removido; sem necessidade
+    depois do polling ativo.
+  - Diagnóstico visível adicionado: badge vermelho de "erro de conexão"
+    em `CHANNEL_ERROR`/`TIMED_OUT` do canal, e texto "Aguardando o
+    primeiro quadro..." enquanto não chega nada.
+- **Zoom e área maior no espelho**: o `Replayer` cru não escala a página
+  pra caber no container. Antes disso rolava lateralmente sem dó, num
+  container fixo de 480px. Agora o container é `75vh` e o zoom é feito à
+  mão via CSS `transform: scale()` num wrapper dimensionado pro tamanho
+  já escalado (pra o scroll do container acompanhar o zoom
+  corretamente), com ajuste automático pra caber a largura toda assim
+  que o primeiro quadro chega, e botões de +/-/ajustar.
 
 ## 2026-09-22 — Nome do projeto: MecanoErp
 

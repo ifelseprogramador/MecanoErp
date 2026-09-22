@@ -61,6 +61,14 @@ export const liveSessions = pgTable(
     // usuário concede controle do mouse/teclado numa etapa à parte
     // (grantControl), nunca junto do "permitir ver a tela".
     controlGranted: boolean("control_granted").notNull().default(false),
+    // O instantâneo completo (rrweb FullSnapshot, o DOM inteiro da tela
+    // gravada) passa fácil de 200KB — grande demais para uma mensagem de
+    // Realtime Broadcast, que aceita o envio mas descarta silenciosamente
+    // rio abaixo quando o payload é grande demais (era a causa real do
+    // "só aparece fundo cinza", ver docs/decisoes.md). Por isso fica
+    // persistido aqui; o admin busca sob demanda. Só os eventos
+    // incrementais (pequenos) seguem indo por Broadcast.
+    lastFullSnapshot: jsonb("last_full_snapshot"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     startedAt: timestamp("started_at", { withTimezone: true }),
     endedAt: timestamp("ended_at", { withTimezone: true }),

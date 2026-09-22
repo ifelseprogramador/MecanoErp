@@ -202,6 +202,63 @@ export async function setControlGranted(
 }
 
 /**
+ * Salva o instantâneo completo mais recente (rrweb FullSnapshot) para a
+ * sessão — chamado pelo widget do usuário a cada `record()`/
+ * `takeFullSnapshot()`. Não passa pelo Broadcast: o DOM inteiro da tela
+ * gravada passa fácil de 200KB, grande demais para uma mensagem de
+ * Realtime (que aceita o envio mas descarta silenciosamente quando é
+ * grande demais). O admin busca sob demanda (ver getFullSnapshot).
+ */
+export async function saveFullSnapshot(
+  sessionId: string,
+  snapshot: unknown,
+): Promise<ActionResult> {
+  const { organizationId } = await withOrg();
+
+  const [session] = await db
+    .select({ id: liveSessions.id })
+    .from(liveSessions)
+    .where(
+      and(
+        eq(liveSessions.id, sessionId),
+        eq(liveSessions.organizationId, organizationId),
+        inArray(liveSessions.status, OPEN_STATUSES),
+      ),
+    )
+    .limit(1);
+  if (!session) {
+    return { ok: false, message: "Sessão não encontrada ou não está ativa." };
+  }
+
+  await db
+    .update(liveSessions)
+    .set({ lastFullSnapshot: snapshot })
+    .where(eq(liveSessions.id, sessionId));
+
+  return { ok: true };
+}
+
+interface SnapshotResult extends ActionResult {
+  snapshot?: unknown;
+}
+
+/** Busca o instantâneo completo mais recente — chamado pelo LiveSessionViewer do admin ao montar/reconectar. */
+export async function getFullSnapshot(sessionId: string): Promise<SnapshotResult> {
+  await requireAdmin();
+
+  const [session] = await db
+    .select({ lastFullSnapshot: liveSessions.lastFullSnapshot })
+    .from(liveSessions)
+    .where(eq(liveSessions.id, sessionId))
+    .limit(1);
+  if (!session) {
+    return { ok: false, message: "Sessão não encontrada." };
+  }
+
+  return { ok: true, snapshot: session.lastFullSnapshot };
+}
+
+/**
  * Encerra a sessão — de qualquer um dos dois lados: quem pediu, o admin
  * que está nela, qualquer platform admin (rede de segurança) ou qualquer
  * membro daquela oficina.

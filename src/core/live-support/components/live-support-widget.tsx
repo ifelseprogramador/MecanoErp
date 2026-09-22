@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { record } from "rrweb";
+import { EventType, record } from "rrweb";
 import type { eventWithTime } from "@rrweb/types";
 import { toast } from "sonner";
 import { Headset, X } from "lucide-react";
@@ -24,6 +24,7 @@ import {
   callForSupport,
   declineSupportSession,
   endLiveSession,
+  saveFullSnapshot,
   setControlGranted,
 } from "../actions";
 
@@ -105,15 +106,6 @@ export function LiveSupportWidget({
           applyControlEvent(payload as ControlEvent, cursorRef.current);
         }
       })
-      .on("broadcast", { event: "viewer-ready" }, () => {
-        // Admin acabou de se inscrever (ou reconectou) e avisou que está
-        // pronto — o Broadcast não guarda histórico pra quem chega
-        // depois, então o instantâneo completo original pode ter se
-        // perdido. Manda um novo agora que sabemos que alguém escuta.
-        if (stopRecordingRef.current) {
-          record.takeFullSnapshot();
-        }
-      })
       .subscribe((subscribeStatus, err) => {
         if (subscribeStatus === "CHANNEL_ERROR" || subscribeStatus === "TIMED_OUT") {
           logger.error("live_support.canal_sessao_falhou", {
@@ -136,6 +128,21 @@ export function LiveSupportWidget({
       const channel = getRealtimeChannel(liveSessionChannelName(session.id));
       const stop = record({
         emit(event: eventWithTime) {
+          if (event.type === EventType.FullSnapshot) {
+            // O instantâneo completo (o DOM inteiro da página) passa dos
+            // 200KB até numa oficina vazia — bem acima do limite de
+            // tamanho de mensagem do Realtime Broadcast, que aceita o
+            // envio (retorna "ok") mas descarta silenciosamente rio
+            // abaixo. Por isso vai persistido via Server Action (o admin
+            // busca sob demanda), nunca pelo Broadcast. Só os eventos
+            // incrementais (poucas centenas de bytes cada) vão por aqui.
+            void saveFullSnapshot(session.id, event).then((result) => {
+              if (!result.ok) {
+                logger.error("live_support.snapshot_falhou", { sessionId: session.id });
+              }
+            });
+            return;
+          }
           void channel.send({ type: "broadcast", event: "rrweb", payload: event });
         },
       });
