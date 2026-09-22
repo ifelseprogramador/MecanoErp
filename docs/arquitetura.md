@@ -125,13 +125,17 @@ Separada dos módulos de negócio (não é uma "funcionalidade da oficina",
   tratado em `(app)/layout.tsx` com uma tela de "acesso bloqueado". Existe
   também `memberships.active` para bloquear uma pessoa específica dentro
   de uma oficina (sem UI própria ainda).
-- **Fora de escopo por enquanto**: editar/apagar os dados de negócio de
-  uma oficina (clientes/veículos dela) direto pelo admin — isso exigiria
-  ou duplicar a UI de cada módulo dentro de `/admin`, ou um mecanismo de
-  "entrar como se fosse aquela oficina" (impersonation). Nenhum dos dois
-  foi construído ainda; se precisar, o caminho mais barato é
-  impersonation (um cookie/contexto que troca a organização ativa),
-  reaproveitando as telas que já existem em vez de duplicá-las.
+- **Modo suporte (impersonation)**: botão "Entrar como suporte" na ficha
+  da oficina (`core/admin/components/impersonate-button.tsx`) reaproveita
+  as telas normais do app em vez de duplicar UI — o admin passa a
+  acessar `/` como se fosse o dono daquela oficina (`role: "owner"`,
+  mesmo acesso de leitura/edição/criação que ela teria), com uma faixa
+  laranja fixa lembrando "Modo suporte: agindo como X" e um botão para
+  sair a qualquer momento. Funciona mesmo com a oficina bloqueada (é
+  quando mais se precisa de suporte). Implementado com um cookie httpOnly
+  guardando só o id da organização, sem sessão Supabase falsa — ver
+  `docs/decisoes.md` (2026-09-22, "Modo suporte") para o desenho
+  completo e por que essa opção foi escolhida.
 
 ## Convenções de módulo (o que copiar do template)
 

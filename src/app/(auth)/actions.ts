@@ -1,10 +1,11 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
+import { headers, cookies } from "next/headers";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/core/supabase/server";
 import { logger } from "@/core/logger";
+import { IMPERSONATION_COOKIE } from "@/core/impersonation";
 
 const loginSchema = z.object({
   email: z.string().trim().min(1, "Informe o e-mail.").email("E-mail inválido."),
@@ -56,6 +57,7 @@ export async function logout() {
   } = await supabase.auth.getUser();
 
   await supabase.auth.signOut();
+  (await cookies()).delete(IMPERSONATION_COOKIE);
 
   logger.withContext({ requestId, module: "auth", action: "logout" }).info("auth.logout", {
     userId: user?.id,

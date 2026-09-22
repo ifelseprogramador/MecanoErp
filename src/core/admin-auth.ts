@@ -1,9 +1,8 @@
 import "server-only";
 import { headers } from "next/headers";
-import { eq } from "drizzle-orm";
 import { getSession } from "@/core/auth";
 import { db } from "@/core/db";
-import { platformAdmins } from "@/db/schema";
+import { isPlatformAdmin } from "@/core/platform-admin";
 import { logger, type Logger } from "@/core/logger";
 
 export class NotPlatformAdminError extends Error {
@@ -43,13 +42,7 @@ export async function requireAdmin(): Promise<AdminContext> {
     throw new NotPlatformAdminError("Faça login para acessar a área administrativa.");
   }
 
-  const [admin] = await db
-    .select({ userId: platformAdmins.userId })
-    .from(platformAdmins)
-    .where(eq(platformAdmins.userId, user.id))
-    .limit(1);
-
-  if (!admin) {
+  if (!(await isPlatformAdmin(user.id))) {
     logger.warn("admin.acesso_negado", { requestId, userId: user.id, reason: "nao_e_admin" });
     throw new NotPlatformAdminError();
   }

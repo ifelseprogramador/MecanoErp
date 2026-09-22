@@ -145,6 +145,32 @@ organização. A única proteção do admin é a checagem de aplicação
 (`requireAdmin()`), não o banco. Por isso toda query/action de admin
 **tem que** passar por `requireAdmin()` antes de tocar no banco.
 
+## 2026-09-22 — Modo suporte (admin agindo como uma oficina) via cookie, sem sessão falsa
+
+Para o admin "entrar como se fosse" uma oficina (pedido explícito do
+usuário: suporte remoto), a alternativa óbvia seria gerar uma sessão
+Supabase Auth falsa para a organização. Não foi o caminho escolhido —
+criar/assinar tokens de sessão por fora do fluxo normal do Supabase Auth é
+superfície de ataque desnecessária. Em vez disso:
+
+- Um cookie httpOnly (`core/impersonation.ts`) guarda só o id da
+  organização. Sozinho, o cookie não dá acesso a nada.
+- `core/auth.ts#getActiveOrg()` só honra esse cookie depois de reconfirmar
+  — a cada request, não só na hora de criar o cookie — que o usuário da
+  sessão **atual** (a sessão real do admin, nunca trocada) ainda está em
+  `platform_admins`. Se alguém for removido de `platform_admins` no meio
+  de uma sessão de suporte, a próxima request já cai fora.
+- Contexto de impersonation vira `role: "owner"` para todos os efeitos —
+  o admin em modo suporte tem exatamente o mesmo acesso que o dono da
+  oficina teria, nunca mais.
+- Expira sozinho em 2h (`IMPERSONATION_MAX_AGE_SECONDS`), e todo `logout()`
+  limpa o cookie também.
+- Todo log gerado em modo suporte carrega `userId` do **admin de verdade**
+  (nunca troca de identidade de sessão) + `impersonating: true` no
+  contexto — dá para auditar depois quem fez o quê.
+- Bloqueio da oficina (`organizations.status = 'blocked'`) é ignorado só
+  neste caminho — é exatamente quando o suporte costuma ser necessário.
+
 ## 2026-09-22 — Nome do projeto: MecanoErp
 
 Pasta local e repositório GitHub (`ifelseprogramador/MecanoErp`) usam

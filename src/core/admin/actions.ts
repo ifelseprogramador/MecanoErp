@@ -1,10 +1,12 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { requireAdmin } from "@/core/admin-auth";
 import { createSupabaseAdminClient } from "@/core/supabase/admin";
+import { IMPERSONATION_COOKIE, IMPERSONATION_MAX_AGE_SECONDS } from "@/core/impersonation";
 import type { ActionResult } from "@/core/action-result";
 import {
   customers,
@@ -14,6 +16,50 @@ import {
   vehicles,
 } from "@/db/schema";
 import { parseBillingFormData, parseNewOrganizationFormData } from "./validation";
+
+/**
+ * Modo suporte: o admin passa a acessar `/` (o app) como se fosse o dono
+ * da organização escolhida — ver `core/auth.ts#getActiveOrg`. Permitido
+ * mesmo se a oficina estiver bloqueada (é exatamente quando o suporte
+ * mais é necessário).
+ */
+export async function startImpersonation(organizationId: string) {
+  const { db, log } = await requireAdmin();
+
+  const [org] = await db
+    .select({ id: organizations.id })
+    .from(organizations)
+    .where(eq(organizations.id, organizationId))
+    .limit(1);
+
+  if (!org) {
+    return { ok: false, message: "Organização não encontrada." } satisfies ActionResult;
+  }
+
+  log.warn("admin.suporte.iniciar", { organizationId });
+
+  const cookieStore = await cookies();
+  cookieStore.set(IMPERSONATION_COOKIE, organizationId, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: IMPERSONATION_MAX_AGE_SECONDS,
+  });
+
+  redirect("/");
+}
+
+/** Sai do modo suporte e volta para a ficha da oficina em `/admin`. */
+export async function stopImpersonation(organizationId: string) {
+  const { log } = await requireAdmin();
+  log.warn("admin.suporte.encerrar", { organizationId });
+
+  const cookieStore = await cookies();
+  cookieStore.delete(IMPERSONATION_COOKIE);
+
+  redirect(`/admin/organizacoes/${organizationId}`);
+}
 
 /**
  * Cria uma oficina nova + o usuário dono dela (via Admin API do Supabase,

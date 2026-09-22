@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getOrganizationForAdmin } from "@/core/admin/queries";
 import { hardDeleteOrganization, updateBilling } from "@/core/admin/actions";
 import { OrgStatusToggle } from "@/core/admin/components/org-status-toggle";
+import { ImpersonateButton } from "@/core/admin/components/impersonate-button";
 import { BillingForm } from "@/core/admin/components/billing-form";
 import { ModuleToggleList } from "@/core/admin/components/module-toggle-list";
 import { HardDeleteForm } from "@/core/admin/components/hard-delete-form";
@@ -47,7 +48,10 @@ export default async function AdminOrganizationDetailPage({
             </Badge>
           </div>
         </div>
-        <OrgStatusToggle organizationId={org.id} status={org.status} />
+        <div className="flex gap-2">
+          <ImpersonateButton organizationId={org.id} />
+          <OrgStatusToggle organizationId={org.id} status={org.status} />
+        </div>
       </div>
 
       <Card>
