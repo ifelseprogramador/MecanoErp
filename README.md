@@ -1,36 +1,105 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Oficina ERP
 
-## Getting Started
+> Nome temporário — trocar quando definido (é só renomear a pasta e o
+> campo `name` do `package.json`; nada no código depende do nome).
 
-First, run the development server:
+ERP enxuto para oficinas mecânicas de pequeno porte (uma pessoa cuidando do
+balcão): clientes, veículos, ordens de serviço, orçamento, agenda e
+financeiro. Arquitetura modular — cada funcionalidade é uma pasta
+autocontida em `src/modules/`, fácil de adicionar ou remover. Veja o plano
+completo em `/home/eduardo/.claude/plans/quero-fazer-um-erp-modular-teacup.md`.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Stack
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Next.js (App Router) + TypeScript + Supabase (Postgres/Auth) + Drizzle ORM +
+Tailwind + shadcn/ui. Testes com Vitest + Testing Library + Playwright. Tudo
+com tier gratuito. Detalhes e justificativa de cada escolha estão no plano
+linkado acima.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Setup local (5 passos)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. **Dependências**
 
-## Learn More
+   ```bash
+   npm install
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+2. **Projeto no Supabase**: crie um projeto grátis em
+   [supabase.com/dashboard](https://supabase.com/dashboard).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3. **Variáveis de ambiente**
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+   ```bash
+   cp .env.example .env.local
+   ```
 
-## Deploy on Vercel
+   Preencha com os valores do seu projeto (Project Settings -> API e ->
+   Database -> Connection string, pooler em modo _Transaction_).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+4. **Banco de dados**
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+   ```bash
+   npm run db:generate   # gera as migrations a partir de src/db/schema.ts
+   npm run db:migrate    # aplica no banco configurado em DATABASE_URL
+   npm run db:seed       # cria a organização e o usuário inicial (fase 1+)
+   ```
+
+5. **Rodar**
+
+   ```bash
+   npm run dev
+   ```
+
+   Abra [http://localhost:3000](http://localhost:3000).
+
+## Scripts
+
+| Comando             | O que faz                                                        |
+| ------------------- | ---------------------------------------------------------------- |
+| `npm run dev`       | Servidor de desenvolvimento                                      |
+| `npm run build`     | Build de produção                                                |
+| `npm run check`     | A mesma esteira do CI, local: format + lint + typecheck + testes |
+| `npm run test`      | Testes unitários/componente (Vitest)                             |
+| `npm run test:e2e`  | Testes end-to-end (Playwright)                                   |
+| `npm run db:studio` | UI do Drizzle para inspecionar o banco                           |
+
+## Qualidade de código
+
+- **Testes**: todo módulo tem `__tests__/` ao lado do código. Lógica de
+  negócio pura (cálculo de totais, centavos, máquina de estados da OS) tem
+  teste unitário obrigatório. Todo bug corrigido ganha primeiro um teste
+  que falha reproduzindo-o.
+- **Pre-commit**: Husky + lint-staged rodam Prettier/ESLint/`tsc` nos
+  arquivos tocados antes de cada commit.
+- **CI**: `.github/workflows/ci.yml` roda a mesma esteira do
+  `npm run check` em cada push/PR.
+
+## Observabilidade (achar o erro rápido)
+
+- Use sempre `logger` de `src/core/logger.ts` — nunca `console.*` direto
+  (o ESLint bloqueia). Dentro de uma Server Action, prefira o logger já
+  contextualizado que `withOrg()` devolve (`core/auth.ts`): ele já carrega
+  `requestId`, `userId` e `organizationId` em todo log.
+- Toda falha inesperada mostra ao usuário um código curto (o `requestId`
+  da request) — é o que ele lê pelo telefone para você achar o log exato.
+- Em dev, os logs aparecem no terminal. Em produção (Vercel), em **Vercel
+  Logs**, buscáveis por `requestId`/`organizationId` (formato JSON).
+
+## Arquitetura modular
+
+Cada funcionalidade vive em `src/modules/<modulo>/` (schema, validação,
+queries, actions, componentes) e se registra no menu via
+`src/core/load-modules.ts` + `src/core/registry.ts`. Um módulo nunca
+importa outro diretamente — só `core/` e `components/ui/`. Remover uma
+funcionalidade é apagar a pasta e tirar a linha de `load-modules.ts`. A
+receita completa de como criar um módulo novo vai em `CLAUDE.md` conforme
+os primeiros módulos forem implementados (Fase 2 do plano).
+
+## Vulnerabilidade conhecida (dev-only)
+
+`npm audit` acusa uma vulnerabilidade moderada no `esbuild` embutido no
+`drizzle-kit` (servidor de dev do esbuild aceita requests de qualquer
+origem). Afeta só o ambiente local de desenvolvimento, não o build de
+produção nem o runtime. Corrigir exigiria fazer downgrade do `drizzle-kit`
+para uma versão bem mais antiga — vale revisar quando o `drizzle-kit`
+atualizar a dependência internamente.

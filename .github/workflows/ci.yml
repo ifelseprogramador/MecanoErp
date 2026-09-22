@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    name: Lint, typecheck, testes e build
+    runs-on: ubuntu-latest
+    env:
+      # Valores fictícios suficientes para lint/typecheck/testes unitários e
+      # para o build compilar. Testes que precisam de um Postgres/Supabase
+      # real (Server Actions, RLS) rodam à parte — ver job `test-db`.
+      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+      DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Formatação (Prettier)
+        run: npm run format:check
+
+      - name: Lint (ESLint)
+        run: npm run lint
+
+      - name: Checagem de tipos (tsc)
+        run: npm run typecheck
+
+      - name: Testes unitários (Vitest)
+        run: npm run test:coverage
+
+      - name: Build de produção
+        run: npm run build
+
+  # Fase 4 do plano liga este job: testes de Server Action contra Postgres
+  # real e o E2E do Playwright, ambos exigindo um banco. Placeholder por
+  # enquanto para o workflow já nascer com a forma final.
+  # test-db:
+  #   name: Testes de integração (Postgres) + E2E
+  #   runs-on: ubuntu-latest
+  #   services:
+  #     postgres:
+  #       image: postgres:16
+  #       env:
+  #         POSTGRES_PASSWORD: postgres
+  #       ports: ["5432:5432"]
+  #       options: >-
+  #         --health-cmd pg_isready
+  #         --health-interval 10s
+  #         --health-timeout 5s
+  #         --health-retries 5
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-node@v4
+  #       with: { node-version: 22, cache: npm }
+  #     - run: npm ci
+  #     - run: npx playwright install --with-deps chromium
+  #     - run: npm run test:e2e
