@@ -171,6 +171,75 @@ superfície de ataque desnecessária. Em vez disso:
 - Bloqueio da oficina (`organizations.status = 'blocked'`) é ignorado só
   neste caminho — é exatamente quando o suporte costuma ser necessário.
 
+## 2026-09-22 — Suporte ao vivo (co-browsing + controle remoto)
+
+Pedido do usuário: o admin ver a tela do usuário em tempo real (com o
+mouse se mexendo) e opcionalmente assumir o controle, com permissão dos
+dois lados. Escolhido **co-browsing** (espelhar o DOM do app via
+`rrweb`), não vídeo/WebRTC — grátis, leve, e só mostra o que está dentro
+do MecanoErp (nunca a tela inteira do computador da pessoa).
+
+**Modelo de consentimento**: os dois lados pedidos pelo usuário existem —
+admin solicita (`requestSupportAccess`, a oficina aprova com um modal) e
+a oficina chama (`callForSupport`, um botão flutuante em `(app)`, o admin
+aceita). Os dois convergem para o mesmo estado (`live_sessions.status`:
+`pending -> active -> ended`/`declined`) — a gravação só começa quando
+`active`, do lado de quem está sendo observado, nunca antes.
+
+**Transporte**: Supabase Realtime **Broadcast**, não Postgres Changes —
+Postgres Changes exigiria RLS de verdade (a conexão do app ignora RLS,
+ver decisão de "bypassrls" acima) para o navegador poder assinar a tabela
+diretamente. Broadcast não depende disso; o nome de cada canal usa o
+`id` da sessão (UUID imprevisível) como "senha" — mesmo modelo de
+confiança de um link de videochamada. A autoridade de verdade continua
+sendo sempre a linha em `live_sessions`, lida via Server Action; o
+Broadcast só avisa "algo mudou, releia".
+
+**Controle remoto**: sempre desligado por padrão mesmo com a sessão
+`active` — o usuário concede numa ação separada (`controlGranted`,
+`setControlGranted`), nunca junto do "permitir ver a tela". Quando
+concedido, o clique do admin dentro do espelho vira
+`document.elementFromPoint(x,y).click()` na página REAL do usuário; texto
+digitado usa o truque do setter nativo de `.value` (ver
+`apply-control-event.ts`) porque React ignora `elemento.value = x` direto.
+
+**Bugs reais encontrados testando com dois navegadores simultâneos** (nenhum
+pego por tsc/build/lint/testes unitários — todos de runtime/DOM):
+
+- **`NEXT_PUBLIC_*` via `process.env[nomeDinâmico]` quebra no navegador**:
+  `core/env.ts#requireEnv(name)` funciona perfeitamente no servidor (Node
+  tem `process.env` completo em runtime), mas o Next só consegue embutir
+  uma variável `NEXT_PUBLIC_*` no bundle do navegador quando vê o acesso
+  escrito **literalmente** (`process.env.NEXT_PUBLIC_X`) — um acesso
+  dinâmico por string vira `undefined` sem erro nenhum até alguém tentar
+  usar o valor. Isso nunca tinha aparecido porque nada antes desta
+  feature chamava `createSupabaseBrowserClient()` de um Client Component
+  de verdade (o login usa Server Action). Corrigido em
+  `core/supabase/client.ts` com acesso estático direto — ver o aviso
+  agora em `core/env.ts`.
+- **Iframe "rouba" o clique**: um `<iframe>` é outro contexto de
+  navegação — `onClick`/`onMouseMove` no `<div>` que o envolve nunca
+  disparam para posições sobre ele, a não ser que o iframe tenha
+  `pointer-events: none`.
+- **`Replayer` (a classe crua, sem `rrweb-player`) não escala a página
+  pra caber**: ele renderiza o iframe no tamanho real gravado. Calcular a
+  fração de clique em cima do `containerRef` (menor, recortado por
+  `overflow`) dá coordenada errada — tem que ser em cima do
+  `<iframe>` de verdade, que corresponde 1:1 à página do usuário.
+- **rrweb rouba o foco do navegador do admin**: ao repetir o evento de
+  foco que ele mesmo gravou do lado do usuário, o `Replayer` foca o
+  próprio iframe de replay. Um listener de teclado que depende de algo
+  ter foco nunca dispara de forma confiável depois disso — a solução foi
+  capturar `keydown` em `window` (não no foco de um elemento) e, à parte,
+  um `setInterval` curto que desfoca o iframe sempre que ele rouba o
+  foco (um evento `focus` no documento pai nem sempre dispara quando o
+  foco entra num iframe, então um listener de evento sozinho não bastava).
+- **Canal do Realtime recriado a cada evento perde mensagens**: enviar
+  cada tecla digitada criando um `supabase.channel(nome)` novo (em vez de
+  reaproveitar um já inscrito) faz a maioria dos envios em sequência
+  rápida sumir — sem erro, sem log, só não chegam. A correção foi guardar
+  o canal já inscrito num `ref` e reaproveitá-lo em todo `.send()`.
+
 ## 2026-09-22 — Nome do projeto: MecanoErp
 
 Pasta local e repositório GitHub (`ifelseprogramador/MecanoErp`) usam

@@ -8,6 +8,8 @@ import {
 } from "@/core/auth";
 import { getEnabledModulesForOrg } from "@/core/module-settings";
 import { stopImpersonation } from "@/core/admin/actions";
+import { getOpenSessionForMyOrg } from "@/core/live-support/queries";
+import { LiveSupportWidget } from "@/core/live-support/components/live-support-widget";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { Button } from "@/components/ui/button";
@@ -38,6 +40,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const modules = await getEnabledModulesForOrg(org.organizationId);
   const stopImpersonationWithId = stopImpersonation.bind(null, org.organizationId);
+
+  // Nunca durante modo suporte: quem está "usando" a oficina ali é o
+  // próprio admin, não faria sentido ele chamar/receber suporte de si
+  // mesmo (ver docs/decisoes.md).
+  const openSession = org.impersonating ? null : await getOpenSessionForMyOrg();
 
   return (
     <div className="flex min-h-screen flex-1 flex-col">
@@ -86,6 +93,22 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <main className="flex-1 p-4 md:p-6">{children}</main>
         </div>
       </div>
+
+      {!org.impersonating && (
+        <LiveSupportWidget
+          organizationId={org.organizationId}
+          initialSession={
+            openSession && (openSession.status === "pending" || openSession.status === "active")
+              ? {
+                  id: openSession.id,
+                  status: openSession.status,
+                  initiatedBy: openSession.initiatedBy,
+                  controlGranted: openSession.controlGranted,
+                }
+              : null
+          }
+        />
+      )}
     </div>
   );
 }

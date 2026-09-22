@@ -1,6 +1,7 @@
 import "server-only";
 import { desc, eq, ilike, sql } from "drizzle-orm";
 import { requireAdmin } from "@/core/admin-auth";
+import { getAuditLogForOrg } from "@/core/admin/audit";
 import {
   customers,
   memberships,
@@ -38,7 +39,7 @@ export async function getOrganizationForAdmin(organizationId: string) {
     .limit(1);
   if (!org) return null;
 
-  const [members, [{ count: customerCount }], [{ count: vehicleCount }], moduleSettings] =
+  const [members, [{ count: customerCount }], [{ count: vehicleCount }], moduleSettings, audit] =
     await Promise.all([
       db
         .select({
@@ -61,22 +62,24 @@ export async function getOrganizationForAdmin(organizationId: string) {
         .select()
         .from(organizationModuleSettings)
         .where(eq(organizationModuleSettings.organizationId, organizationId)),
+      getAuditLogForOrg(organizationId),
     ]);
 
   // auth.users não é modelado pelo Drizzle (schema gerenciado pelo Supabase
   // Auth) — lido com SQL bruto, na mesma conexão (que já enxerga o schema
   // auth por ser o papel `postgres`; ver docs/decisoes.md).
-  const memberEmails =
-    members.length > 0
+  const userIds = new Set([...members.map((m) => m.userId), ...audit.map((a) => a.actorUserId)]);
+  const users =
+    userIds.size > 0
       ? await db.execute<{ id: string; email: string | null }>(
           sql`select id, email from auth.users where id in (${sql.join(
-            members.map((m) => sql`${m.userId}`),
+            Array.from(userIds).map((id) => sql`${id}`),
             sql`, `,
           )})`,
         )
       : [];
 
-  const emailById = new Map(Array.from(memberEmails).map((u) => [u.id, u.email]));
+  const emailById = new Map(Array.from(users).map((u) => [u.id, u.email]));
 
   return {
     organization: org,
@@ -84,5 +87,6 @@ export async function getOrganizationForAdmin(organizationId: string) {
     customerCount,
     vehicleCount,
     moduleSettings,
+    audit: audit.map((a) => ({ ...a, actorEmail: emailById.get(a.actorUserId) ?? a.actorUserId })),
   };
 }

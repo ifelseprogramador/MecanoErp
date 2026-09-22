@@ -101,9 +101,16 @@ receita completa de como criar um módulo novo está em
 
 Separado dos módulos de negócio existe o painel do dono da plataforma
 (`/admin`): bloquear/desbloquear oficinas, controlar cobrança mensal
-manualmente, personalizar quais módulos cada oficina enxerga, e apagar
-todos os dados de uma oficina. Ver
-[`docs/arquitetura.md`](./docs/arquitetura.md#área-do-dono-da-plataforma-admin).
+manualmente, personalizar quais módulos cada oficina enxerga, apagar
+todos os dados de uma oficina, e uma trilha de auditoria de tudo isso.
+Ver [`docs/arquitetura.md`](./docs/arquitetura.md#área-do-dono-da-plataforma-admin).
+
+Tem também **suporte ao vivo**: o admin pode ver a tela do app de uma
+oficina em tempo real (com o mouse se mexendo) e, se autorizado,
+controlar remotamente — útil pra ajudar alguém sem precisar de
+TeamViewer. Funciona nos dois sentidos: o admin solicita acesso, ou a
+oficina chama o suporte (botão flutuante dentro do app). Ver
+[`docs/arquitetura.md`](./docs/arquitetura.md#suporte-ao-vivo-co-browsing--controle-remoto).
 
 ## Vulnerabilidade conhecida (dev-only)
 

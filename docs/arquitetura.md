@@ -29,11 +29,14 @@ src/
       components/            # form, tabela, etc.
       __tests__/               # testes do módulo
   core/
-    db.ts, auth.ts, admin-auth.ts, logger.ts, registry.ts,
-    module-settings.ts, load-modules.ts, action-result.ts, money.ts,
-    format.ts, document.ts, env.ts
+    db.ts, auth.ts, admin-auth.ts, platform-admin.ts, logger.ts,
+    registry.ts, module-settings.ts, load-modules.ts, impersonation.ts,
+    action-result.ts, money.ts, format.ts, document.ts, env.ts
     admin/        # backend do painel do dono — não é um "módulo" plugável
-      queries.ts, actions.ts, validation.ts, components/
+      queries.ts, actions.ts, validation.ts, audit.ts, components/
+    live-support/  # suporte ao vivo (co-browsing) — usado por (app) e /admin
+      queries.ts, actions.ts, realtime.ts, control-events.ts,
+      apply-control-event.ts, components/
   components/
     ui/            # shadcn/ui (gerado, não editar à mão como se fosse seu)
     search-box.tsx, confirm-delete-button.tsx  # genéricos entre módulos
@@ -41,6 +44,7 @@ db/
   schema.ts               # reexporta o schema.ts de cada módulo
   schema/tenancy.ts         # organizations + memberships + platform_admins +
                              # organization_module_settings (fundação, não módulo)
+  schema/live-support.ts     # audit_log + live_sessions
   migrations/                # geradas por `npm run db:generate`
   migrations-custom/          # RLS, funções SQL, FKs para auth.users
   migrate.ts, seed.ts
@@ -136,6 +140,43 @@ Separada dos módulos de negócio (não é uma "funcionalidade da oficina",
   guardando só o id da organização, sem sessão Supabase falsa — ver
   `docs/decisoes.md` (2026-09-22, "Modo suporte") para o desenho
   completo e por que essa opção foi escolhida.
+- **Auditoria**: `audit_log` (`core/admin/audit.ts#recordAudit`) registra
+  toda ação de admin (bloquear, cobrança, módulo, criar/apagar oficina,
+  modo suporte, sessões de suporte ao vivo) — sempre com o `actorUserId`
+  do admin de verdade, nunca troca de identidade. Visível na ficha de
+  cada oficina ("Histórico"). Toda action nova de `core/admin/` deve
+  chamar `recordAudit(...)` depois de uma mutação com sucesso.
+
+## Suporte ao vivo (co-browsing + controle remoto)
+
+`core/live-support/` — o admin vê a tela do app do usuário em tempo real
+e, se autorizado, controla o mouse/teclado remotamente. Pedido explícito
+do usuário ("acesso remoto, ver o mouse mexendo, os dois em tempo real").
+
+- **Como funciona**: `rrweb` grava o DOM da página do usuário
+  (`live-support-widget.tsx`, montado em `(app)/layout.tsx`) e transmite
+  via Supabase Realtime Broadcast; o admin reconstrói ao vivo com
+  `Replayer` (`core/admin/components/live-support-card.tsx` +
+  `live-support/components/live-session-viewer.tsx`). Nunca é vídeo —
+  só o que está dentro do MecanoErp, nunca a tela inteira do computador.
+- **`live_sessions`**: estado único (`pending -> active -> ended`/
+  `declined`) para os dois fluxos de consentimento — admin pede
+  (`requestSupportAccess`) ou a oficina chama (`callForSupport`, botão
+  flutuante). A gravação só começa quando vira `active`, do lado de quem
+  está sendo observado.
+- **Controle remoto**: sempre uma concessão à parte
+  (`live_sessions.controlGranted`), nunca junto do "ver a tela". O admin
+  nunca controla sem essa concessão explícita.
+- **Transporte por Broadcast, não Postgres Changes**: evita precisar de
+  RLS de verdade (a conexão do app ignora RLS — ver docs/decisoes.md,
+  "bypassrls"). O nome de cada canal usa o id da sessão (UUID) como
+  segredo — mesmo modelo de um link de videochamada. A ação sempre
+  reconfirma no banco antes de qualquer efeito; o Broadcast só avisa
+  "releia".
+- **Antes de mexer aqui**, ler docs/decisoes.md (2026-09-22, "Suporte ao
+  vivo") — tem uma lista de armadilhas reais já resolvidas (iframe
+  roubando clique/foco, coordenadas erradas, canal recriado perdendo
+  mensagem) que vão se repetir em qualquer ajuste nessa área.
 
 ## Convenções de módulo (o que copiar do template)
 

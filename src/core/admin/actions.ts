@@ -6,9 +6,11 @@ import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { requireAdmin } from "@/core/admin-auth";
 import { createSupabaseAdminClient } from "@/core/supabase/admin";
+import { recordAudit } from "./audit";
 import { IMPERSONATION_COOKIE, IMPERSONATION_MAX_AGE_SECONDS } from "@/core/impersonation";
 import type { ActionResult } from "@/core/action-result";
 import {
+  auditLog,
   customers,
   memberships,
   organizationModuleSettings,
@@ -24,7 +26,7 @@ import { parseBillingFormData, parseNewOrganizationFormData } from "./validation
  * mais é necessário).
  */
 export async function startImpersonation(organizationId: string) {
-  const { db, log } = await requireAdmin();
+  const { db, userId, log } = await requireAdmin();
 
   const [org] = await db
     .select({ id: organizations.id })
@@ -37,6 +39,7 @@ export async function startImpersonation(organizationId: string) {
   }
 
   log.warn("admin.suporte.iniciar", { organizationId });
+  await recordAudit({ actorUserId: userId, organizationId, action: "impersonation.iniciar" });
 
   const cookieStore = await cookies();
   cookieStore.set(IMPERSONATION_COOKIE, organizationId, {
@@ -52,8 +55,9 @@ export async function startImpersonation(organizationId: string) {
 
 /** Sai do modo suporte e volta para a ficha da oficina em `/admin`. */
 export async function stopImpersonation(organizationId: string) {
-  const { log } = await requireAdmin();
+  const { userId, log } = await requireAdmin();
   log.warn("admin.suporte.encerrar", { organizationId });
+  await recordAudit({ actorUserId: userId, organizationId, action: "impersonation.encerrar" });
 
   const cookieStore = await cookies();
   cookieStore.delete(IMPERSONATION_COOKIE);
@@ -70,7 +74,7 @@ export async function createOrganization(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const { db, log } = await requireAdmin();
+  const { db, userId, log } = await requireAdmin();
 
   const parsed = parseNewOrganizationFormData(formData);
   if (!parsed.success) {
@@ -116,6 +120,12 @@ export async function createOrganization(
       .onConflictDoNothing();
 
     log.info("admin.organizacao.criar.sucesso", { organizationId, ownerId });
+    await recordAudit({
+      actorUserId: userId,
+      organizationId,
+      action: "organizacao.criar",
+      metadata: { organizationName, ownerEmail },
+    });
   } catch (err) {
     log.error("admin.organizacao.criar.falhou", { err });
     return { ok: false, message: "Usuário criado, mas a organização falhou. Tente novamente." };
@@ -131,7 +141,7 @@ export async function setOrganizationStatus(
   organizationId: string,
   status: "active" | "blocked",
 ): Promise<ActionResult> {
-  const { db, log } = await requireAdmin();
+  const { db, userId, log } = await requireAdmin();
   log.info("admin.organizacao.status", { organizationId, status });
 
   try {
@@ -145,6 +155,11 @@ export async function setOrganizationStatus(
       return { ok: false, message: "Organização não encontrada." };
     }
 
+    await recordAudit({
+      actorUserId: userId,
+      organizationId,
+      action: status === "blocked" ? "organizacao.bloquear" : "organizacao.desbloquear",
+    });
     revalidatePath("/admin");
     revalidatePath(`/admin/organizacoes/${organizationId}`);
     return { ok: true };
@@ -159,7 +174,7 @@ export async function updateBilling(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const { db, log } = await requireAdmin();
+  const { db, userId, log } = await requireAdmin();
   log.info("admin.organizacao.cobranca", { organizationId });
 
   const parsed = parseBillingFormData(formData);
@@ -174,6 +189,12 @@ export async function updateBilling(
       .where(eq(organizations.id, organizationId));
 
     log.info("admin.organizacao.cobranca.sucesso", { organizationId });
+    await recordAudit({
+      actorUserId: userId,
+      organizationId,
+      action: "organizacao.cobranca",
+      metadata: parsed.data,
+    });
     revalidatePath(`/admin/organizacoes/${organizationId}`);
     return { ok: true };
   } catch (err) {
@@ -189,7 +210,7 @@ export async function setModuleEnabledForOrg(
   moduleSlug: string,
   enabled: boolean,
 ): Promise<ActionResult> {
-  const { db, log } = await requireAdmin();
+  const { db, userId, log } = await requireAdmin();
   log.info("admin.organizacao.modulo", { organizationId, moduleSlug, enabled });
 
   try {
@@ -201,6 +222,12 @@ export async function setModuleEnabledForOrg(
         set: { enabled, updatedAt: new Date() },
       });
 
+    await recordAudit({
+      actorUserId: userId,
+      organizationId,
+      action: "organizacao.modulo",
+      metadata: { moduleSlug, enabled },
+    });
     revalidatePath(`/admin/organizacoes/${organizationId}`);
     return { ok: true };
   } catch (err) {
@@ -219,7 +246,7 @@ export async function hardDeleteOrganization(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const { db, log } = await requireAdmin();
+  const { db, userId, log } = await requireAdmin();
   log.info("admin.organizacao.apagar_tudo", { organizationId });
 
   const [org] = await db
@@ -256,6 +283,14 @@ export async function hardDeleteOrganization(
     });
 
     log.info("admin.organizacao.apagar_tudo.sucesso", { organizationId, name: org.name });
+    // organizationId sem valor: a organização já não existe mais (FK
+    // aponta para null nesse caso). O nome/id ficam gravados em metadata.
+    await recordAudit({
+      actorUserId: userId,
+      organizationId: null,
+      action: "organizacao.apagar_tudo",
+      metadata: { organizationId, name: org.name },
+    });
   } catch (err) {
     log.error("admin.organizacao.apagar_tudo.falhou", { organizationId, err });
     return { ok: false, message: "Não foi possível apagar. Tente novamente." };
@@ -263,4 +298,37 @@ export async function hardDeleteOrganization(
 
   revalidatePath("/admin");
   redirect("/admin");
+}
+
+/** Apaga uma única linha do histórico de auditoria da oficina. */
+export async function deleteAuditLogEntry(
+  entryId: string,
+  organizationId: string,
+): Promise<ActionResult> {
+  const { db, log } = await requireAdmin();
+
+  try {
+    await db.delete(auditLog).where(eq(auditLog.id, entryId));
+    log.info("admin.auditoria.apagar_entrada", { entryId, organizationId });
+    revalidatePath(`/admin/organizacoes/${organizationId}`);
+    return { ok: true };
+  } catch (err) {
+    log.error("admin.auditoria.apagar_entrada.falhou", { entryId, err });
+    return { ok: false, message: "Não foi possível apagar. Tente novamente." };
+  }
+}
+
+/** Apaga todo o histórico de auditoria de uma oficina. */
+export async function clearAuditLogForOrg(organizationId: string): Promise<ActionResult> {
+  const { db, log } = await requireAdmin();
+
+  try {
+    await db.delete(auditLog).where(eq(auditLog.organizationId, organizationId));
+    log.info("admin.auditoria.limpar", { organizationId });
+    revalidatePath(`/admin/organizacoes/${organizationId}`);
+    return { ok: true };
+  } catch (err) {
+    log.error("admin.auditoria.limpar.falhou", { organizationId, err });
+    return { ok: false, message: "Não foi possível limpar o histórico. Tente novamente." };
+  }
 }

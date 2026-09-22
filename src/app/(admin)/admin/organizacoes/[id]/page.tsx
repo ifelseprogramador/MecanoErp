@@ -10,19 +10,25 @@ import { ImpersonateButton } from "@/core/admin/components/impersonate-button";
 import { BillingForm } from "@/core/admin/components/billing-form";
 import { ModuleToggleList } from "@/core/admin/components/module-toggle-list";
 import { HardDeleteForm } from "@/core/admin/components/hard-delete-form";
+import { AuditLogCard } from "@/core/admin/components/audit-log-card";
+import { LiveSupportCard } from "@/core/admin/components/live-support-card";
 import { getAllModules } from "@/core/registry";
+import { getOpenSessionForOrgAdmin } from "@/core/live-support/queries";
 
 export default async function AdminOrganizationDetailPage({
   params,
 }: PageProps<"/admin/organizacoes/[id]">) {
   const { id } = await params;
-  const data = await getOrganizationForAdmin(id);
+  const [data, openSession] = await Promise.all([
+    getOrganizationForAdmin(id),
+    getOpenSessionForOrgAdmin(id),
+  ]);
 
   if (!data) {
     notFound();
   }
 
-  const { organization: org, members, customerCount, vehicleCount, moduleSettings } = data;
+  const { organization: org, members, customerCount, vehicleCount, moduleSettings, audit } = data;
   const updateBillingWithId = updateBilling.bind(null, org.id);
   const hardDeleteWithId = hardDeleteOrganization.bind(null, org.id);
 
@@ -63,6 +69,19 @@ export default async function AdminOrganizationDetailPage({
           <OrgStatusToggle organizationId={org.id} status={org.status} />
         </div>
       </div>
+
+      <LiveSupportCard
+        organizationId={org.id}
+        initialSession={
+          openSession && (openSession.status === "pending" || openSession.status === "active")
+            ? {
+                id: openSession.id,
+                status: openSession.status,
+                controlGranted: openSession.controlGranted,
+              }
+            : null
+        }
+      />
 
       <Card>
         <CardHeader>
@@ -109,6 +128,8 @@ export default async function AdminOrganizationDetailPage({
           )}
         </CardContent>
       </Card>
+
+      <AuditLogCard organizationId={org.id} entries={audit} />
 
       <Card className="border-destructive/50">
         <CardHeader>

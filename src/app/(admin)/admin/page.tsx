@@ -11,12 +11,17 @@ import {
 import { SearchBox } from "@/components/search-box";
 import { formatDate } from "@/core/format";
 import { listOrganizationsForAdmin } from "@/core/admin/queries";
+import { listPendingUserRequestsForAdmin } from "@/core/live-support/queries";
 import { NewOrganizationForm } from "@/core/admin/components/new-organization-form";
+import { SupportInbox } from "@/core/admin/components/support-inbox";
 
 export default async function AdminDashboardPage({ searchParams }: PageProps<"/admin">) {
   const { q } = await searchParams;
   const search = typeof q === "string" ? q : undefined;
-  const organizations = await listOrganizationsForAdmin(search);
+  const [organizations, pendingRequests] = await Promise.all([
+    listOrganizationsForAdmin(search),
+    listPendingUserRequestsForAdmin(),
+  ]);
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
@@ -24,6 +29,8 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
         <h1 className="text-2xl font-semibold tracking-tight">Oficinas</h1>
         <NewOrganizationForm />
       </div>
+
+      <SupportInbox initialRequests={pendingRequests} />
 
       <SearchBox placeholder="Buscar oficina..." />
 
