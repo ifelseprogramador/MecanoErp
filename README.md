@@ -1,13 +1,12 @@
-# Oficina ERP
-
-> Nome temporário — trocar quando definido (é só renomear a pasta e o
-> campo `name` do `package.json`; nada no código depende do nome).
+# MecanoErp
 
 ERP enxuto para oficinas mecânicas de pequeno porte (uma pessoa cuidando do
 balcão): clientes, veículos, ordens de serviço, orçamento, agenda e
 financeiro. Arquitetura modular — cada funcionalidade é uma pasta
-autocontida em `src/modules/`, fácil de adicionar ou remover. Veja o plano
-completo em `/home/eduardo/.claude/plans/quero-fazer-um-erp-modular-teacup.md`.
+autocontida em `src/modules/`, fácil de adicionar ou remover. Veja
+[`docs/`](./docs/README.md) para a documentação de arquitetura e decisões
+técnicas, e o plano completo em
+`/home/eduardo/.claude/plans/quero-fazer-um-erp-modular-teacup.md`.
 
 ## Stack
 

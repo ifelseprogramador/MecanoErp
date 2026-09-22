@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Oficina ERP",
+  title: "MecanoErp",
   description: "Gestão de clientes, veículos e ordens de serviço para oficinas mecânicas.",
 };
 
