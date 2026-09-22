@@ -27,6 +27,36 @@ $$;
 
 grant execute on function public.current_org_ids() to authenticated;
 
+-- Helper para não reescrever as mesmas 4 policies em toda migration de
+-- módulo novo: habilita RLS numa tabela com `organization_id` e cria as
+-- policies de select/insert/update/delete restritas a
+-- `current_org_ids()`. Uso (numa migration custom nova):
+--   select public.apply_org_rls('nome_da_tabela');
+create or replace function public.apply_org_rls(table_name text)
+returns void
+language plpgsql
+as $$
+begin
+  execute format('alter table %I enable row level security', table_name);
+  execute format(
+    'create policy %I on %I for select to authenticated using (organization_id in (select public.current_org_ids()))',
+    table_name || '_select_own_org', table_name
+  );
+  execute format(
+    'create policy %I on %I for insert to authenticated with check (organization_id in (select public.current_org_ids()))',
+    table_name || '_insert_own_org', table_name
+  );
+  execute format(
+    'create policy %I on %I for update to authenticated using (organization_id in (select public.current_org_ids())) with check (organization_id in (select public.current_org_ids()))',
+    table_name || '_update_own_org', table_name
+  );
+  execute format(
+    'create policy %I on %I for delete to authenticated using (organization_id in (select public.current_org_ids()))',
+    table_name || '_delete_own_org', table_name
+  );
+end;
+$$;
+
 alter table "organizations" enable row level security;
 alter table "memberships" enable row level security;
 

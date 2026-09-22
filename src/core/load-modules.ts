@@ -10,7 +10,7 @@
  * de `getEnabledModules()`.
  */
 
-// import "@/modules/clientes/module"; // Fase 2
+import "@/modules/clientes/module";
 // import "@/modules/veiculos/module"; // Fase 2
 // import "@/modules/catalogo/module"; // Fase 3
 // import "@/modules/ordens/module"; // Fase 3

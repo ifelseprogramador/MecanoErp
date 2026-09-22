@@ -7,3 +7,4 @@
  */
 
 export * from "./schema/tenancy";
+export * from "@/modules/clientes/schema";
