@@ -15,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { logger } from "@/core/logger";
 import { getRealtimeChannel, liveSessionChannelName, orgSupportChannelName } from "../realtime";
 import { applyControlEvent } from "../apply-control-event";
 import type { ControlEvent } from "../control-events";
@@ -72,7 +73,11 @@ export function LiveSupportWidget({
           controlGranted: false,
         });
       })
-      .subscribe();
+      .subscribe((subscribeStatus, err) => {
+        if (subscribeStatus === "CHANNEL_ERROR" || subscribeStatus === "TIMED_OUT") {
+          logger.error("live_support.canal_org_falhou", { organizationId, subscribeStatus, err });
+        }
+      });
     return () => {
       channel.unsubscribe();
     };
@@ -100,7 +105,24 @@ export function LiveSupportWidget({
           applyControlEvent(payload as ControlEvent, cursorRef.current);
         }
       })
-      .subscribe();
+      .on("broadcast", { event: "viewer-ready" }, () => {
+        // Admin acabou de se inscrever (ou reconectou) e avisou que está
+        // pronto — o Broadcast não guarda histórico pra quem chega
+        // depois, então o instantâneo completo original pode ter se
+        // perdido. Manda um novo agora que sabemos que alguém escuta.
+        if (stopRecordingRef.current) {
+          record.takeFullSnapshot();
+        }
+      })
+      .subscribe((subscribeStatus, err) => {
+        if (subscribeStatus === "CHANNEL_ERROR" || subscribeStatus === "TIMED_OUT") {
+          logger.error("live_support.canal_sessao_falhou", {
+            sessionId: session.id,
+            subscribeStatus,
+            err,
+          });
+        }
+      });
 
     return () => {
       channel.unsubscribe();

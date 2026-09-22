@@ -2,9 +2,17 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Replayer } from "rrweb";
+// A classe crua `Replayer` (diferente do pacote `rrweb-player`) não injeta
+// seu próprio CSS. Sem isso, o cursor do rrweb (`.replayer-mouse`) e o
+// canvas do rastro do mouse (`.replayer-mouse-tail`) ficam sem
+// `position: absolute` e empilham em fluxo normal ACIMA do iframe — cada
+// um do tamanho da tela gravada (ex.: 720px) — empurrando o conteúdo real
+// para fora da janela visível. Era a causa do "só aparece fundo cinza".
+import "rrweb/dist/style.css";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { logger } from "@/core/logger";
 import { getRealtimeChannel, liveSessionChannelName } from "../realtime";
 import { endLiveSession } from "../actions";
 
@@ -29,6 +37,8 @@ export function LiveSessionViewer({
 }) {
   const [status, setStatus] = useState(initialStatus);
   const [controlGranted, setControlGranted] = useState(initialControlGranted);
+  const [connectionError, setConnectionError] = useState(false);
+  const [hasFrame, setHasFrame] = useState(false);
   const [isPending, startTransition] = useTransition();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const replayerRef = useRef<Replayer | null>(null);
@@ -66,8 +76,23 @@ export function LiveSessionViewer({
           replayerRef.current.startLive();
         }
         replayerRef.current?.addEvent(payload);
+        setHasFrame(true);
       })
-      .subscribe();
+      .subscribe((subscribeStatus, err) => {
+        // Avisa "estou pronto" só depois que o canal confirma inscrito —
+        // sem isso, o instantâneo completo que o usuário manda ao
+        // iniciar a gravação pode ter sido enviado ANTES do admin estar
+        // de fato escutando (o Broadcast não guarda histórico pra quem
+        // chega depois) e o espelho nunca aparece, mesmo com a sessão
+        // ativa. Pedir um instantâneo novo aqui cobre esse caso.
+        if (subscribeStatus === "SUBSCRIBED") {
+          setConnectionError(false);
+          void channel.send({ type: "broadcast", event: "viewer-ready", payload: {} });
+        } else if (subscribeStatus === "CHANNEL_ERROR" || subscribeStatus === "TIMED_OUT") {
+          logger.error("live_support.canal_falhou", { sessionId, subscribeStatus, err });
+          setConnectionError(true);
+        }
+      });
 
     return () => {
       channel.unsubscribe();
@@ -179,6 +204,9 @@ export function LiveSessionViewer({
           {status === "active" ? "Ao vivo" : "Aguardando aprovação da oficina..."}
         </Badge>
         {controlGranted && <Badge>Controle remoto concedido</Badge>}
+        {connectionError && (
+          <Badge variant="destructive">Erro de conexão em tempo real — recarregue a página</Badge>
+        )}
         <Button
           variant="outline"
           size="sm"
@@ -212,7 +240,13 @@ export function LiveSessionViewer({
           }}
           onClick={handleClick}
           className="bg-muted relative h-[480px] w-full overflow-auto rounded-lg border [&_iframe]:pointer-events-none"
-        />
+        >
+          {!hasFrame && !connectionError && (
+            <p className="text-muted-foreground absolute inset-0 flex items-center justify-center text-sm">
+              Aguardando o primeiro quadro da tela da oficina...
+            </p>
+          )}
+        </div>
       )}
       {controlGranted && (
         <p className="text-muted-foreground text-xs">

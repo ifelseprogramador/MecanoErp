@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Headset } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { logger } from "@/core/logger";
 import { adminSupportInboxChannelName, getRealtimeChannel } from "@/core/live-support/realtime";
 import { acceptSupportRequest } from "@/core/live-support/actions";
 
@@ -40,7 +41,11 @@ export function SupportInbox({ initialRequests }: { initialRequests: PendingRequ
           },
         ]);
       })
-      .subscribe();
+      .subscribe((subscribeStatus, err) => {
+        if (subscribeStatus === "CHANNEL_ERROR" || subscribeStatus === "TIMED_OUT") {
+          logger.error("live_support.canal_inbox_falhou", { subscribeStatus, err });
+        }
+      });
     return () => {
       channel.unsubscribe();
     };

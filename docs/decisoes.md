@@ -239,6 +239,26 @@ pego por tsc/build/lint/testes unitários — todos de runtime/DOM):
   reaproveitar um já inscrito) faz a maioria dos envios em sequência
   rápida sumir — sem erro, sem log, só não chegam. A correção foi guardar
   o canal já inscrito num `ref` e reaproveitá-lo em todo `.send()`.
+- **Espelho só mostrava fundo cinza (bug relatado pelo usuário em teste
+  manual real)**: a causa era CSS ausente, não Realtime. A classe crua
+  `Replayer` (diferente do pacote `rrweb-player`) não injeta seu próprio
+  CSS — `node_modules/rrweb/dist/style.css` nunca tinha sido importado.
+  Sem ele, `.replayer-mouse`/`.replayer-mouse-tail` (o cursor e o canvas
+  do rastro do mouse que o `Replayer` cria) ficam sem
+  `position: absolute` e empilham em fluxo normal **acima** do iframe,
+  cada um do tamanho da tela gravada (ex.: 720px) — o wrapper acaba com o
+  dobro da altura (1440px) e o conteúdo real fica fora da janela visível
+  de 480px, sem nenhum erro no console. Corrigido importando
+  `rrweb/dist/style.css` em `live-session-viewer.tsx`. Diagnosticado
+  inspecionando `getBoundingClientRect()` do `.replayer-wrapper` e do
+  `<iframe>` via Playwright — a altura exatamente dobrada foi a pista.
+  Também foi adicionado, à parte (defensivo, para reconexão do admin
+  depois que uma sessão já está `active`): um aperto de mão
+  `viewer-ready` — o admin avisa por broadcast assim que confirma
+  inscrito no canal (`SUBSCRIBED`), e quem grava responde com
+  `record.takeFullSnapshot()` só se já estiver gravando (evita reenvio
+  redundante no caminho comum). Também diagnóstico visível: badge
+  vermelho de "erro de conexão" em `CHANNEL_ERROR`/`TIMED_OUT`.
 
 ## 2026-09-22 — Nome do projeto: MecanoErp
 
