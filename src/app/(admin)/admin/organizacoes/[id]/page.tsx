@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getOrganizationForAdmin } from "@/core/admin/queries";
@@ -33,6 +35,14 @@ export default async function AdminOrganizationDetailPage({
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
+      <Link
+        href="/admin"
+        className="text-muted-foreground hover:text-foreground flex w-fit items-center gap-1 text-sm"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Oficinas
+      </Link>
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{org.name}</h1>

@@ -32,10 +32,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div className="flex min-h-screen flex-1 flex-col">
       <header className="flex items-center justify-between border-b bg-zinc-950 px-4 py-3 text-zinc-50">
-        <div className="flex items-center gap-2">
+        <Link href="/admin" className="flex items-center gap-2 hover:text-zinc-300">
           <ShieldAlert className="h-5 w-5" />
           <span className="font-semibold">MecanoErp — Administração da plataforma</span>
-        </div>
+        </Link>
         <div className="flex items-center gap-3">
           <Link href="/" className="text-sm text-zinc-300 hover:text-zinc-50">
             Voltar ao app
