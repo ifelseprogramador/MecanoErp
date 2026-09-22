@@ -18,9 +18,18 @@ export function formatRelative(date: Date | string): string {
 
 const PLATE_REGEX = /^([A-Z]{3})(\d[A-Z0-9]\d{2})$/;
 
-/** Normaliza e formata placa de veículo (padrão antigo ou Mercosul). */
+/** Forma canônica para salvar no banco: maiúscula, sem separador. */
+export function normalizePlate(plate: string): string {
+  return plate.toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+export function isValidPlate(plate: string): boolean {
+  return PLATE_REGEX.test(normalizePlate(plate));
+}
+
+/** Formata placa de veículo para exibição (padrão antigo ou Mercosul). */
 export function formatPlate(plate: string): string {
-  const clean = plate.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const clean = normalizePlate(plate);
   const match = PLATE_REGEX.exec(clean);
   if (!match) return clean;
   return `${match[1]}-${match[2]}`;

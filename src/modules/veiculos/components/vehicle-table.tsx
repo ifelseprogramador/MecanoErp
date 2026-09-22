@@ -1,0 +1,54 @@
+import Link from "next/link";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { formatPlate } from "@/core/format";
+
+interface VehicleRow {
+  id: string;
+  plate: string;
+  brand: string | null;
+  model: string | null;
+  year: number | null;
+  customerName: string;
+}
+
+export function VehicleTable({ vehicles }: { vehicles: VehicleRow[] }) {
+  if (vehicles.length === 0) {
+    return (
+      <p className="text-muted-foreground py-8 text-center text-sm">Nenhum veículo encontrado.</p>
+    );
+  }
+
+  return (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Placa</TableHead>
+          <TableHead>Veículo</TableHead>
+          <TableHead>Ano</TableHead>
+          <TableHead>Cliente</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {vehicles.map((vehicle) => (
+          <TableRow key={vehicle.id}>
+            <TableCell>
+              <Link href={`/veiculos/${vehicle.id}`} className="font-medium hover:underline">
+                {formatPlate(vehicle.plate)}
+              </Link>
+            </TableCell>
+            <TableCell>{[vehicle.brand, vehicle.model].filter(Boolean).join(" ") || "—"}</TableCell>
+            <TableCell>{vehicle.year ?? "—"}</TableCell>
+            <TableCell>{vehicle.customerName}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
+}

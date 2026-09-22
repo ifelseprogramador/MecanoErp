@@ -3,14 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { withOrg } from "@/core/auth";
+import type { ActionResult } from "@/core/action-result";
 import { customers } from "./schema";
 import { parseCustomerFormData } from "./validation";
-
-export interface ActionResult {
-  ok: boolean;
-  errors?: Record<string, string[]>;
-  message?: string;
-}
 
 export async function createCustomer(
   _prevState: ActionResult,

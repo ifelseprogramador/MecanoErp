@@ -14,22 +14,36 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { deleteCustomer } from "../actions";
+import type { ActionResult } from "@/core/action-result";
 
-export function DeleteCustomerButton({ customerId }: { customerId: string }) {
+/**
+ * Botão "Remover" com confirmação, usado nas páginas de detalhe de
+ * qualquer módulo. Não duplique este dialog em `modules/<modulo>/`.
+ */
+export function ConfirmDeleteButton({
+  title,
+  description,
+  onConfirm,
+  redirectTo,
+}: {
+  title: string;
+  description: string;
+  onConfirm: () => Promise<ActionResult>;
+  redirectTo: string;
+}) {
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
 
   function handleConfirm() {
     startTransition(async () => {
-      const result = await deleteCustomer(customerId);
+      const result = await onConfirm();
       if (result.ok) {
-        toast.success("Cliente removido.");
+        toast.success("Removido com sucesso.");
         setOpen(false);
-        router.push("/clientes");
+        router.push(redirectTo);
       } else {
-        toast.error(result.message ?? "Não foi possível remover o cliente.");
+        toast.error(result.message ?? "Não foi possível remover.");
       }
     });
   }
@@ -42,11 +56,8 @@ export function DeleteCustomerButton({ customerId }: { customerId: string }) {
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Remover cliente</DialogTitle>
-          <DialogDescription>
-            Essa ação não pode ser desfeita. O cliente só pode ser removido se não tiver veículos ou
-            ordens de serviço vinculados.
-          </DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)} disabled={isPending}>

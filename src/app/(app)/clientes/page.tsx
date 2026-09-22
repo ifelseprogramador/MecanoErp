@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { listCustomers } from "@/modules/clientes/queries";
 import { CustomerTable } from "@/modules/clientes/components/customer-table";
-import { CustomerSearch } from "@/modules/clientes/components/customer-search";
+import { SearchBox } from "@/components/search-box";
 
 export default async function CustomersPage({ searchParams }: PageProps<"/clientes">) {
   const { q } = await searchParams;
@@ -20,7 +20,7 @@ export default async function CustomersPage({ searchParams }: PageProps<"/client
         </Button>
       </div>
 
-      <CustomerSearch />
+      <SearchBox placeholder="Buscar por nome ou CPF/CNPJ..." />
       <CustomerTable customers={customers} />
     </div>
   );

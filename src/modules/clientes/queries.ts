@@ -21,6 +21,17 @@ export async function listCustomers(search?: string) {
     .orderBy(desc(customers.createdAt));
 }
 
+/** Lista enxuta para popular seletores (ex.: escolher o cliente de um veículo). */
+export async function listCustomersForSelect() {
+  const { db, organizationId } = await withOrg();
+
+  return db
+    .select({ id: customers.id, name: customers.name })
+    .from(customers)
+    .where(eq(customers.organizationId, organizationId))
+    .orderBy(customers.name);
+}
+
 export async function getCustomerById(id: string) {
   const { db, organizationId } = await withOrg();
 

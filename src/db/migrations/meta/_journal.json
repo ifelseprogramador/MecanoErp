@@ -15,6 +15,13 @@
       "when": 1790042319904,
       "tag": "0001_even_speed_demon",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790042615008,
+      "tag": "0002_next_black_panther",
+      "breakpoints": true
     }
   ]
 }

@@ -1,9 +1,17 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
+import { Plus } from "lucide-react";
+import { formatPlate } from "@/core/format";
 import { getCustomerById } from "@/modules/clientes/queries";
-import { updateCustomer } from "@/modules/clientes/actions";
+import { deleteCustomer, updateCustomer } from "@/modules/clientes/actions";
 import { CustomerForm } from "@/modules/clientes/components/customer-form";
-import { DeleteCustomerButton } from "@/modules/clientes/components/delete-customer-button";
+// Importado do barrel público do módulo (@/modules/veiculos), não de
+// dentro dele — é a composição permitida na camada de rotas: uma página
+// pode juntar dois módulos, um módulo nunca importa outro diretamente.
+import { listVehiclesByCustomer } from "@/modules/veiculos";
 
 export default async function CustomerDetailPage({ params }: PageProps<"/clientes/[id]">) {
   const { id } = await params;
@@ -13,13 +21,19 @@ export default async function CustomerDetailPage({ params }: PageProps<"/cliente
     notFound();
   }
 
+  const vehicles = await listVehiclesByCustomer(customer.id);
   const updateCustomerWithId = updateCustomer.bind(null, customer.id);
 
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">{customer.name}</h1>
-        <DeleteCustomerButton customerId={customer.id} />
+        <ConfirmDeleteButton
+          title="Remover cliente"
+          description="Essa ação não pode ser desfeita. O cliente só pode ser removido se não tiver veículos ou ordens de serviço vinculados."
+          onConfirm={() => deleteCustomer(customer.id)}
+          redirectTo="/clientes"
+        />
       </div>
       <Card>
         <CardHeader>
@@ -27,6 +41,38 @@ export default async function CustomerDetailPage({ params }: PageProps<"/cliente
         </CardHeader>
         <CardContent>
           <CustomerForm customer={customer} action={updateCustomerWithId} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex items-center justify-between">
+          <CardTitle>Veículos</CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            render={<Link href={`/veiculos/novo?customerId=${customer.id}`} />}
+          >
+            <Plus className="h-4 w-4" />
+            Novo veículo
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {vehicles.length === 0 ? (
+            <p className="text-muted-foreground text-sm">Nenhum veículo cadastrado.</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {vehicles.map((vehicle) => (
+                <li key={vehicle.id}>
+                  <Link href={`/veiculos/${vehicle.id}`} className="text-sm hover:underline">
+                    {formatPlate(vehicle.plate)}
+                    {vehicle.brand || vehicle.model
+                      ? ` — ${[vehicle.brand, vehicle.model].filter(Boolean).join(" ")}`
+                      : ""}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
         </CardContent>
       </Card>
     </div>

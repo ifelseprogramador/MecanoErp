@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { ActionResult } from "../actions";
+import type { ActionResult } from "@/core/action-result";
 import type { Customer } from "../schema.types";
 
 const initialState: ActionResult = { ok: false };
