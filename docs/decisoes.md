@@ -296,6 +296,63 @@ function` nos incrementais seguintes. Removido; sem necessidade
   corretamente), com ajuste automático pra caber a largura toda assim
   que o primeiro quadro chega, e botões de +/-/ajustar.
 
+## 2026-09-22 — Suporte ao vivo: mais 3 bugs reais (pedido do usuário some, espelho trava após navegação)
+
+Depois da correção acima, o usuário reportou dois problemas novos em
+teste manual: (1) quando a oficina chama o suporte (em vez do admin
+pedir acesso), a tela do admin não mostra nada; (2) o clique remoto
+funciona (a oficina navega de verdade) mas o espelho do admin não
+acompanha a nova tela. Achados e corrigidos três bugs reais, nenhum
+pego por tsc/lint/build:
+
+- **Evento `Meta` também sofria da corrida do Broadcast**: o `Replayer`
+  cria o iframe com `display: none` por padrão e só revela
+  (`display: inherit`) ao aplicar um evento `Meta` (que carrega a
+  largura/altura da tela gravada) — só esse evento ainda ia pelo
+  Broadcast ao vivo (o `FullSnapshot` já tinha sido movido pro banco, ver
+  entrada anterior). No fluxo "oficina chama o suporte", o admin demora
+  mais pra se inscrever no canal (precisa navegar até a ficha da oficina
+  primeiro, depois de aceitar no inbox) — tempo de sobra pro `Meta`
+  chegar e se perder (Broadcast não guarda histórico pra quem chega
+  depois). O conteúdo chegava a renderizar dentro do iframe, mas ele
+  continuava invisível. Corrigido: o `Meta` mais recente agora vai
+  **junto** do instantâneo completo salvo no banco
+  (`saveFullSnapshot(sessionId, { meta, snapshot })`), aplicado pelo
+  admin ANTES do `FullSnapshot` ao criar o `Replayer`.
+- **A causa de verdade do espelho travar depois da primeira navegação —
+  `useVirtualDom` do rrweb ativado sem querer**: pra evitar que o
+  primeiro instantâneo/eventos iniciais entrassem numa fila com atraso
+  (o `Replayer` só aplica de imediato eventos com timestamp anterior ao
+  `baselineTime` capturado no `startLive()` — qualquer coisa "no futuro"
+  relativo a esse instante fixo entra num timer baseado em tempo real
+  decorrido — comportamento certo pra reproduzir uma gravação no ritmo
+  original, errado pro nosso caso de espelhar ao vivo), passei um
+  `baselineTime` bem no futuro pro `startLive()`, forçando todo evento a
+  contar como "síncrono". Isso teve um efeito colateral não documentado
+  no rrweb: `useVirtualDom` (ligado por padrão) só ativa quando um evento
+  é tratado como síncrono — com TUDO síncrono agora, toda mutação
+  incremental passou a ir pra uma representação **virtual** do DOM (uma
+  otimização interna pra avanço rápido durante busca/seek), nunca
+  aplicada de fato no iframe visível, e sem voltar ao modo normal (isso
+  só acontece quando o replayer sai do modo síncrono, o que nunca
+  acontecia mais). Resultado: toda mutação "aplicava com sucesso" (zero
+  erro no console) mas nada mudava na tela — o espelho ficava
+  permanentemente preso na primeira tela, confirmado via
+  `MutationObserver` real no DOM do iframe (zero mutações detectadas).
+  Corrigido desligando explicitamente `useVirtualDom: false` na
+  configuração do `Replayer` — mutações incrementais voltam a aplicar
+  direto no DOM real, sempre.
+- Também ficou mais claro, depurando isto, que buffer de incrementais
+  chegados **antes** do instantâneo completo ser buscado no banco (uma
+  corrida separada, polling vs. inscrição no canal) não deve ser
+  aplicado depois — são descartados (`pendingEventsRef` esvaziado sem
+  aplicar), não guardados pra aplicar fora de ordem.
+
+Diagnosticado com um `MutationObserver` real instalado dentro do
+`contentDocument` do iframe espelhado (via Playwright, contra o Supabase
+de verdade) contando mutações de fato — a pista decisiva de que o
+problema era "aplica sem erro mas nada muda", não "falha silenciosa".
+
 ## 2026-09-22 — Nome do projeto: MecanoErp
 
 Pasta local e repositório GitHub (`ifelseprogramador/MecanoErp`) usam

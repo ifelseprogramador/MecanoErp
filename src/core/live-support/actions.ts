@@ -202,12 +202,14 @@ export async function setControlGranted(
 }
 
 /**
- * Salva o instantâneo completo mais recente (rrweb FullSnapshot) para a
- * sessão — chamado pelo widget do usuário a cada `record()`/
- * `takeFullSnapshot()`. Não passa pelo Broadcast: o DOM inteiro da tela
- * gravada passa fácil de 200KB, grande demais para uma mensagem de
- * Realtime (que aceita o envio mas descarta silenciosamente quando é
- * grande demais). O admin busca sob demanda (ver getFullSnapshot).
+ * Salva o instantâneo completo mais recente para a sessão — chamado pelo
+ * widget do usuário a cada `record()`/`takeFullSnapshot()`, com
+ * `{ meta, snapshot }` (o evento Meta mais recente — que revela o iframe
+ * do Replayer, ver live-session-viewer.tsx — junto do FullSnapshot em
+ * si). Não passa pelo Broadcast: o DOM inteiro da tela gravada passa
+ * fácil de 200KB, grande demais para uma mensagem de Realtime (que
+ * aceita o envio mas descarta silenciosamente quando é grande demais). O
+ * admin busca sob demanda (ver getFullSnapshot).
  */
 export async function saveFullSnapshot(
   sessionId: string,

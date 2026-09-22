@@ -126,8 +126,22 @@ export function LiveSupportWidget({
   useEffect(() => {
     if (session && session.status === "active" && !stopRecordingRef.current) {
       const channel = getRealtimeChannel(liveSessionChannelName(session.id));
+      let lastMeta: eventWithTime | null = null;
       const stop = record({
         emit(event: eventWithTime) {
+          if (event.type === EventType.Meta) {
+            // O rrweb começa o iframe do Replayer com `display: none` e só
+            // revela (`display: inherit`) ao aplicar um Meta — carrega a
+            // largura/altura da tela gravada. Guarda aqui pra mandar junto
+            // do instantâneo completo (ver abaixo): se o Meta fosse só
+            // pelo Broadcast, sofreria da mesma corrida que o instantâneo
+            // sofria antes (perdido se o admin ainda não tiver se
+            // inscrito) — só que Meta sempre chega perto do início da
+            // gravação, quando o admin tem MENOS tempo de estar pronto,
+            // então na prática se perdia mais (o conteúdo até renderizava
+            // dentro do iframe, mas ele continuava invisível).
+            lastMeta = event;
+          }
           if (event.type === EventType.FullSnapshot) {
             // O instantâneo completo (o DOM inteiro da página) passa dos
             // 200KB até numa oficina vazia — bem acima do limite de
@@ -136,11 +150,13 @@ export function LiveSupportWidget({
             // abaixo. Por isso vai persistido via Server Action (o admin
             // busca sob demanda), nunca pelo Broadcast. Só os eventos
             // incrementais (poucas centenas de bytes cada) vão por aqui.
-            void saveFullSnapshot(session.id, event).then((result) => {
-              if (!result.ok) {
-                logger.error("live_support.snapshot_falhou", { sessionId: session.id });
-              }
-            });
+            void saveFullSnapshot(session.id, { meta: lastMeta, snapshot: event }).then(
+              (result) => {
+                if (!result.ok) {
+                  logger.error("live_support.snapshot_falhou", { sessionId: session.id });
+                }
+              },
+            );
             return;
           }
           void channel.send({ type: "broadcast", event: "rrweb", payload: event });

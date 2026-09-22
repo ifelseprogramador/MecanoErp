@@ -58,7 +58,9 @@ export function LiveSessionViewer({
   // e um `setStatus` dentro de um handler de broadcast não atualiza o
   // DOM na hora — só depois do próximo efeito). Guarda aqui pra tentar
   // de novo assim que o container aparecer.
-  const fetchedSnapshotRef = useRef<eventWithTime | null>(null);
+  const fetchedSnapshotRef = useRef<{ meta: eventWithTime | null; snapshot: eventWithTime } | null>(
+    null,
+  );
   const tryCreateReplayerRef = useRef<() => void>(() => {});
 
   useEffect(() => {
@@ -81,12 +83,53 @@ export function LiveSessionViewer({
         root: replayerRootRef.current,
         liveMode: true,
         UNSAFE_replayCanvas: true,
+        // `useVirtualDom` (default true no rrweb) só ativa quando um
+        // evento é tratado como "isSync" — o que, com o baselineTime lá
+        // embaixo, é SEMPRE aqui. Ligado, cada mutação vai pra uma
+        // representação virtual (otimização pra avanço rápido em
+        // playback normal) e só volta pro DOM real quando o replayer sai
+        // do modo "sync" — o que nunca acontece no nosso caso (é sempre
+        // "sync" de propósito). Sem desligar isto, toda mutação depois
+        // do instantâneo inicial "aplica com sucesso" (sem erro nenhum)
+        // mas nunca aparece na tela — era a causa real do espelho travar
+        // depois da primeira mutação incremental que chegasse.
+        useVirtualDom: false,
       });
-      replayerRef.current.startLive();
-      replayerRef.current.addEvent(fetchedSnapshotRef.current);
-      for (const pending of pendingEventsRef.current) {
-        replayerRef.current.addEvent(pending);
+      // `startLive()` sem argumento usa `Date.now()` como "baselineTime" e
+      // só aplica de imediato (`isSync`) eventos com timestamp ANTERIOR a
+      // esse valor fixo — qualquer coisa "no futuro" relativo a esse
+      // instante (ou seja, praticamente tudo que acontece depois que o
+      // admin conecta) entra numa fila com atraso agendado por um timer
+      // baseado em tempo real decorrido, em vez de aplicar na hora. Isso
+      // é o comportamento certo pra REPRODUZIR uma gravação respeitando o
+      // ritmo original — não pro nosso caso, que é espelhar AO VIVO: todo
+      // evento que chega já aconteceu de verdade no instante em que
+      // chegou, deve entrar na tela imediatamente. Passar um
+      // `baselineTime` bem no futuro faz TODO evento contar como
+      // "passado" (`isSync`), aplicado assim que chega, sem depender do
+      // timer — era a causa real do espelho travar depois da primeira
+      // navegação (o agendamento nunca disparava de forma confiável).
+      replayerRef.current.startLive(Date.now() + 1000 * 60 * 60 * 24 * 365);
+      // O Meta entra ANTES do FullSnapshot — é ele que revela o iframe
+      // (o rrweb cria o iframe do Replayer com `display: none` por
+      // padrão e só troca pra `inherit` ao aplicar um Meta, que também
+      // carrega a largura/altura da tela gravada). Sem isso, o conteúdo
+      // renderiza dentro do iframe mas ele continua invisível.
+      if (fetchedSnapshotRef.current.meta) {
+        replayerRef.current.addEvent(fetchedSnapshotRef.current.meta);
       }
+      replayerRef.current.addEvent(fetchedSnapshotRef.current.snapshot);
+      // Os incrementais que chegaram (pelo Broadcast, ao vivo) ANTES do
+      // instantâneo ter sido buscado no banco são DESCARTADOS, não
+      // aplicados — são duas corridas independentes (o polling no banco
+      // vs. a inscrição no canal), então um incremental em fila pode ser
+      // cronologicamente mais antigo que o instantâneo que acabou de ser
+      // aplicado. Aplicar uma mutação velha por cima de um instantâneo
+      // mais novo referencia nós que o instantâneo já mudou/removeu —
+      // corrompe o espelho pro resto da sessão (nós órfãos que nunca são
+      // limpos, mutações seguintes batendo no nó errado), mesmo sem
+      // lançar nenhum erro visível depois. Perder essas poucas mutações
+      // do primeiro segundo é bem mais barato que isso.
       pendingEventsRef.current = [];
       setHasFrame(true);
     }
@@ -109,7 +152,10 @@ export function LiveSessionViewer({
       if (replayerRef.current) return;
       const result = await getFullSnapshot(sessionId);
       if (result.ok && result.snapshot) {
-        fetchedSnapshotRef.current = result.snapshot as eventWithTime;
+        fetchedSnapshotRef.current = result.snapshot as {
+          meta: eventWithTime | null;
+          snapshot: eventWithTime;
+        };
         tryCreateReplayer();
         return;
       }
