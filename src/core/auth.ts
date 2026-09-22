@@ -20,6 +20,18 @@ export class NoActiveOrganizationError extends Error {
   }
 }
 
+/**
+ * A organização (ou o membership da pessoa dentro dela) foi bloqueada
+ * pelo dono da plataforma — normalmente por falta de pagamento. Ver
+ * `core/admin/actions.ts#setOrganizationStatus` e a tela em `/admin`.
+ */
+export class OrganizationBlockedError extends Error {
+  constructor(message = "Acesso bloqueado.") {
+    super(message);
+    this.name = "OrganizationBlockedError";
+  }
+}
+
 /** Sessão do usuário autenticado, lida do cookie do Supabase Auth. */
 export async function getSession() {
   const supabase = await createSupabaseServerClient();
@@ -47,7 +59,9 @@ export async function getActiveOrg() {
     .select({
       organizationId: memberships.organizationId,
       role: memberships.role,
+      membershipActive: memberships.active,
       organizationName: organizations.name,
+      organizationStatus: organizations.status,
     })
     .from(memberships)
     .innerJoin(organizations, eq(organizations.id, memberships.organizationId))
@@ -56,6 +70,10 @@ export async function getActiveOrg() {
 
   if (!membership) {
     throw new NoActiveOrganizationError();
+  }
+
+  if (membership.organizationStatus === "blocked" || !membership.membershipActive) {
+    throw new OrganizationBlockedError();
   }
 
   return {

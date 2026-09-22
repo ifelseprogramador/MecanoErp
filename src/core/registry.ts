@@ -44,6 +44,12 @@ export function getEnabledModules(): ModuleDefinition[] {
   return [...MODULES].filter((m) => m.enabled).sort((a, b) => a.order - b.order);
 }
 
+/** Todos os módulos registrados, habilitados ou não — usado pela tela de
+ * personalização por oficina em /admin (precisa listar até os desligados). */
+export function getAllModules(): ModuleDefinition[] {
+  return [...MODULES].sort((a, b) => a.order - b.order);
+}
+
 export function registerModule(definition: ModuleDefinition) {
   MODULES.push(definition);
 }

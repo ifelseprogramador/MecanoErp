@@ -40,7 +40,10 @@ linkado acima.
    ```bash
    npm run db:generate   # gera as migrations a partir de src/db/schema.ts
    npm run db:migrate    # aplica no banco configurado em DATABASE_URL
-   npm run db:seed       # cria a organização e o usuário inicial (fase 1+)
+   npm run db:seed       # cria a oficina de teste, o usuário dela e você
+                          # como dono da plataforma (preencha
+                          # SEED_ADMIN_EMAIL/PASSWORD no .env.local com o
+                          # SEU login antes de rodar)
    ```
 
 5. **Rodar**
@@ -49,7 +52,9 @@ linkado acima.
    npm run dev
    ```
 
-   Abra [http://localhost:3000](http://localhost:3000).
+   Abra [http://localhost:3000](http://localhost:3000) para o app da
+   oficina, ou [http://localhost:3000/admin](http://localhost:3000/admin)
+   para o painel do dono da plataforma (login de `SEED_ADMIN_EMAIL`).
 
 ## Scripts
 
@@ -91,8 +96,14 @@ queries, actions, componentes) e se registra no menu via
 `src/core/load-modules.ts` + `src/core/registry.ts`. Um módulo nunca
 importa outro diretamente — só `core/` e `components/ui/`. Remover uma
 funcionalidade é apagar a pasta e tirar a linha de `load-modules.ts`. A
-receita completa de como criar um módulo novo vai em `CLAUDE.md` conforme
-os primeiros módulos forem implementados (Fase 2 do plano).
+receita completa de como criar um módulo novo está em
+[`docs/arquitetura.md`](./docs/arquitetura.md#convenções-de-módulo-o-que-copiar-do-template).
+
+Separado dos módulos de negócio existe o painel do dono da plataforma
+(`/admin`): bloquear/desbloquear oficinas, controlar cobrança mensal
+manualmente, personalizar quais módulos cada oficina enxerga, e apagar
+todos os dados de uma oficina. Ver
+[`docs/arquitetura.md`](./docs/arquitetura.md#área-do-dono-da-plataforma-admin).
 
 ## Vulnerabilidade conhecida (dev-only)
 

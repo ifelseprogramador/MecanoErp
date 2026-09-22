@@ -113,6 +113,38 @@ deleteCustomer(customer.id)}` (arrow function nova, criada no Server
   no `<form>` de criar/editar, forçando remontagem com os valores certos
   a cada save.
 
+## 2026-09-22 — A conexão do app faz `bypassrls` (RLS não é a proteção ativa hoje)
+
+Verificado direto no banco: `DATABASE_URL` (o pooler do Supabase) conecta
+como o papel `postgres`, que tem `rolbypassrls = true`. Ou seja, **as
+policies de RLS não protegem as queries do próprio app hoje** — quem
+protege de verdade é o filtro manual por `organizationId` em todo
+`queries.ts`/`actions.ts` via `withOrg()`. A RLS que existe é rede de
+segurança só contra um caminho de acesso que o app não usa (alguém usando
+a `anon key` do Supabase direto, via `@supabase/supabase-js`, sem passar
+pelo Next.js).
+
+**Por que isso fica assim por enquanto**: é o padrão comum de app Next.js
+
+- Drizzle sobre Supabase (a maioria não usa o client JS do Supabase para
+  dados, só para Auth). Mudar exigiria trocar a role da conexão ou usar
+  `FORCE ROW LEVEL SECURITY`, e nenhuma das duas é urgente hoje.
+
+**Por que isso vai importar na fase offline**: o PowerSync (escolhido para
+sincronização offline) decide o que replica pra cada dispositivo _com base
+nas policies de RLS_ — ele conecta como um papel que respeita RLS de
+verdade. Quando essa fase começar, será preciso: (1) criar um papel
+Postgres específico para o PowerSync sem `bypassrls`, e (2) auditar se
+`apply_org_rls()` cobre exatamente as mesmas regras que `withOrg()` já
+aplica manualmente hoje. Registrado aqui para não esquecer.
+
+**Consequência prática agora**: o backend do painel de admin
+(`src/core/admin/`) pode usar a mesma conexão (`core/db.ts`) sem precisar
+de uma "chave de serviço" separada — ela já enxerga tudo, sem filtro de
+organização. A única proteção do admin é a checagem de aplicação
+(`requireAdmin()`), não o banco. Por isso toda query/action de admin
+**tem que** passar por `requireAdmin()` antes de tocar no banco.
+
 ## 2026-09-22 — Nome do projeto: MecanoErp
 
 Pasta local e repositório GitHub (`ifelseprogramador/MecanoErp`) usam

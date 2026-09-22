@@ -14,6 +14,7 @@ src/
     (auth)/login/            # rotas públicas
     (app)/                   # rotas protegidas (proxy.ts exige sessão)
       clientes/, veiculos/   # rotas finas: só compõem o que vem de modules/
+    (admin)/admin/           # painel do dono da plataforma — ver seção própria
     api/health/
   modules/
     <modulo>/
@@ -28,14 +29,18 @@ src/
       components/            # form, tabela, etc.
       __tests__/               # testes do módulo
   core/
-    db.ts, auth.ts, logger.ts, registry.ts, load-modules.ts,
-    action-result.ts, money.ts, format.ts, document.ts, env.ts
+    db.ts, auth.ts, admin-auth.ts, logger.ts, registry.ts,
+    module-settings.ts, load-modules.ts, action-result.ts, money.ts,
+    format.ts, document.ts, env.ts
+    admin/        # backend do painel do dono — não é um "módulo" plugável
+      queries.ts, actions.ts, validation.ts, components/
   components/
     ui/            # shadcn/ui (gerado, não editar à mão como se fosse seu)
     search-box.tsx, confirm-delete-button.tsx  # genéricos entre módulos
 db/
   schema.ts               # reexporta o schema.ts de cada módulo
-  schema/tenancy.ts         # organizations + memberships (fundação, não módulo)
+  schema/tenancy.ts         # organizations + memberships + platform_admins +
+                             # organization_module_settings (fundação, não módulo)
   migrations/                # geradas por `npm run db:generate`
   migrations-custom/          # RLS, funções SQL, FKs para auth.users
   migrate.ts, seed.ts
@@ -86,6 +91,47 @@ padrão de toda Server Action e query — devolve `db`, `organizationId` e um
 `logger` já contextualizado (`requestId`/`userId`/`organizationId`). Nenhum
 módulo deve montar esse contexto na mão nem filtrar por organização "à
 mão" fora desse helper.
+
+## Área do dono da plataforma (`/admin`)
+
+Separada dos módulos de negócio (não é uma "funcionalidade da oficina",
+é a operação da plataforma em si — você, não o mecânico). Vive em
+`app/(admin)/admin/` + `core/admin/` + `core/admin-auth.ts`.
+
+- **Quem entra**: só usuários cadastrados em `platform_admins` (tabela
+  separada de `memberships` — ser dono de uma oficina não dá acesso aqui,
+  e vice-versa). Todo ponto de entrada passa por
+  `core/admin-auth.ts#requireAdmin()`, o equivalente ao `withOrg()` dos
+  módulos comuns, mas **sem** filtro de organização — ver
+  "Por que não precisa de outra chave" logo abaixo.
+- **Por que não precisa de outra chave/service role**: a conexão do banco
+  do app inteiro (`core/db.ts`, via `DATABASE_URL`) já ignora RLS
+  (`bypassrls = true` no papel `postgres` do Supabase — ver
+  `docs/decisoes.md`, 2026-09-22). Então `core/admin/` usa a mesma `db`
+  sem nenhum `where organization_id = ...`, e a única proteção real é a
+  checagem de `requireAdmin()` ter rodado antes. **Nunca** exporte uma
+  query/action de `core/admin/` sem passar por `requireAdmin()` primeiro.
+- **O que dá pra fazer hoje**: criar oficina + usuário dono (via Admin API
+  do Supabase, `core/supabase/admin.ts` — a única peça que usa a
+  `SUPABASE_SERVICE_ROLE_KEY` fora do seed), bloquear/desbloquear o
+  acesso de uma oficina inteira, editar status de cobrança/vencimento/
+  observações (controle manual, sem gateway de pagamento — ver
+  `docs/decisoes.md`), ligar/desligar um módulo especificamente para uma
+  oficina (personalização — `organization_module_settings`, lido por
+  `core/module-settings.ts#getEnabledModulesForOrg`), e apagar uma
+  oficina e todos os dados dela (com confirmação por nome digitado).
+- **Bloqueio de acesso**: `organizations.status = 'blocked'` é checado
+  dentro de `core/auth.ts#getActiveOrg()` — lança `OrganizationBlockedError`,
+  tratado em `(app)/layout.tsx` com uma tela de "acesso bloqueado". Existe
+  também `memberships.active` para bloquear uma pessoa específica dentro
+  de uma oficina (sem UI própria ainda).
+- **Fora de escopo por enquanto**: editar/apagar os dados de negócio de
+  uma oficina (clientes/veículos dela) direto pelo admin — isso exigiria
+  ou duplicar a UI de cada módulo dentro de `/admin`, ou um mecanismo de
+  "entrar como se fosse aquela oficina" (impersonation). Nenhum dos dois
+  foi construído ainda; se precisar, o caminho mais barato é
+  impersonation (um cookie/contexto que troca a organização ativa),
+  reaproveitando as telas que já existem em vez de duplicá-las.
 
 ## Convenções de módulo (o que copiar do template)
 

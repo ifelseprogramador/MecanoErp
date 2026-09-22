@@ -1,7 +1,12 @@
 import "@/core/load-modules";
 import { LogOut, Wrench } from "lucide-react";
-import { getActiveOrg, NoActiveOrganizationError, UnauthorizedError } from "@/core/auth";
-import { getEnabledModules } from "@/core/registry";
+import {
+  getActiveOrg,
+  NoActiveOrganizationError,
+  OrganizationBlockedError,
+  UnauthorizedError,
+} from "@/core/auth";
+import { getEnabledModulesForOrg } from "@/core/module-settings";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { Button } from "@/components/ui/button";
@@ -22,10 +27,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <NoOrgFallback message="Sua conta ainda não está vinculada a nenhuma oficina. Fale com quem administra o sistema." />
       );
     }
+    if (err instanceof OrganizationBlockedError) {
+      return (
+        <NoOrgFallback message="O acesso desta conta está bloqueado. Entre em contato com o suporte para regularizar." />
+      );
+    }
     throw err;
   }
 
-  const modules = getEnabledModules();
+  const modules = await getEnabledModulesForOrg(org.organizationId);
 
   return (
     <div className="flex min-h-screen flex-1">
