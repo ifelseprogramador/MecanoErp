@@ -17,7 +17,15 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ["src/core/logger.ts", "**/*.config.{ts,js,mjs}", "scripts/**"],
+    // Scripts de CLI (rodam fora do ciclo de request, sem acesso ao
+    // contexto do logger) e arquivos de config podem usar console.* direto.
+    files: [
+      "src/core/logger.ts",
+      "**/*.config.{ts,js,mjs}",
+      "scripts/**",
+      "src/db/migrate.ts",
+      "src/db/seed.ts",
+    ],
     rules: {
       "no-console": "off",
     },
