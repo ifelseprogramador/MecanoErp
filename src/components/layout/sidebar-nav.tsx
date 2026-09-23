@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard } from "lucide-react";
+import { DatabaseBackup, LayoutDashboard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { resolveIcon } from "@/core/resolve-icon";
 import type { ModuleDefinition } from "@/core/registry";
@@ -29,6 +29,7 @@ export function SidebarNav({
       href: m.href,
       icon: resolveIcon(m.iconName),
     })),
+    { slug: "backup", label: "Backup", href: "/backup", icon: DatabaseBackup },
   ];
 
   return (

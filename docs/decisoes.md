@@ -992,3 +992,82 @@ corretos), montar um CSV novo com 2 linhas (1 válida, 1 sem nome de
 propósito), importar — resultado "1 de 2 linhas importada", a linha 3
 reportando "Informe o nome completo.", e o cliente válido aparecendo
 na listagem depois.
+
+## 2026-09-23 — Fase 5: backup (Web Share API + JSON estrutura+dados)
+
+Duas decisões do usuário antes de começar:
+
+1. **Nuvem**: usar a Web Share API do navegador em vez de integrar um
+   serviço específico (Google Drive, S3, etc.) — evita precisar de
+   credencial/OAuth de terceiro e cobre "nuvem, máquina ou
+   compartilhar" de uma vez só (ver `components/backup-download-button.tsx`
+   abaixo).
+2. **Exportar pra outro banco**: "uma que crie estrutura e importe
+   todos os dados sem perder nada" — decidido JSON com uma seção de
+   ESTRUTURA (colunas + tipos, lidos direto do schema Drizzle via
+   `getTableColumns()`, nunca hardcoded à mão — nunca desalinha do
+   schema real) e uma seção de DADOS (linhas completas, tipadas,
+   nenhuma perda como aconteceria arredondando pra CSV). O par
+   exportar/restaurar é testável de ponta a ponta dentro do próprio
+   MecanoErp (é o que a suíte de testes desta fase verificou);
+   restaurar num banco diferente (MySQL etc.) vira trabalho manual de
+   um DBA usando a seção de estrutura como referência — gerar
+   `CREATE TABLE` de verdade pra um dialeto SQL diferente
+   automaticamente seria complexo demais pra fazer com confiança sem
+   trazer uma lib de migração pesada, e arriscado demais pra fingir
+   que funciona sem testar em cada banco de destino.
+
+**`core/backup.ts`** — `buildOrgBackup(organizationId, organizationName)`
+exporta as 6 tabelas de negócio da organização (clientes, veículos,
+catálogo, contador de numeração da OS, ordens de serviço e seus itens
+— NUNCA `organizations`/`memberships`, que são da CONTA, não da
+oficina) num único JSON. `restoreOrgBackup(organizationId, backup)`
+reimporta: **o `organizationId` de toda linha é sempre sobrescrito
+pelo da sessão de quem está restaurando, nunca pelo que estiver
+gravado no arquivo** — sem isso, um arquivo de outra organização (ou
+editado à mão) poderia injetar dados numa oficina que não é a dele.
+Inserção via `onConflictDoNothing()` (chaveado pelo `id`, que o
+backup preserva) — **idempotente de propósito**: restaurar duas
+vezes, ou restaurar por cima de dados que já existem (recuperação
+parcial depois de uma pane), nunca duplica nem quebra, só preenche o
+que faltava. Ordem de inserção respeita FK (cliente → veículo →
+catálogo → contador → OS → item da OS); `work_order_items` (sem
+`organization_id` próprio) entra sem re-carimbar nada — a FK pro
+`work_order_id` (já da organização certa) barra qualquer vazamento
+sozinha.
+
+**`components/backup-download-button.tsx`** — busca o JSON
+(`GET /backup/exportar`), monta um `File`, e usa
+`navigator.canShare({files:[file]})` quando disponível: abre o
+seletor NATIVO do sistema operacional (no celular, é onde aparecem
+as opções "Salvar no Drive", enviar por WhatsApp/e-mail, "Salvar nos
+Arquivos", etc., conforme a especificação da Web Share API — o teste
+automatizado roda em Chromium desktop headless, que não suporta essa
+API, então só o caminho de fallback foi verificado de ponta a ponta;
+vale conferir manualmente num celular real antes de confiar cego
+nesse caminho). Sem suporte
+(a maioria dos navegadores de desktop hoje), cai pra download comum
+via `<a download>`. Ícone do botão (nuvem vs. download) só é decidido
+depois de montar no cliente (`useEffect`), nunca direto no render —
+`navigator` não existe no HTML gerado pelo servidor, ler direto ali
+geraria mismatch de hidratação (mesmo cuidado já documentado em
+`core/offline/`).
+
+**Backup de sistema (`/admin/backup`)**: só o dono da plataforma, só
+EXPORTA (decisão, não pendência) — reaproveita `buildOrgBackup` numa
+volta por todas as organizações (`buildSystemBackup()`). Sem
+restauração de sistema inteiro automatizada: cruzaria
+`memberships.userId` com contas do Supabase Auth que podem não
+existir mais nesse estado exato, e um erro no meio de restaurar
+várias organizações de uma vez é risco grande demais pra automatizar
+sem supervisão. Cada organização dentro do arquivo, isoladamente,
+continua restaurável com `restoreOrgBackup` — é o caminho seguro pra
+recuperar uma oficina específica a partir de um backup de sistema.
+
+Testado de ponta a ponta com Playwright contra build de produção e
+Supabase real: criar um cliente → baixar o backup (confirma que o
+cliente novo está no JSON) → remover o cliente (simula perda de
+dado) → confirma que sumiu da listagem → restaurar o MESMO arquivo →
+resumo mostra "Clientes: 1 nova, 1 já existia" (e 0 novas nas outras
+5 tabelas, confirmando a idempotência) → cliente reaparece com o
+MESMO id.

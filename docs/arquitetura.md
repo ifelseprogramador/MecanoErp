@@ -204,6 +204,34 @@ específicas de Next.js 16 + service worker já resolvidas (prefetch não
 estática, etc.) que se repetem em qualquer módulo novo que ganhar esse
 suporte.
 
+## Backup (`core/backup.ts`)
+
+`(app)/backup/page.tsx` — qualquer dono de oficina pode baixar (ou
+restaurar) um backup completo dos dados DA PRÓPRIA organização
+(clientes, veículos, catálogo, ordens de serviço e itens; nunca
+`organizations`/`memberships`, que são da conta, não da oficina).
+`(admin)/admin/backup/route.ts` — só o dono da plataforma, backup de
+TODAS as organizações de uma vez (`buildSystemBackup()`), só exporta
+(sem restauração de sistema inteiro — ver docs/decisoes.md).
+
+- `buildOrgBackup()`/`restoreOrgBackup()` em `core/backup.ts` fazem o
+  trabalho de verdade; `core/backup-actions.ts` é a Server Action
+  (`"use server"`) que a página chama — mesma separação de
+  responsabilidade de `core/live-support/` (queries/actions em
+  `core/`, não dentro de um módulo, porque não pertence a um só).
+- Restaurar sempre sobrescreve `organizationId` de cada linha pelo da
+  sessão de quem chama, nunca pelo que vier no arquivo, e usa
+  `onConflictDoNothing()` — idempotente, seguro rodar mais de uma vez.
+- Formato do arquivo: JSON com estrutura (colunas + tipos, lidos do
+  schema Drizzle via `getTableColumns()`) e dados de cada tabela — ver
+  docs/decisoes.md (2026-09-23, "Fase 5") pro porquê desse formato em
+  vez de um dump SQL específico de dialeto.
+- `components/backup-download-button.tsx` usa a Web Share API quando
+  disponível (celular: abre o seletor nativo do SO — Drive, WhatsApp,
+  Arquivos, etc.), cai pra download comum quando não — decisão
+  explícita do usuário pra cobrir "nuvem/máquina/compartilhar" sem
+  integrar um provedor específico.
+
 ## Convenções de módulo (o que copiar do template)
 
 `modules/clientes/` é o template — `modules/veiculos/` é a segunda
