@@ -434,6 +434,32 @@ anterior tinha deixado como limitação conhecida:
   padrão deles mesmos (pensadas pra fundo claro), sem risco de
   ilegibilidade.
 
+## 2026-09-22 — Ajustes finais de contraste + destaque de campo mais robusto
+
+Depois de "ficou bom", mais três pedidos pequenos:
+
+- **Toggle "Controle remoto" invisível quando desligado**: o cinza claro
+  padrão do `Switch` (pensado pra fundo branco comum) quase sumia em
+  cima do "pill" com leve tom azulado do banner. Escurecido só nesta
+  instância (`data-unchecked:bg-zinc-400`).
+- **Botão "Encerrar" ilegível**: trocado de `variant="outline"`/`"ghost"`
+  pra `"destructive"` (fundo vermelho suave, ícone e texto vermelhos) —
+  nos dois lados, usuário e admin.
+- **Destaque do campo focado reforçado**: testei e confirmei que o
+  contorno azul (da entrada anterior) aplicava certo em ambiente de
+  teste, mas o usuário reportou "nada muda visualmente" no uso real
+  (sem erro no console). Sem conseguir reproduzir a falha exata, troquei
+  por um destaque bem mais robusto e difícil de "sumir" em qualquer
+  layout: `outline` + `background-color` + `box-shadow`, todos com
+  `!important` (via `style.setProperty(..., "important")`, não a
+  atribuição direta de `style.outline = ...`) — cobre o caso de um campo
+  já ter `background`/`box-shadow` próprios via classe (ex.: inputs do
+  shadcn/ui) que ganhariam de um style inline comum.
+- **Notificação de pedido de suporte sem botão de fechar**: `<Toaster>`
+  (raiz do app, `src/app/layout.tsx`) ganhou `closeButton` — vale pra
+  todo toast do app, não só o de suporte, mas é uma melhoria de UX
+  razoável em geral (toast dispensável na hora, não só por timeout).
+
 ## 2026-09-22 — Nome do projeto: MecanoErp
 
 Pasta local e repositório GitHub (`ifelseprogramador/MecanoErp`) usam

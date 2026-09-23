@@ -34,6 +34,13 @@ function isStyledElement(value: unknown): value is StyledElement {
   );
 }
 
+function clearHighlight(el: StyledElement) {
+  el.style.removeProperty("outline");
+  el.style.removeProperty("outline-offset");
+  el.style.removeProperty("background-color");
+  el.style.removeProperty("box-shadow");
+}
+
 /**
  * Player ao vivo do lado do admin: espelha a tela do app do usuário
  * (rrweb) e, quando `controlGranted`, envia os movimentos/cliques/teclas
@@ -150,15 +157,27 @@ export function LiveSessionViewer({
         if (!isStyledElement(target)) return;
         if (type === MouseInteractions.Focus) {
           if (highlightedElementRef.current && highlightedElementRef.current !== target) {
-            highlightedElementRef.current.style.outline = "";
-            highlightedElementRef.current.style.outlineOffset = "";
+            clearHighlight(highlightedElementRef.current);
           }
-          target.style.outline = "2px solid #3b82f6";
-          target.style.outlineOffset = "1px";
+          // `outline` sozinho pode ser cortado por um ancestral com
+          // `overflow: hidden` em alguns layouts — soma um
+          // `background-color` e `box-shadow` também, bem mais difícil
+          // de "sumir" em qualquer contexto. `!important` porque alguns
+          // campos (ex.: inputs do shadcn/ui) já têm `background` e
+          // `box-shadow` próprios via classe, que ganhariam de um style
+          // inline comum por causa de `:focus`/variantes mais
+          // específicas.
+          target.style.setProperty("outline", "2px solid #3b82f6", "important");
+          target.style.setProperty("outline-offset", "1px", "important");
+          target.style.setProperty("background-color", "#dbeafe", "important");
+          target.style.setProperty(
+            "box-shadow",
+            "0 0 0 2px #3b82f6, 0 0 0 4px #93c5fd",
+            "important",
+          );
           highlightedElementRef.current = target;
         } else if (type === MouseInteractions.Blur && target === highlightedElementRef.current) {
-          target.style.outline = "";
-          target.style.outlineOffset = "";
+          clearHighlight(target);
           highlightedElementRef.current = null;
         }
       });
