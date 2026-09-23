@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { SearchBox } from "@/components/search-box";
 import { listCatalogItems } from "@/modules/catalogo/queries";
 import { CatalogItemTable } from "@/modules/catalogo/components/catalog-item-table";
+import { PendingCatalogItems } from "@/modules/catalogo/components/pending-catalog-items";
 
 export default async function CatalogPage({ searchParams }: PageProps<"/catalogo">) {
   const { q } = await searchParams;
@@ -21,6 +22,7 @@ export default async function CatalogPage({ searchParams }: PageProps<"/catalogo
       </div>
 
       <SearchBox placeholder="Buscar por nome..." />
+      <PendingCatalogItems />
       <CatalogItemTable items={items} />
     </div>
   );

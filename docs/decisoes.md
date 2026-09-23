@@ -715,3 +715,25 @@ offline → ficha pendente hidrata com a placa certa → aparece na
 listagem mesmo offline → volta a conexão → toast de sincronização → a
 ficha de verdade (`/veiculos/{id}`) mostra o mesmo veículo, MESMO id,
 com o cliente vinculado certo.
+
+## 2026-09-23 — Offline-first: `catalogo` (terceira aplicação do padrão)
+
+Terceira e mais simples aplicação do template — `catalog_items` não tem
+FK pra outro módulo, então nenhuma das ressalvas de dependência entre
+registros pendentes (como a de `veiculos` → `clientes`) se aplica aqui.
+Mesmos 5 passos de sempre: `createCatalogItemRecord` extraído em
+`actions.ts`, entrada `"catalogo:createCatalogItem"` em
+`replay-handlers.ts`, `new-catalog-item-form.tsx`,
+`(app)/catalogo/pendente/page.tsx` + `pending-catalog-items.tsx`, rota
+adicionada em `PENDING_ROUTES` do `SyncProvider`. De novo, nenhuma peça
+de `core/offline/` precisou mudar.
+
+Testado de ponta a ponta com Playwright contra build de produção e
+Supabase real, mesmo roteiro: criar item offline → ficha pendente
+hidrata com nome/tipo/preço certos → aparece na listagem mesmo offline
+→ volta a conexão → toast de sincronização → ficha de verdade
+(`/catalogo/{id}`) mostra o mesmo item, MESMO id.
+
+Com `clientes`, `veiculos` e `catalogo` prontos, só falta `ordens` —
+que é o caso mais delicado por causa do número sequencial da OS (ver
+ressalva no final da seção anterior de offline-first).

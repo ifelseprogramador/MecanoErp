@@ -186,9 +186,10 @@ IndexedDB (`db.ts`/`queue.ts`) para criações feitas sem conexão,
 sincronizadas sozinhas quando a rede volta (`sync-engine.ts`,
 `sync-provider.tsx`). `modules/clientes` é o template (form via
 `use-offline-create-action.ts`, ficha "pendente" em
-`(app)/clientes/pendente/page.tsx`); `modules/veiculos` já segue o
-mesmo padrão (segunda aplicação, confirma que generaliza sem tocar em
-`core/offline/`); `catalogo` e `ordens` ainda faltam. A tarja de
+`(app)/clientes/pendente/page.tsx`); `modules/veiculos` e
+`modules/catalogo` já seguem o mesmo padrão; só `ordens` falta (mais
+delicado por causa do número sequencial da OS — ver docs/decisoes.md).
+A tarja de
 status (sem conexão / sincronizando / sincronizado) é do
 `SyncProvider`, global — aparece em qualquer página, não só nas que
 têm suporte a criação offline. **Antes de mexer aqui**, ler

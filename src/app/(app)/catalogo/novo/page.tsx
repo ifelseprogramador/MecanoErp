@@ -1,6 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CatalogItemForm } from "@/modules/catalogo/components/catalog-item-form";
-import { createCatalogItem } from "@/modules/catalogo/actions";
+import { NewCatalogItemForm } from "@/modules/catalogo/components/new-catalog-item-form";
 
 export default function NewCatalogItemPage() {
   return (
@@ -11,7 +10,7 @@ export default function NewCatalogItemPage() {
           <CardTitle>Dados do item</CardTitle>
         </CardHeader>
         <CardContent>
-          <CatalogItemForm action={createCatalogItem} />
+          <NewCatalogItemForm />
         </CardContent>
       </Card>
     </div>

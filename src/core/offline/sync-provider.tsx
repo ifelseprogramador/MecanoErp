@@ -37,6 +37,10 @@ const PENDING_ROUTES = [
     path: "/veiculos/pendente",
     load: () => import("@/app/(app)/veiculos/pendente/page"),
   },
+  {
+    path: "/catalogo/pendente",
+    load: () => import("@/app/(app)/catalogo/pendente/page"),
+  },
 ];
 
 /**

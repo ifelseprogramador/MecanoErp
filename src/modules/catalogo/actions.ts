@@ -6,19 +6,45 @@ import { and, eq } from "drizzle-orm";
 import { withOrg } from "@/core/auth";
 import type { ActionResult } from "@/core/action-result";
 import { catalogItems } from "./schema";
-import { parseCatalogItemFormData } from "./validation";
+import { parseCatalogItemFormData, type CatalogItemInput } from "./validation";
+
+interface InsertResult extends ActionResult {
+  id?: string;
+}
 
 function isForeignKeyViolation(err: unknown): boolean {
   return typeof err === "object" && err !== null && "code" in err && err.code === "23503";
+}
+
+/**
+ * Faz o INSERT em si, sem `redirect()` — mesmo padrão de
+ * `modules/clientes/actions.ts#createCustomerRecord`: chamável direto
+ * pelo motor de sincronização offline (`core/offline/replay-handlers.ts`).
+ */
+export async function createCatalogItemRecord(
+  data: CatalogItemInput,
+  id?: string,
+): Promise<InsertResult> {
+  const { db, organizationId, log } = await withOrg();
+  log.info("catalogo.criar", { offline: Boolean(id) });
+
+  const [item] = await db
+    .insert(catalogItems)
+    .values({ ...data, organizationId, ...(id && { id }) })
+    .returning({ id: catalogItems.id });
+  log.info("catalogo.criar.sucesso", { itemId: item.id });
+
+  revalidatePath("/catalogo");
+  return { ok: true, id: item.id };
 }
 
 export async function createCatalogItem(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const { db, organizationId, log } = await withOrg();
-  log.info("catalogo.criar");
-
+  // `withOrg()` aqui de propósito, antes até de validar o form — mesmo
+  // motivo documentado em modules/clientes/actions.ts#createCustomer.
+  const { log } = await withOrg();
   const parsed = parseCatalogItemFormData(formData);
   if (!parsed.success) {
     log.warn("catalogo.criar.validacao_falhou", {
@@ -27,14 +53,11 @@ export async function createCatalogItem(
     return { ok: false, errors: parsed.error.flatten().fieldErrors };
   }
 
-  const [item] = await db
-    .insert(catalogItems)
-    .values({ ...parsed.data, organizationId })
-    .returning({ id: catalogItems.id });
-  log.info("catalogo.criar.sucesso", { itemId: item.id });
+  const result = await createCatalogItemRecord(parsed.data);
 
-  revalidatePath("/catalogo");
-  redirect(`/catalogo/${item.id}`);
+  // `redirect()` fica fora do try/catch pelo mesmo motivo documentado em
+  // modules/clientes/actions.ts#createCustomer.
+  redirect(`/catalogo/${result.id}`);
 }
 
 export async function updateCatalogItem(
