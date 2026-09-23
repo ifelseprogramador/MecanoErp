@@ -289,7 +289,7 @@ export function LiveSupportWidget({
             <Button
               variant="outline"
               size="sm"
-              className="bg-white"
+              className="text-foreground bg-white"
               onClick={handleEnd}
               disabled={isPending}
             >

@@ -95,21 +95,22 @@ export function LiveSessionViewer({
         // depois da primeira mutação incremental que chegasse.
         useVirtualDom: false,
       });
-      // `startLive()` sem argumento usa `Date.now()` como "baselineTime" e
-      // só aplica de imediato (`isSync`) eventos com timestamp ANTERIOR a
-      // esse valor fixo — qualquer coisa "no futuro" relativo a esse
-      // instante (ou seja, praticamente tudo que acontece depois que o
-      // admin conecta) entra numa fila com atraso agendado por um timer
-      // baseado em tempo real decorrido, em vez de aplicar na hora. Isso
-      // é o comportamento certo pra REPRODUZIR uma gravação respeitando o
-      // ritmo original — não pro nosso caso, que é espelhar AO VIVO: todo
-      // evento que chega já aconteceu de verdade no instante em que
-      // chegou, deve entrar na tela imediatamente. Passar um
-      // `baselineTime` bem no futuro faz TODO evento contar como
-      // "passado" (`isSync`), aplicado assim que chega, sem depender do
-      // timer — era a causa real do espelho travar depois da primeira
-      // navegação (o agendamento nunca disparava de forma confiável).
-      replayerRef.current.startLive(Date.now() + 1000 * 60 * 60 * 24 * 365);
+      // `startLive()` sem argumento usa `Date.now()` como "baselineTime":
+      // eventos com timestamp anterior a isso (o instantâneo inicial e o
+      // que estiver em fila) contam como "isSync" e aplicam na hora;
+      // eventos "no futuro" relativo a esse instante (a imensa maioria,
+      // já que a sessão continua depois da conexão) agendam via timer,
+      // mas com um atraso ≈ tempo real decorrido — na prática quase
+      // instantâneo pra quem chega ao vivo. Cheguei a forçar um
+      // `baselineTime` no futuro pra fazer TUDO contar como "isSync" (um
+      // desvio que resolvia o espelho travar, mas por engano: isSync
+      // também é o gatilho do `useVirtualDom` — ver acima — e além disso
+      // o rastro do MOUSE só atualiza visualmente no caminho "não
+      // síncrono" (`applyIncremental`/`MouseMove`); forçar isSync deixava
+      // o cursor do usuário parado num canto pra sempre). Com
+      // `useVirtualDom: false` já resolvendo a causa de verdade, não
+      // precisa mais mexer no baselineTime — o padrão está certo.
+      replayerRef.current.startLive();
       // O Meta entra ANTES do FullSnapshot — é ele que revela o iframe
       // (o rrweb cria o iframe do Replayer com `display: none` por
       // padrão e só troca pra `inherit` ao aplicar um Meta, que também
@@ -283,6 +284,26 @@ export function LiveSessionViewer({
       yFrac: (e.clientY - rect.top) / rect.height,
     });
   }
+
+  // A rolagem do mouse sobre o espelho, com controle concedido, rola a
+  // página REAL do usuário (não o nosso container) — sem isso não tinha
+  // como ver o que está fora da primeira tela sem pedir pro usuário
+  // rolar. Precisa ser um listener NATIVO com `passive: false`: o React
+  // anexa `onWheel` como passivo na raiz por padrão (otimização de
+  // scroll), então `e.preventDefault()` num handler JSX normal não
+  // bloqueia o scroll do navegador — sem isso, o container local rolaria
+  // JUNTO com a página remota, confundindo os dois.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || status !== "active") return;
+    function handleWheel(e: WheelEvent) {
+      if (!controlGrantedRef.current) return;
+      e.preventDefault();
+      sendControl({ type: "scroll", deltaX: e.deltaX, deltaY: e.deltaY });
+    }
+    el.addEventListener("wheel", handleWheel, { passive: false });
+    return () => el.removeEventListener("wheel", handleWheel);
+  }, [status]);
 
   // O rrweb, ao repetir o evento de foco que ele mesmo gravou no usuário,
   // foca o iframe de replay por baixo dos panos — um iframe é outro

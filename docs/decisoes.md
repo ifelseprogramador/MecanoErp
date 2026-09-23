@@ -353,6 +353,45 @@ Diagnosticado com um `MutationObserver` real instalado dentro do
 de verdade) contando mutações de fato — a pista decisiva de que o
 problema era "aplica sem erro mas nada muda", não "falha silenciosa".
 
+## 2026-09-22 — Suporte ao vivo: cursor do usuário sumiu, scroll remoto, contraste
+
+Depois da correção do `useVirtualDom`, mais uma rodada de ajustes vindos
+de teste manual:
+
+- **Mouse do usuário parado no canto**: efeito colateral do
+  `baselineTime` no futuro (ver entrada anterior) — forçar todo evento a
+  contar como "síncrono" também muda o caminho que o rrweb usa pra
+  `MouseMove`: no modo síncrono ele só guarda a posição internamente
+  (`this.mousePos`), sem mover o cursor visualmente
+  (`moveAndHover`), que só roda no caminho "não síncrono" (o normal, com
+  timer). Revertido: `startLive()` volta a usar o padrão (sem
+  `baselineTime` forçado) — o `useVirtualDom: false` sozinho já resolve a
+  causa de verdade do espelho travar, sem precisar dessa forçação que
+  quebrava o cursor.
+- **Sem scroll remoto**: não existia. Adicionado `ControlEvent` do tipo
+  `scroll` (`deltaX`/`deltaY`), aplicado como `window.scrollBy(...)` do
+  lado do usuário. Precisou de um listener NATIVO de `wheel` com
+  `{ passive: false }` no admin (não o `onWheel` do React — ele é
+  anexado como passivo na raiz por padrão, então `preventDefault()` num
+  handler JSX normal não bloqueia o scroll do navegador, e o container
+  local rolaria junto com a página remota).
+- **Botão "Encerrar"/toggle brancos no banner do usuário**: o banner
+  (`bg-blue-600 ... text-white`) definia `text-white` uma vez no
+  container pai; o botão `variant="outline"` não tem cor de texto
+  própria (herda do ancestral) e ganhava `bg-white` — texto branco em
+  fundo branco, invisível. Corrigido com `text-foreground` explícito no
+  botão.
+- **Cursor piscando ao digitar remotamente, limitação conhecida, não
+  corrigida**: o rrweb, com `triggerFocus` (padrão), chama `.focus()` de
+  verdade no elemento dentro do iframe ao repetir o evento de foco
+  gravado — o que MOSTRARIA o cursor piscando nativo. Só que isso também
+  foca o `<iframe>` do ponto de vista do admin, e o polling que desfoca o
+  iframe a cada 100ms (pra evitar que ele roube o teclado do admin, ver
+  entrada de "Suporte ao vivo" acima) cancela esse foco também — o valor
+  digitado aparece certo (via mutação normal), só sem o cursor piscando.
+  Não mexido: resolver isso direito exigiria repensar o mecanismo de
+  proteção do teclado, risco maior que o ganho cosmético por agora.
+
 ## 2026-09-22 — Nome do projeto: MecanoErp
 
 Pasta local e repositório GitHub (`ifelseprogramador/MecanoErp`) usam

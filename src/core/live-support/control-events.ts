@@ -7,4 +7,5 @@
 export type ControlEvent =
   | { type: "move"; xFrac: number; yFrac: number }
   | { type: "click"; xFrac: number; yFrac: number }
-  | { type: "key"; key: string };
+  | { type: "key"; key: string }
+  | { type: "scroll"; deltaX: number; deltaY: number };

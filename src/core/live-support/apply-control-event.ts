@@ -10,8 +10,9 @@ import type { ControlEvent } from "./control-events";
  * escolha e as limitações conhecidas.
  */
 export function applyControlEvent(event: ControlEvent, cursorEl: HTMLElement | null) {
-  const x = Math.round(event.type !== "key" ? event.xFrac * window.innerWidth : 0);
-  const y = Math.round(event.type !== "key" ? event.yFrac * window.innerHeight : 0);
+  const hasFrac = event.type === "move" || event.type === "click";
+  const x = Math.round(hasFrac ? event.xFrac * window.innerWidth : 0);
+  const y = Math.round(hasFrac ? event.yFrac * window.innerHeight : 0);
 
   if (event.type === "move") {
     if (cursorEl) {
@@ -35,6 +36,10 @@ export function applyControlEvent(event: ControlEvent, cursorEl: HTMLElement | n
 
   if (event.type === "key") {
     applyKey(event.key);
+  }
+
+  if (event.type === "scroll") {
+    window.scrollBy(event.deltaX, event.deltaY);
   }
 }
 
