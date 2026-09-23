@@ -1,0 +1,88 @@
+import Link from "next/link";
+import { Bell, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
+import { RowActions } from "@/components/row-actions";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { formatDate } from "@/core/format";
+import { listNotificationsForAdmin } from "@/core/notifications/queries";
+import { deleteAllNotifications, deleteNotification } from "@/core/notifications/admin-actions";
+
+export default async function AdminNotificationsPage() {
+  const notifications = await listNotificationsForAdmin();
+
+  return (
+    <div className="mx-auto flex max-w-4xl flex-col gap-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="bg-accent text-accent-foreground rounded-lg p-2">
+            <Bell className="h-5 w-5" />
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight">Notificações</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          {notifications.length > 0 && (
+            <ConfirmDeleteButton
+              title="Apagar todas as notificações"
+              description="Essa ação não pode ser desfeita. Todas as notificações (e quem leu cada uma) serão removidas permanentemente."
+              onConfirm={deleteAllNotifications}
+              redirectTo="/admin/notificacoes"
+            />
+          )}
+          <Button nativeButton={false} render={<Link href="/admin/notificacoes/novo" />}>
+            <Plus className="h-4 w-4" />
+            Nova notificação
+          </Button>
+        </div>
+      </div>
+
+      {notifications.length === 0 ? (
+        <p className="text-muted-foreground py-8 text-center text-sm">
+          Nenhuma notificação enviada ainda.
+        </p>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Título</TableHead>
+              <TableHead>Destinatário</TableHead>
+              <TableHead>Enviada em</TableHead>
+              <TableHead className="w-0" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {notifications.map((notification) => (
+              <TableRow key={notification.id}>
+                <TableCell>
+                  <Link
+                    href={`/admin/notificacoes/${notification.id}`}
+                    className="font-medium hover:underline"
+                  >
+                    {notification.title}
+                  </Link>
+                </TableCell>
+                <TableCell>{notification.organizationName ?? "Todas as oficinas"}</TableCell>
+                <TableCell>{formatDate(notification.createdAt)}</TableCell>
+                <TableCell>
+                  <RowActions
+                    editHref={`/admin/notificacoes/${notification.id}`}
+                    deleteTitle="Apagar notificação"
+                    deleteDescription="Essa ação não pode ser desfeita."
+                    onDelete={deleteNotification.bind(null, notification.id)}
+                  />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+    </div>
+  );
+}

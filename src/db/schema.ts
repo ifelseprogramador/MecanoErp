@@ -8,6 +8,8 @@
 
 export * from "./schema/tenancy";
 export * from "./schema/live-support";
+export * from "./schema/backup";
+export * from "./schema/notifications";
 export * from "@/modules/clientes/schema";
 export * from "@/modules/veiculos/schema";
 export * from "@/modules/catalogo/schema";

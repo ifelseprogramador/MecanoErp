@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Hint } from "@/components/hint";
 import type { ActionResult } from "@/core/action-result";
 import type { Vehicle } from "../schema.types";
 
@@ -83,6 +84,7 @@ export function VehicleForm({
         defaultValue={vehicle?.plate}
         errors={errors.plate}
         required
+        hint="Aceita o formato antigo (ABC-1234) ou Mercosul (ABC1D23), com ou sem traço."
       />
       <Field id="brand" label="Marca" defaultValue={vehicle?.brand ?? ""} errors={errors.brand} />
       <Field id="model" label="Modelo" defaultValue={vehicle?.model ?? ""} errors={errors.model} />
@@ -144,6 +146,7 @@ function Field({
   errors,
   type = "text",
   required,
+  hint,
 }: {
   id: string;
   label: string;
@@ -151,10 +154,14 @@ function Field({
   errors?: string[];
   type?: string;
   required?: boolean;
+  hint?: string;
 }) {
   return (
     <div className="flex flex-col gap-2">
-      <Label htmlFor={id}>{label}</Label>
+      <div className="flex items-center gap-1.5">
+        <Label htmlFor={id}>{label}</Label>
+        {hint && <Hint>{hint}</Hint>}
+      </div>
       <Input id={id} name={id} type={type} defaultValue={defaultValue} required={required} />
       {errors?.map((error) => (
         <p key={error} className="text-destructive text-sm">

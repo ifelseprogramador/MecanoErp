@@ -27,40 +27,61 @@ export function BackupDownloadButton() {
     setCanShare(typeof navigator !== "undefined" && "share" in navigator);
   }, []);
 
+  function downloadBlob(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   async function handleClick() {
     setIsLoading(true);
+    let blob: Blob;
+    let filename = "mecanoerp-backup.json";
     try {
       const response = await fetch("/backup/exportar");
-      if (!response.ok) throw new Error("Falha ao gerar o backup.");
-      const blob = await response.blob();
-      const filename =
-        response.headers.get("Content-Disposition")?.match(/filename="(.+)"/)?.[1] ??
-        "mecanoerp-backup.json";
-      const file = new File([blob], filename, { type: "application/json" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      filename =
+        response.headers.get("Content-Disposition")?.match(/filename="(.+)"/)?.[1] ?? filename;
+      blob = await response.blob();
+    } catch {
+      // Só aqui é uma falha de verdade — o backup em si não foi gerado.
+      toast.error("Não foi possível gerar o backup. Tente novamente.");
+      setIsLoading(false);
+      return;
+    }
 
+    // Daqui pra baixo o arquivo JÁ EXISTE — compartilhar é só um "a mais".
+    // `await fetch()` acima consome a "ativação transitória" que o clique
+    // deu (em vários navegadores, `navigator.share()` só funciona chamado
+    // BEM perto do clique de verdade); em vez de tratar isso como erro,
+    // qualquer falha no compartilhamento cai pro download comum — a
+    // pessoa nunca fica sem o arquivo por causa de um detalhe do
+    // navegador que ela nem sabe que existe.
+    try {
+      const file = new File([blob], filename, { type: "application/json" });
       if (navigator.canShare?.({ files: [file] })) {
         await navigator.share({
           files: [file],
           title: "Backup MecanoErp",
           text: "Backup dos dados da oficina.",
         });
+        setIsLoading(false);
         return;
       }
-
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
     } catch (err) {
-      // Cancelar o seletor de compartilhamento também cai aqui (AbortError) —
-      // não é uma falha de verdade, só não avisa nada nesse caso.
-      if (err instanceof Error && err.name === "AbortError") return;
-      toast.error("Não foi possível gerar o backup. Tente novamente.");
-    } finally {
-      setIsLoading(false);
+      // Cancelar o seletor de compartilhamento (AbortError) não é falha —
+      // só não faz nada. Qualquer outro erro cai pro download abaixo.
+      if (err instanceof Error && err.name === "AbortError") {
+        setIsLoading(false);
+        return;
+      }
     }
+
+    downloadBlob(blob, filename);
+    setIsLoading(false);
   }
 
   return (

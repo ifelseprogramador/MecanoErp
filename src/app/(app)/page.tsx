@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ClipboardList, Clock, FileClock, Plus, TrendingUp, Users, Wrench } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Hint } from "@/components/hint";
 import { formatCents } from "@/core/money";
 import { formatPlate } from "@/core/format";
 import { getActiveOrg } from "@/core/auth";
@@ -88,6 +89,7 @@ export default async function DashboardPage() {
               ? "1 OS concluída"
               : `${orderSummary.monthCompletedCount} OS concluídas`
           }
+          tooltip="Soma do total das ordens de serviço concluídas neste mês. Ainda não existe um módulo financeiro separado — este é o valor de serviço já finalizado."
         />
         <KpiCard
           icon={Users}
@@ -187,17 +189,22 @@ function KpiCard({
   label,
   value,
   hint,
+  tooltip,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   value: string;
   hint: string;
+  tooltip?: string;
 }) {
   return (
     <Card>
       <CardContent className="flex items-start justify-between gap-2 pt-6">
         <div className="flex flex-col gap-1">
-          <p className="text-muted-foreground text-sm">{label}</p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-muted-foreground text-sm">{label}</p>
+            {tooltip && <Hint>{tooltip}</Hint>}
+          </div>
           <p className="text-2xl font-semibold tracking-tight">{value}</p>
           <p className="text-muted-foreground text-xs">{hint}</p>
         </div>

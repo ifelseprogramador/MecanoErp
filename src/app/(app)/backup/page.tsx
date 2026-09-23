@@ -1,50 +1,82 @@
+import Link from "next/link";
+import { History } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BackupDownloadButton } from "@/components/backup-download-button";
 import { BackupRestoreForm } from "@/components/backup-restore-form";
+import { AutoBackupToggle } from "@/components/auto-backup-toggle";
+import { getAutoBackupEnabled, listAutomaticBackups } from "@/core/backup";
+import { getActiveOrg } from "@/core/auth";
+import { formatDate } from "@/core/format";
 
-export default function BackupPage() {
+export default async function BackupPage() {
+  const org = await getActiveOrg();
+  const [autoBackupEnabled, automaticBackups] = await Promise.all([
+    getAutoBackupEnabled(org.organizationId),
+    listAutomaticBackups(org.organizationId),
+  ]);
+
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Backup</h1>
         <p className="text-muted-foreground text-sm">
-          Cópia completa dos dados da sua oficina — clientes, veículos, catálogo e ordens de
-          serviço.
+          Cópia dos dados da sua oficina — clientes, veículos, catálogo e ordens de serviço.
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Fazer backup</CardTitle>
+          <CardTitle>Fazer backup agora</CardTitle>
           <CardDescription>
-            Gera um arquivo com tudo o que está cadastrado. No celular, você pode enviar direto pro
-            Google Drive, WhatsApp, e-mail ou qualquer app — no computador, baixa como arquivo.
+            No celular, você pode enviar direto pro Google Drive, WhatsApp, e-mail ou qualquer app —
+            no computador, baixa como arquivo.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-4">
           <BackupDownloadButton />
+          <AutoBackupToggle initialEnabled={autoBackupEnabled} />
         </CardContent>
       </Card>
+
+      {automaticBackups.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <History className="text-primary h-4 w-4" />
+              Backups automáticos
+            </CardTitle>
+            <CardDescription>Últimos 7 dias — clique pra baixar um deles.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="flex flex-col divide-y">
+              {automaticBackups.map((backup) => (
+                <li key={backup.id} className="flex items-center justify-between py-2 text-sm">
+                  <span>{formatDate(backup.createdAt)}</span>
+                  <Link
+                    href={`/backup/automatico/${backup.id}`}
+                    className="text-primary hover:underline"
+                  >
+                    Baixar
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
           <CardTitle>Restaurar backup</CardTitle>
           <CardDescription>
-            Reimporta um arquivo de backup gerado aqui. Seguro rodar mais de uma vez — o que já
-            existe não duplica, só entra o que estava faltando. Útil pra recuperar dados depois de
-            um problema, ou migrar pra outra conta.
+            Reimporta um arquivo de backup (manual ou automático). Seguro rodar mais de uma vez — o
+            que já existe não duplica, só entra o que estava faltando.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <BackupRestoreForm />
         </CardContent>
       </Card>
-
-      <p className="text-muted-foreground text-xs">
-        O arquivo também traz a estrutura de cada tabela (nomes e tipos de coluna) — útil como
-        referência caso precise migrar os dados pra outro banco (MySQL, etc.), além de servir pra
-        restaurar aqui mesmo.
-      </p>
     </div>
   );
 }

@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Hint } from "@/components/hint";
 import type { ActionResult } from "@/core/action-result";
 import type { Customer } from "../schema.types";
 
@@ -67,6 +68,7 @@ export function CustomerForm({
         label="CPF/CNPJ"
         defaultValue={customer?.document ?? ""}
         errors={errors.document}
+        hint="Aceita CPF (pessoa física) ou CNPJ (pessoa jurídica), com ou sem pontuação — pode digitar só os números."
       />
       <Field
         id="phone"
@@ -109,6 +111,7 @@ function Field({
   errors,
   type = "text",
   required,
+  hint,
 }: {
   id: string;
   label: string;
@@ -116,10 +119,14 @@ function Field({
   errors?: string[];
   type?: string;
   required?: boolean;
+  hint?: string;
 }) {
   return (
     <div className="flex flex-col gap-2">
-      <Label htmlFor={id}>{label}</Label>
+      <div className="flex items-center gap-1.5">
+        <Label htmlFor={id}>{label}</Label>
+        {hint && <Hint>{hint}</Hint>}
+      </div>
       <Input id={id} name={id} type={type} defaultValue={defaultValue} required={required} />
       {errors?.map((error) => (
         <p key={error} className="text-destructive text-sm">

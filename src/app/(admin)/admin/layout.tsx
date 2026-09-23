@@ -41,6 +41,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <span className="font-semibold">MecanoErp — Administração da plataforma</span>
         </Link>
         <div className="flex items-center gap-3">
+          <Link href="/admin/notificacoes" className="text-sm text-zinc-300 hover:text-zinc-50">
+            Notificações
+          </Link>
           <Link href="/" className="text-sm text-zinc-300 hover:text-zinc-50">
             Voltar ao app
           </Link>

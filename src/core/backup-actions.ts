@@ -1,7 +1,14 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { withOrg } from "@/core/auth";
-import { restoreOrgBackup, type BackupFile, type RestoreSummary } from "@/core/backup";
+import {
+  restoreOrgBackup,
+  setAutoBackupEnabled,
+  type BackupFile,
+  type RestoreSummary,
+} from "@/core/backup";
+import type { ActionResult } from "@/core/action-result";
 
 export type BackupRestoreState =
   | { status: "idle" }
@@ -59,4 +66,12 @@ export async function restoreBackup(
   });
 
   return { status: "done", summary };
+}
+
+export async function toggleAutoBackup(enabled: boolean): Promise<ActionResult> {
+  const { organizationId, log } = await withOrg();
+  await setAutoBackupEnabled(organizationId, enabled);
+  log.info("backup.automatico.alternar", { enabled });
+  revalidatePath("/backup");
+  return { ok: true };
 }

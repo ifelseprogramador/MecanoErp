@@ -10,6 +10,8 @@ import { getEnabledModulesForOrg } from "@/core/module-settings";
 import { stopImpersonation } from "@/core/admin/actions";
 import { getOpenSessionForMyOrg } from "@/core/live-support/queries";
 import { LiveSupportWidget } from "@/core/live-support/components/live-support-widget";
+import { NotificationBell } from "@/core/notifications/components/notification-bell";
+import { listNotificationsForCurrentUser } from "@/core/notifications/queries";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { Button } from "@/components/ui/button";
@@ -46,6 +48,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // próprio admin, não faria sentido ele chamar/receber suporte de si
   // mesmo (ver docs/decisoes.md).
   const openSession = org.impersonating ? null : await getOpenSessionForMyOrg();
+  const notifications = await listNotificationsForCurrentUser();
 
   return (
     <div className="flex min-h-screen flex-1 flex-col">
@@ -85,6 +88,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <span className="text-sm font-medium">{org.organizationName}</span>
             </div>
             <div className="flex items-center gap-3">
+              <NotificationBell initialItems={notifications} />
               <span className="text-muted-foreground hidden text-sm sm:inline">
                 {org.userEmail}
               </span>

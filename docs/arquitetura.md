@@ -233,7 +233,41 @@ TODAS as organizações de uma vez (`buildSystemBackup()`), só exporta
   disponível (celular: abre o seletor nativo do SO — Drive, WhatsApp,
   Arquivos, etc.), cai pra download comum quando não — decisão
   explícita do usuário pra cobrir "nuvem/máquina/compartilhar" sem
-  integrar um provedor específico.
+  integrar um provedor específico. Se `navigator.share()` falhar por
+  qualquer motivo (comum: o `await fetch()` antes consome a "ativação
+  transitória" que o clique deu), cai pro download em vez de mostrar
+  erro — só a falha do `fetch()` em si é um erro de verdade.
+- **Backup automático diário**: `db/schema/backup.ts`
+  (`organization_backup_settings` — sem linha = ligado;
+  `organization_backups` — snapshots em `jsonb`, podados pros últimos
+  `AUTO_BACKUP_RETENTION` por organização) + `GET /api/cron/backup`
+  (Vercel Cron, `vercel.json`, protegido por `CRON_SECRET`). Ver
+  docs/decisoes.md (2026-09-23) pro desenho completo.
+
+## Notificações (`core/notifications/`)
+
+Avisos que o dono da plataforma manda — não é um módulo plugável de
+negócio, mesma categoria de `core/admin/`/`core/live-support/`.
+`db/schema/notifications.ts`: `notifications` (`organization_id` nulo =
+pra todas as oficinas) + `notification_reads` (quem leu, por PESSOA —
+`user_id`, não só por oficina). Admin gerencia em `/admin/notificacoes`
+(`core/notifications/admin-actions.ts`, atrás de `requireAdmin()`);
+usuário vê no sino do cabeçalho
+(`core/notifications/components/notification-bell.tsx`, montado em
+`(app)/layout.tsx`) e marca como lida com `core/notifications/actions.ts#markNotificationRead`
+(atrás de `withOrg()`). RLS própria (não `apply_org_rls()`) porque a
+policy padrão bloquearia `organization_id` nulo. Ver docs/decisoes.md
+(2026-09-23) pro desenho completo.
+
+## Hints contextuais (`components/hint.tsx`)
+
+Ícone de dúvida com tooltip (shadcn `components/ui/tooltip.tsx` +
+`TooltipProvider` no layout raiz) ao lado de um `<Label>`, só onde o
+formato ou comportamento de um campo/ação não é óbvio (formato de
+CPF/CNPJ, placa, o que "desconto" faz no cálculo, o que "pendente"
+significa numa lista offline). `type="button"` sempre — a maioria fica
+dentro de um `<form>`. Não usar em todo lugar: um label já claro não
+precisa de hint.
 
 ## Convenções de módulo (o que copiar do template)
 

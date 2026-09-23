@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Printer } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Hint } from "@/components/hint";
 import { CreatedBanner } from "@/components/created-banner";
 import { BackButton } from "@/components/back-button";
 import { formatCents } from "@/core/money";
@@ -64,6 +65,10 @@ export default async function WorkOrderDetailPage({
             <h1 className="text-2xl font-semibold tracking-tight">OS #{order.number}</h1>
             <div className="mt-1 flex items-center gap-2">
               <WorkOrderStatusBadge status={order.status} />
+              <Hint>
+                Fluxo da OS: Orçamento → Aprovada → Em andamento → Concluída → Entregue. Pode ser
+                cancelada em qualquer etapa antes de concluída.
+              </Hint>
               <span className="text-muted-foreground text-sm">
                 {order.customerName} — {order.vehiclePlate}
               </span>

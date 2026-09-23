@@ -1122,3 +1122,97 @@ feedback direto do usuário depois de usar o app:
   mudança de comportamento pro usuário comum: ele nunca via esse botão
   pra começar (só existe dentro de `/admin`, inacessível sem ser dono
   da plataforma).
+
+## 2026-09-23 — Bug real do backup, backup automático diário e módulo de notificações
+
+Rodada grande de feedback em cima do que já estava no ar.
+
+**Bug: "Não foi possível gerar o backup" pro usuário comum.** Causa raiz
+achada testando: `BackupDownloadButton` fazia `await fetch(...)` e só
+DEPOIS chamava `navigator.share()` — em vários navegadores,
+`navigator.share()` só funciona chamado bem perto do clique de verdade
+("ativação transitória"); o `await` no meio consome essa janela, e
+`share()` rejeita mesmo com o arquivo já gerado com sucesso. O código
+tratava QUALQUER erro (inclusive esse) como falha total. Corrigido:
+
+- Só o `fetch()` inicial, se falhar, é tratado como "não foi possível
+  gerar o backup" de verdade.
+- Depois que o arquivo já existe, uma falha em `navigator.share()` (por
+  qualquer motivo) cai pro download comum em vez de mostrar erro — a
+  pessoa nunca fica sem o arquivo por causa de um detalhe do navegador
+  que ela nem sabe que existe.
+- Texto da página simplificado (tirado o parágrafo sobre "estrutura de
+  cada tabela... MySQL" — informação real, mas fora de lugar pro
+  usuário comum; fica só documentada aqui e no código).
+
+**Backup automático diário** — ligado por padrão (o pedido era "ficar
+como padrão diariamente"):
+
+- 2 tabelas novas (`db/schema/backup.ts`): `organization_backup_settings`
+  (uma linha por organização, `autoBackupEnabled` — **sem linha = ligado**,
+  só grava quando alguém desliga, não precisa popular pra oficina
+  nenhuma existente) e `organization_backups` (snapshots guardados no
+  próprio Postgres — `jsonb`, mesmo formato de `GET /backup/exportar` —
+  podados pros últimos `AUTO_BACKUP_RETENTION` = 7 por organização a
+  cada rodada do cron).
+- `GET /api/cron/backup`, disparado pelo Vercel Cron (`vercel.json`,
+  `0 3 * * *`) — protegido por `CRON_SECRET` (o Vercel manda esse valor
+  sozinho como `Authorization: Bearer <valor>` quando a env var existe
+  no projeto; sem ela, a rota nunca roda "aberta" pra ninguém). Roda
+  SEQUENCIALMENTE por organização (não `Promise.all`) — uma falhando
+  não derruba as outras, só loga e segue.
+- `components/auto-backup-toggle.tsx` na página `/backup` — liga/desliga
+  por organização (`toggleAutoBackup` em `core/backup-actions.ts`), e a
+  página lista os últimos backups automáticos com link de download
+  (`GET /backup/automatico/[id]`, checando que o backup pedido é da
+  organização de quem está logado).
+- Testado rodando o endpoint do cron de verdade contra o Supabase real
+  (com e sem o `CRON_SECRET` certo — 401 sem, backup gerado com) e a UI
+  (toggle liga/desliga e persiste num reload, backup automático listado
+  e baixável).
+
+**Módulo de notificações** — avisos que o dono da plataforma manda pras
+oficinas, não é um "módulo" plugável de negócio (mesma categoria de
+`core/admin/`/`core/live-support/`): vive em `core/notifications/` +
+`db/schema/notifications.ts` (`notifications` — `organization_id` nulo
+= pra todas, preenchido = só uma; `notification_reads` — chave única
+`(notification_id, user_id)`, guarda quem leu POR PESSOA, não só por
+oficina, porque o pedido foi "saber quem leu").
+
+- Admin (`/admin/notificacoes`): listar, criar, editar, apagar
+  individual ou apagar todas (`ConfirmDeleteButton` reaproveitado),
+  escolher destinatário (select com "Todas as oficinas" ou uma
+  específica — sentinel `ALL_ORGANIZATIONS`, mesmo truque de
+  `components/list-filter-bar.tsx#ALL` pra contornar o Base UI não
+  aceitar `""` como valor de `SelectItem`). Ficha de cada notificação
+  mostra "Quem leu" com e-mail (lido de `auth.users` via SQL bruto,
+  mesmo padrão de `core/admin/queries.ts#getOrganizationForAdmin`) +
+  oficina + data.
+- Usuário: sino novo no cabeçalho (`core/notifications/components/
+notification-bell.tsx`, `(app)/layout.tsx`) — contador de não lidas,
+  marca como lida ao ABRIR o dropdown (não precisa clicar em cada uma).
+- RLS própria (não `apply_org_rls()`): a policy padrão bloquearia
+  notificação "pra todos" (`organization_id` nulo nunca bate num
+  `IN (...)`) — `notifications_select` trata nulo como "todo mundo pode
+  ver" explicitamente.
+- Novo componente `components/ui/tooltip.tsx` (shadcn) + `TooltipProvider`
+  no layout raiz — base pro item de hints abaixo, e primeira vez que o
+  projeto usa tooltip.
+- Testado de ponta a ponta com dois usuários reais (admin + dono de
+  oficina) e Playwright: admin cria notificação "pra todas" → aparece
+  na lista do admin → dono da oficina vê contador de não lida no sino →
+  abre o dropdown, título aparece → volta pro admin, ficha da
+  notificação mostra o e-mail do dono como leitor, com a oficina certa
+  e o horário.
+
+**Hints contextuais** (`components/hint.tsx` — ícone "?" com tooltip,
+`type="button"` de propósito porque quase todo uso fica dentro de um
+`<form>`): CPF/CNPJ aceita os dois formatos, placa aceita antigo ou
+Mercosul, desconto da OS é em reais sobre o total dos itens, fluxo de
+status da OS explicado ao lado do badge, "Faturamento do mês" do
+painel explica que é baseado em OS concluídas (sem módulo financeiro
+ainda), e um hint comum (`components/pending-list-hint.tsx`) nas 4
+listas de "criado offline" explicando o que "pendente" significa. Não
+colocado em todo lugar de propósito — só onde um formato ou
+comportamento não é óbvio de cara; texto de label já claro não ganhou
+hint (viraria ruído).

@@ -57,6 +57,13 @@
       "when": 1790128549392,
       "tag": "0007_whole_senator_kelly",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790193155048,
+      "tag": "0008_massive_shockwave",
+      "breakpoints": true
     }
   ]
 }

@@ -1,11 +1,18 @@
 import "server-only";
-import { eq, getTableColumns, inArray, type Table } from "drizzle-orm";
+import { and, desc, eq, getTableColumns, inArray, type Table } from "drizzle-orm";
 import { db } from "./db";
 import { customers } from "@/modules/clientes/schema";
 import { vehicles } from "@/modules/veiculos/schema";
 import { catalogItems } from "@/modules/catalogo/schema";
 import { workOrderCounters, workOrderItems, workOrders } from "@/modules/ordens/schema";
 import { organizations } from "@/db/schema/tenancy";
+import { organizationBackupSettings, organizationBackups } from "@/db/schema/backup";
+
+/** Quantos backups automáticos guardar por organização — o cron
+ * (`api/cron/backup/route.ts`) apaga os mais antigos além disso a cada
+ * rodada. Uma semana de histórico diário é suficiente pra recuperar de
+ * uma pane sem deixar a tabela crescer sem limite. */
+export const AUTO_BACKUP_RETENTION = 7;
 
 export const BACKUP_VERSION = 1;
 
@@ -208,4 +215,104 @@ export async function buildSystemBackup(): Promise<SystemBackupFile> {
     scope: "system",
     organizations: perOrg,
   };
+}
+
+/** "Sem linha" = ligado — o padrão é fazer backup automático, não
+ * precisa a pessoa opt-in (ela pode DESLIGAR, gravando `false`). */
+export async function getAutoBackupEnabled(organizationId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ autoBackupEnabled: organizationBackupSettings.autoBackupEnabled })
+    .from(organizationBackupSettings)
+    .where(eq(organizationBackupSettings.organizationId, organizationId))
+    .limit(1);
+
+  return row?.autoBackupEnabled ?? true;
+}
+
+export async function setAutoBackupEnabled(organizationId: string, enabled: boolean) {
+  await db
+    .insert(organizationBackupSettings)
+    .values({ organizationId, autoBackupEnabled: enabled })
+    .onConflictDoUpdate({
+      target: organizationBackupSettings.organizationId,
+      set: { autoBackupEnabled: enabled, updatedAt: new Date() },
+    });
+}
+
+/** Todas as organizações com backup automático ligado (inclui as sem
+ * linha em `organization_backup_settings` — padrão ligado). Usado pelo
+ * cron diário. */
+export async function listOrgsWithAutoBackupEnabled(): Promise<{ id: string; name: string }[]> {
+  const rows = await db
+    .select({
+      id: organizations.id,
+      name: organizations.name,
+      autoBackupEnabled: organizationBackupSettings.autoBackupEnabled,
+    })
+    .from(organizations)
+    .leftJoin(
+      organizationBackupSettings,
+      eq(organizationBackupSettings.organizationId, organizations.id),
+    );
+
+  return rows.filter((r) => r.autoBackupEnabled ?? true).map((r) => ({ id: r.id, name: r.name }));
+}
+
+/** Grava um snapshot automático e apaga os mais antigos além de
+ * `AUTO_BACKUP_RETENTION` — chamado pelo cron, uma vez por organização. */
+export async function saveAutomaticBackup(organizationId: string, backup: BackupFile) {
+  await db.insert(organizationBackups).values({ organizationId, data: backup });
+
+  const keep = await db
+    .select({ id: organizationBackups.id })
+    .from(organizationBackups)
+    .where(eq(organizationBackups.organizationId, organizationId))
+    .orderBy(desc(organizationBackups.createdAt))
+    .limit(AUTO_BACKUP_RETENTION);
+
+  const keepIds = keep.map((r) => r.id);
+  const old = await db
+    .select({ id: organizationBackups.id })
+    .from(organizationBackups)
+    .where(eq(organizationBackups.organizationId, organizationId));
+
+  const toDelete = old.map((r) => r.id).filter((id) => !keepIds.includes(id));
+  if (toDelete.length > 0) {
+    await db.delete(organizationBackups).where(inArray(organizationBackups.id, toDelete));
+  }
+}
+
+export interface OrgBackupSummary {
+  id: string;
+  createdAt: Date;
+}
+
+/** Lista os backups automáticos guardados de uma organização, mais
+ * recente primeiro — pra listar na página `/backup`. */
+export async function listAutomaticBackups(organizationId: string): Promise<OrgBackupSummary[]> {
+  return db
+    .select({ id: organizationBackups.id, createdAt: organizationBackups.createdAt })
+    .from(organizationBackups)
+    .where(eq(organizationBackups.organizationId, organizationId))
+    .orderBy(desc(organizationBackups.createdAt));
+}
+
+/** Um backup automático específico, já checando que é da organização
+ * certa (nunca confia só no id vindo da URL). */
+export async function getAutomaticBackup(
+  organizationId: string,
+  backupId: string,
+): Promise<BackupFile | null> {
+  const [row] = await db
+    .select({ data: organizationBackups.data })
+    .from(organizationBackups)
+    .where(
+      and(
+        eq(organizationBackups.id, backupId),
+        eq(organizationBackups.organizationId, organizationId),
+      ),
+    )
+    .limit(1);
+
+  return (row?.data as BackupFile) ?? null;
 }

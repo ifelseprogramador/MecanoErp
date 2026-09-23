@@ -1,0 +1,27 @@
+import { z } from "zod";
+
+/** Valor do `<Select>` quando a notificação é pra todas as oficinas —
+ * "" não é um valor válido de `SelectItem` no Base UI, mesmo motivo de
+ * `components/list-filter-bar.tsx#ALL`. */
+export const ALL_ORGANIZATIONS = "__all__";
+
+export const notificationSchema = z.object({
+  title: z.string().trim().min(1, "Informe um título."),
+  body: z.string().trim().min(1, "Informe a mensagem."),
+  // undefined = pra todas as oficinas (organization_id nulo no banco).
+  organizationId: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v && v !== ALL_ORGANIZATIONS ? v : undefined)),
+});
+
+export type NotificationInput = z.infer<typeof notificationSchema>;
+
+export function parseNotificationFormData(formData: FormData) {
+  return notificationSchema.safeParse({
+    title: formData.get("title"),
+    body: formData.get("body"),
+    organizationId: formData.get("organizationId"),
+  });
+}

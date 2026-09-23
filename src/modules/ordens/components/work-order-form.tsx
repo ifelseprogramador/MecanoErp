@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatPlate } from "@/core/format";
+import { Hint } from "@/components/hint";
 import type { ActionResult } from "@/core/action-result";
 import type { WorkOrder } from "../schema.types";
 
@@ -166,7 +167,10 @@ export function WorkOrderForm({
       </div>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="discount">Desconto</Label>
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor="discount">Desconto</Label>
+          <Hint>Valor em reais, aplicado sobre o total dos itens ao calcular o total da OS.</Hint>
+        </div>
         <Input
           id="discount"
           name="discount"
