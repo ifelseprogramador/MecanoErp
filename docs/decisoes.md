@@ -466,3 +466,21 @@ Pasta local e repositório GitHub (`ifelseprogramador/MecanoErp`) usam
 `mecano-erp` (kebab-case) como nome técnico; `MecanoErp` é o nome exibido
 na UI/README. Antes disso o projeto era um placeholder chamado
 `oficina-erp`.
+
+## 2026-09-23 — Fase 3: módulo `catalogo` (serviços e peças)
+
+Primeiro módulo desde a Fase 2 (clientes/veículos) — retomando o plano
+original depois do desvio de várias rodadas em cima do suporte ao vivo.
+Segue exatamente o template de `veiculos`: `catalog_items` (tipo
+servico/peca, nome, unidade, preço padrão em centavos), RLS via
+`apply_org_rls('catalog_items')`, barrel (`index.ts`) expondo só
+`searchCatalogItems`/`CatalogItem` — é o que o editor de itens da OS
+(próximo módulo) vai importar, nunca `schema.ts`/`queries.ts` direto.
+
+Novidade: `core/money.ts` ganhou `parseReaisInput(texto)` — converte o
+que a pessoa digita num campo de preço ("150,90", "150.90", "1.234,56")
+para centavos, aceitando vírgula OU ponto decimal (`type="text"`, não
+`type="number"`, de propósito: evita o parsing de decimal por locale do
+input numérico nativo, que varia por navegador/SO). Usado pela primeira
+vez aqui; vai se repetir em `ordens` (preço/desconto) e depois
+`financeiro`.

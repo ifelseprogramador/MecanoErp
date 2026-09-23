@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { applyDiscount, formatCents, multiplyCents, sumCents, toCents } from "@/core/money";
+import {
+  applyDiscount,
+  formatCents,
+  multiplyCents,
+  parseReaisInput,
+  sumCents,
+  toCents,
+} from "@/core/money";
 
 describe("money", () => {
   it("converte reais para centavos sem erro de ponto flutuante", () => {
@@ -27,5 +34,18 @@ describe("money", () => {
     expect(applyDiscount(10000, 3000)).toBe(7000);
     expect(applyDiscount(10000, 15000)).toBe(0);
     expect(applyDiscount(10000, 0)).toBe(10000);
+  });
+
+  it("converte texto digitado (vírgula ou ponto) para centavos", () => {
+    expect(parseReaisInput("150,90")).toBe(15090);
+    expect(parseReaisInput("150.90")).toBe(15090);
+    expect(parseReaisInput("1.234,56")).toBe(123456);
+    expect(parseReaisInput("10")).toBe(1000);
+  });
+
+  it("rejeita texto vazio ou inválido", () => {
+    expect(parseReaisInput("")).toBeNull();
+    expect(parseReaisInput("   ")).toBeNull();
+    expect(parseReaisInput("abc")).toBeNull();
   });
 });

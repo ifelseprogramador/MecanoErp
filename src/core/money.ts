@@ -12,6 +12,25 @@ export function toCents(reais: number): Cents {
   return Math.round(reais * 100);
 }
 
+/**
+ * Converte o texto digitado num campo de valor (ex.: "150,90", "150.90",
+ * "1.234,56") para centavos inteiros — `null` se não for um número
+ * válido. Aceita vírgula ou ponto como separador decimal (o brasileiro
+ * médio digita vírgula; `type="text"`, não `type="number"`, evita o
+ * spinner nativo e o parsing estranho de decimal do input numérico em
+ * alguns navegadores com locale diferente).
+ */
+export function parseReaisInput(input: string): Cents | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  // Remove separador de milhar (ponto quando há vírgula decimal depois),
+  // depois troca a vírgula decimal por ponto.
+  const normalized = trimmed.includes(",") ? trimmed.replace(/\./g, "").replace(",", ".") : trimmed;
+  const value = Number(normalized);
+  if (!Number.isFinite(value)) return null;
+  return toCents(value);
+}
+
 /** Formata centavos como moeda brasileira, ex.: 15090 -> "R$ 150,90". */
 export function formatCents(cents: Cents): string {
   const formatted = new Intl.NumberFormat("pt-BR", {
