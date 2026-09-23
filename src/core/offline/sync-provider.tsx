@@ -33,6 +33,10 @@ const PENDING_ROUTES = [
     path: "/clientes/pendente",
     load: () => import("@/app/(app)/clientes/pendente/page"),
   },
+  {
+    path: "/veiculos/pendente",
+    load: () => import("@/app/(app)/veiculos/pendente/page"),
+  },
 ];
 
 /**
@@ -137,7 +141,8 @@ export function SyncProvider() {
       ) : (
         <>
           <WifiOff className="h-3.5 w-3.5" />
-          Sem conexão — o que você criar agora fica guardado e sincroniza sozinho depois.
+          Sem conexão — o que você criar agora fica guardado e será sincronizado assim que a
+          internet voltar.
           {pendingCount > 0 &&
             ` (${pendingCount} ${pendingCount === 1 ? "pendência" : "pendências"})`}
         </>

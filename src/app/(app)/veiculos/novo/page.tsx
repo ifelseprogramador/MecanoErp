@@ -1,6 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { VehicleForm } from "@/modules/veiculos/components/vehicle-form";
-import { createVehicle } from "@/modules/veiculos/actions";
+import { NewVehicleForm } from "@/modules/veiculos/components/new-vehicle-form";
 import { listCustomersForSelect } from "@/modules/clientes";
 
 export default async function NewVehiclePage({ searchParams }: PageProps<"/veiculos/novo">) {
@@ -15,10 +14,9 @@ export default async function NewVehiclePage({ searchParams }: PageProps<"/veicu
           <CardTitle>Dados do veículo</CardTitle>
         </CardHeader>
         <CardContent>
-          <VehicleForm
+          <NewVehicleForm
             customers={customers}
             defaultCustomerId={typeof customerId === "string" ? customerId : undefined}
-            action={createVehicle}
           />
         </CardContent>
       </Card>

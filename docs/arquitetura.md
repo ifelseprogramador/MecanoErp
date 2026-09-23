@@ -186,13 +186,18 @@ IndexedDB (`db.ts`/`queue.ts`) para criações feitas sem conexão,
 sincronizadas sozinhas quando a rede volta (`sync-engine.ts`,
 `sync-provider.tsx`). `modules/clientes` é o template (form via
 `use-offline-create-action.ts`, ficha "pendente" em
-`(app)/clientes/pendente/page.tsx`); os demais módulos ainda vão
-copiar o padrão. **Antes de mexer aqui**, ler docs/decisoes.md
-(2026-09-23, "Offline-first") — tem várias armadilhas específicas de
-Next.js 16 + service worker já resolvidas (prefetch não é suficiente
-pra evitar `ChunkLoadError`, `useSearchParams` exige `Suspense` que
-atrapalha o prefetch, rota "pendente" precisa ser estática, etc.) que
-se repetem em qualquer módulo novo que ganhar esse suporte.
+`(app)/clientes/pendente/page.tsx`); `modules/veiculos` já segue o
+mesmo padrão (segunda aplicação, confirma que generaliza sem tocar em
+`core/offline/`); `catalogo` e `ordens` ainda faltam. A tarja de
+status (sem conexão / sincronizando / sincronizado) é do
+`SyncProvider`, global — aparece em qualquer página, não só nas que
+têm suporte a criação offline. **Antes de mexer aqui**, ler
+docs/decisoes.md (2026-09-23, "Offline-first") — tem várias armadilhas
+específicas de Next.js 16 + service worker já resolvidas (prefetch não
+é suficiente pra evitar `ChunkLoadError`, `useSearchParams` exige
+`Suspense` que atrapalha o prefetch, rota "pendente" precisa ser
+estática, etc.) que se repetem em qualquer módulo novo que ganhar esse
+suporte.
 
 ## Convenções de módulo (o que copiar do template)
 

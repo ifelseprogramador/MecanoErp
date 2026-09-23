@@ -6,7 +6,11 @@ import { and, eq } from "drizzle-orm";
 import { withOrg } from "@/core/auth";
 import type { ActionResult } from "@/core/action-result";
 import { vehicles } from "./schema";
-import { parseVehicleFormData } from "./validation";
+import { parseVehicleFormData, type VehicleInput } from "./validation";
+
+interface InsertResult extends ActionResult {
+  id?: string;
+}
 
 function isUniqueViolation(err: unknown): boolean {
   return typeof err === "object" && err !== null && "code" in err && err.code === "23505";
@@ -16,13 +20,46 @@ function isForeignKeyViolation(err: unknown): boolean {
   return typeof err === "object" && err !== null && "code" in err && err.code === "23503";
 }
 
+/**
+ * Faz o INSERT em si, sem `redirect()` — mesma extração e mesmo motivo
+ * de `modules/clientes/actions.ts#createCustomerRecord`: chamável direto
+ * pelo motor de sincronização offline (`core/offline/replay-handlers.ts`).
+ * Se o veículo foi criado offline referenciando um CLIENTE também criado
+ * offline (ainda não sincronizado), o insert falha por violação de FK —
+ * o motor de sync já para no primeiro erro e tenta de novo depois, então
+ * a ordem cronológica da fila (cliente antes do veículo) resolve isso
+ * sozinha assim que o cliente sincronizar primeiro.
+ */
+export async function createVehicleRecord(data: VehicleInput, id?: string): Promise<InsertResult> {
+  const { db, organizationId, log } = await withOrg();
+  log.info("veiculos.criar", { offline: Boolean(id) });
+
+  try {
+    const [vehicle] = await db
+      .insert(vehicles)
+      .values({ ...data, organizationId, ...(id && { id }) })
+      .returning({ id: vehicles.id });
+    log.info("veiculos.criar.sucesso", { vehicleId: vehicle.id });
+    revalidatePath("/veiculos");
+    revalidatePath(`/clientes/${data.customerId}`);
+    return { ok: true, id: vehicle.id };
+  } catch (err) {
+    if (isUniqueViolation(err)) {
+      log.warn("veiculos.criar.placa_duplicada", { plate: data.plate });
+      return { ok: false, errors: { plate: ["Já existe um veículo com essa placa."] } };
+    }
+    log.error("veiculos.criar.falhou", { err });
+    return { ok: false, message: "Não foi possível salvar o veículo. Tente novamente." };
+  }
+}
+
 export async function createVehicle(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const { db, organizationId, log } = await withOrg();
-  log.info("veiculos.criar");
-
+  // `withOrg()` aqui de propósito, antes até de validar o form — mesmo
+  // motivo documentado em modules/clientes/actions.ts#createCustomer.
+  const { log } = await withOrg();
   const parsed = parseVehicleFormData(formData);
   if (!parsed.success) {
     log.warn("veiculos.criar.validacao_falhou", {
@@ -31,28 +68,12 @@ export async function createVehicle(
     return { ok: false, errors: parsed.error.flatten().fieldErrors };
   }
 
-  let vehicleId: string;
-  try {
-    const [vehicle] = await db
-      .insert(vehicles)
-      .values({ ...parsed.data, organizationId })
-      .returning({ id: vehicles.id });
-    vehicleId = vehicle.id;
-    log.info("veiculos.criar.sucesso", { vehicleId });
-  } catch (err) {
-    if (isUniqueViolation(err)) {
-      log.warn("veiculos.criar.placa_duplicada", { plate: parsed.data.plate });
-      return { ok: false, errors: { plate: ["Já existe um veículo com essa placa."] } };
-    }
-    log.error("veiculos.criar.falhou", { err });
-    return { ok: false, message: "Não foi possível salvar o veículo. Tente novamente." };
-  }
+  const result = await createVehicleRecord(parsed.data);
+  if (!result.ok) return result;
 
   // `redirect()` fica fora do try/catch pelo mesmo motivo documentado em
   // modules/clientes/actions.ts#createCustomer.
-  revalidatePath("/veiculos");
-  revalidatePath(`/clientes/${parsed.data.customerId}`);
-  redirect(`/veiculos/${vehicleId}`);
+  redirect(`/veiculos/${result.id}`);
 }
 
 export async function updateVehicle(

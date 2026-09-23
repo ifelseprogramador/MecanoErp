@@ -2,6 +2,8 @@
 
 import { createCustomerRecord } from "@/modules/clientes/actions";
 import type { CustomerInput } from "@/modules/clientes/validation";
+import { createVehicleRecord } from "@/modules/veiculos/actions";
+import type { VehicleInput } from "@/modules/veiculos/validation";
 
 /**
  * Mapa `module:actionName -> função que refaz a ação de verdade no
@@ -20,4 +22,5 @@ export const REPLAY_HANDLERS: Record<
   (record: Record<string, unknown>, id: string) => Promise<{ ok: boolean; message?: string }>
 > = {
   "clientes:createCustomer": (record, id) => createCustomerRecord(record as CustomerInput, id),
+  "veiculos:createVehicle": (record, id) => createVehicleRecord(record as VehicleInput, id),
 };

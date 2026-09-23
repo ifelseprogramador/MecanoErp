@@ -664,3 +664,54 @@ módulos `veiculos`, `catalogo` e `ordens`; para `ordens` especificamente,
 ainda falta decidir como tratar o número sequencial da OS quando criada
 offline (colisão de numeração ao sincronizar mais de uma OS criada sem
 conexão) — número provisório local, confirmado só na sincronização.
+
+## 2026-09-23 — Offline-first: `veiculos` (segunda aplicação do padrão)
+
+Pedido explícito do usuário nesta rodada: tarja avisando "sem conexão,
+vai sincronizar sozinho quando voltar" e um aviso quando a sincronização
+terminar. As duas coisas **já existiam** desde a implementação de
+`clientes` (`SyncProvider`, montado globalmente em `(app)/layout.tsx` —
+vale pra qualquer página, não só clientes): tarja escura offline, tarja
+âmbar com contagem + toast quando sincroniza. Só ajustado o texto da
+tarja offline pra bater literalmente com o pedido ("...será
+sincronizado assim que a internet voltar").
+
+O trabalho de verdade desta rodada foi replicar o suporte de CRIAÇÃO
+offline pro módulo `veiculos`, confirmando que o template de `clientes`
+generaliza sem ajuste nas peças de `core/offline/` (fila, engine,
+`useOfflineCreateAction`, `db.ts` — nenhuma delas tem nada específico de
+cliente). O que foi copiado/adaptado por módulo, iguais aos passos já
+documentados no header de `core/offline/replay-handlers.ts`:
+
+1. `actions.ts`: extraído `createVehicleRecord(data, id?)` — mesmo
+   padrão de `createCustomerRecord` (sem `redirect`, `withOrg()` próprio,
+   aceita `id` opcional pro id gerado no navegador).
+2. `replay-handlers.ts`: registrada a entrada
+   `"veiculos:createVehicle"`.
+3. `components/new-vehicle-form.tsx`: wrapper com
+   `useOfflineCreateAction`, repassando as props extras que
+   `VehicleForm` tem e `CustomerForm` não tem (`customers`,
+   `defaultCustomerId`).
+4. `(app)/veiculos/pendente/page.tsx` +
+   `components/pending-vehicles.tsx`: cópias adaptadas das
+   equivalentes de clientes, mostrando os campos do veículo.
+5. `sync-provider.tsx`: rota `/veiculos/pendente` adicionada em
+   `PENDING_ROUTES`.
+
+**Detalhe que não é bug, é limitação aceita**: `vehicleSchema` exige um
+`customerId` de um cliente que já existe — o seletor do formulário só
+lista clientes já sincronizados (vindos do servidor). Criar um veículo
+offline pra um cliente **também** criado offline, na mesma sessão sem
+conexão, funciona (o motor de sync processa a fila em ordem cronológica
+— o cliente sincroniza primeiro, satisfazendo a FK do veículo), mas o
+select do formulário não vai listar esse cliente ainda pendente
+enquanto estiver offline (só existe no IndexedDB, não na lista vinda do
+servidor). Cobre o caso comum (cliente já cadastrado, veículo novo);
+não cobre cadastrar os dois do zero na mesma sessão offline.
+
+Testado de ponta a ponta com Playwright contra build de produção e
+Supabase real, mesmo roteiro do teste de `clientes`: criar veículo
+offline → ficha pendente hidrata com a placa certa → aparece na
+listagem mesmo offline → volta a conexão → toast de sincronização → a
+ficha de verdade (`/veiculos/{id}`) mostra o mesmo veículo, MESMO id,
+com o cliente vinculado certo.

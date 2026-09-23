@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { SearchBox } from "@/components/search-box";
 import { listVehicles } from "@/modules/veiculos/queries";
 import { VehicleTable } from "@/modules/veiculos/components/vehicle-table";
+import { PendingVehicles } from "@/modules/veiculos/components/pending-vehicles";
 
 export default async function VehiclesPage({ searchParams }: PageProps<"/veiculos">) {
   const { q } = await searchParams;
@@ -21,6 +22,7 @@ export default async function VehiclesPage({ searchParams }: PageProps<"/veiculo
       </div>
 
       <SearchBox placeholder="Buscar por placa..." />
+      <PendingVehicles />
       <VehicleTable vehicles={vehicles} />
     </div>
   );
