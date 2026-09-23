@@ -4,6 +4,7 @@ import { Printer } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CreatedBanner } from "@/components/created-banner";
+import { BackButton } from "@/components/back-button";
 import { formatCents } from "@/core/money";
 import { getWorkOrderById, listWorkOrderItems } from "@/modules/ordens/queries";
 import {
@@ -57,13 +58,16 @@ export default async function WorkOrderDetailPage({
         />
       )}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">OS #{order.number}</h1>
-          <div className="mt-1 flex items-center gap-2">
-            <WorkOrderStatusBadge status={order.status} />
-            <span className="text-muted-foreground text-sm">
-              {order.customerName} — {order.vehiclePlate}
-            </span>
+        <div className="flex items-start gap-2">
+          <BackButton />
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">OS #{order.number}</h1>
+            <div className="mt-1 flex items-center gap-2">
+              <WorkOrderStatusBadge status={order.status} />
+              <span className="text-muted-foreground text-sm">
+                {order.customerName} — {order.vehiclePlate}
+              </span>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2">

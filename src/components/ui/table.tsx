@@ -16,7 +16,15 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
 }
 
 function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
-  return <thead data-slot="table-header" className={cn("[&_tr]:border-b", className)} {...props} />;
+  // `bg-muted/40`: mesma exceção documentada em `card.tsx` — cabeçalho de
+  // tabela sem cor nenhuma era um dos trechos mais "cinza" do app.
+  return (
+    <thead
+      data-slot="table-header"
+      className={cn("bg-muted/40 [&_tr]:border-b", className)}
+      {...props}
+    />
+  );
 }
 
 function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {

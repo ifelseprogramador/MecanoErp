@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { CreatedBanner } from "@/components/created-banner";
+import { BackButton } from "@/components/back-button";
 import { formatPlate } from "@/core/format";
 import { getVehicleById } from "@/modules/veiculos/queries";
 import { deleteVehicle, updateVehicle } from "@/modules/veiculos/actions";
@@ -35,7 +36,10 @@ export default async function VehicleDetailPage({
         />
       )}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">{formatPlate(vehicle.plate)}</h1>
+        <div className="flex items-center gap-2">
+          <BackButton />
+          <h1 className="text-2xl font-semibold tracking-tight">{formatPlate(vehicle.plate)}</h1>
+        </div>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"

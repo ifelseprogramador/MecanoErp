@@ -1071,3 +1071,54 @@ dado) → confirma que sumiu da listagem → restaurar o MESMO arquivo →
 resumo mostra "Clientes: 1 nova, 1 já existia" (e 0 novas nas outras
 5 tabelas, confirmando a idempotência) → cliente reaparece com o
 MESMO id.
+
+## 2026-09-23 — Ajustes de feedback: hover do suporte, mais cor, seta de voltar, backup
+
+Rodada de correções em cima das 5 fases anteriores, a partir de
+feedback direto do usuário depois de usar o app:
+
+- **Botão de suporte "grudando" aberto**: o hover-expand (Fase 1) já
+  funcionava certo num mouse de verdade (confirmado de novo com
+  Playwright), mas usava `group-hover/button:` puro — num celular
+  (touch, sem mouse), o toque ativa o `:hover` do CSS e ele fica
+  "grudado" expandido até tocar em outro lugar da tela, parecendo bug
+  de "aparece sem passar o mouse". Trocado por
+  `[@media(hover:hover)]:group-hover/button:...` — só expande em
+  dispositivo com hover de verdade; em touch, fica sempre só o ícone
+  (aí é um toque normal pra acionar, sem intermediário nenhum).
+- **"Ainda tudo preto e branco"**: a Fase 1 deixou botões/sidebar/
+  badges coloridos, mas a ÁREA DE CONTEÚDO (fundo, cards, cabeçalho de
+  tabela) continuava neutra de propósito — na prática ficou colorido
+  de mais longe, cinza de perto, que é o que o usuário via na maior
+  parte da tela. Reforçado:
+  - `--background` ganhou um tom quente bem sutil (não mais branco
+    puro) — todo fundo de página, sem mexer na legibilidade.
+  - `--border`/`--muted`/`--secondary` com mais chroma (mais visivelmente
+    quentes, ainda claros).
+  - **Exceção deliberada** nos dois únicos componentes gerados do
+    shadcn que precisaram de ajuste pra herdar o tema (documentada nos
+    próprios arquivos): `card.tsx` trocou `ring-foreground/10` (fixo,
+    ignorava qualquer token) por `ring-border`; `table.tsx` ganhou
+    `bg-muted/40` no `<thead>` (cabeçalho de tabela não tinha cor
+    nenhuma antes).
+  - Novo `components/page-icon.tsx` — selo colorido (`bg-accent`) com
+    o MESMO ícone que já aparece pro módulo no menu lateral
+    (`module.ts#iconName`), ao lado do `<h1>` de cada listagem
+    (clientes, veículos, catálogo, ordens) — reaproveita o ícone já
+    existente em vez de inventar um novo, mas dá um ponto de cor no
+    topo de toda tela principal, não só no painel.
+- **Seta de voltar**: novo `components/back-button.tsx` — `router.back()`
+  (histórico de navegação de verdade, não um link fixo pra lista, porque
+  "de onde veio" pode ser várias telas diferentes: a lista, a ficha de
+  um cliente, o painel). Adicionado no topo das 8 páginas de criar/editar
+  (`novo` e `[id]` dos 4 módulos), ao lado do `<h1>`.
+- **Backup: reforço de que "todo o banco" é só do dono**: já estava
+  correto (`/admin/backup` passa por `requireAdmin()`, `/backup` por
+  `withOrg()` — nunca o contrário), mas o Route Handler de
+  `/admin/backup` deixava o erro de acesso negado virar um 500 genérico
+  em vez de um 403 de verdade (Route Handler não passa pela árvore de
+  componentes como uma Server Action passaria) — sem vazamento de dado
+  em nenhum dos dois casos, só uma resposta mais limpa agora. Nenhuma
+  mudança de comportamento pro usuário comum: ele nunca via esse botão
+  pra começar (só existe dentro de `/admin`, inacessível sem ser dono
+  da plataforma).

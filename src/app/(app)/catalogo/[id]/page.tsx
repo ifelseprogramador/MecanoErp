@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { CreatedBanner } from "@/components/created-banner";
+import { BackButton } from "@/components/back-button";
 import { getCatalogItemById } from "@/modules/catalogo/queries";
 import { deleteCatalogItem, updateCatalogItem } from "@/modules/catalogo/actions";
 import { CatalogItemForm } from "@/modules/catalogo/components/catalog-item-form";
@@ -33,7 +34,10 @@ export default async function CatalogItemDetailPage({
         />
       )}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">{item.name}</h1>
+        <div className="flex items-center gap-2">
+          <BackButton />
+          <h1 className="text-2xl font-semibold tracking-tight">{item.name}</h1>
+        </div>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"

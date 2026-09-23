@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Download, Plus } from "lucide-react";
+import { ClipboardList, Download, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PageIcon } from "@/components/page-icon";
 import { SearchBox } from "@/components/search-box";
 import { ListFilterBar } from "@/components/list-filter-bar";
 import {
@@ -29,7 +30,10 @@ export default async function WorkOrdersPage({ searchParams }: PageProps<"/orden
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold tracking-tight">Ordens de serviço</h1>
+        <div className="flex items-center gap-3">
+          <PageIcon icon={ClipboardList} />
+          <h1 className="text-2xl font-semibold tracking-tight">Ordens de serviço</h1>
+        </div>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"

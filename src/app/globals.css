@@ -57,7 +57,7 @@
  * pra manter a leitura limpa.
  */
 :root {
-  --background: oklch(1 0 0);
+  --background: oklch(0.99 0.004 60);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
@@ -65,15 +65,15 @@
   --popover-foreground: oklch(0.145 0 0);
   --primary: oklch(0.646 0.222 41.116);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0.013 58);
+  --secondary: oklch(0.96 0.022 58);
   --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0.008 58);
-  --muted-foreground: oklch(0.535 0.02 50);
+  --muted: oklch(0.96 0.018 58);
+  --muted-foreground: oklch(0.5 0.03 50);
   --accent: oklch(0.94 0.045 60);
   --accent-foreground: oklch(0.3 0.08 40);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.912 0.01 60);
-  --input: oklch(0.912 0.01 60);
+  --border: oklch(0.88 0.025 55);
+  --input: oklch(0.88 0.025 55);
   --ring: oklch(0.646 0.19 41);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.546 0.245 262.9);

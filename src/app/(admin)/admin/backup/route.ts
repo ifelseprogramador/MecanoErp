@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/core/admin-auth";
+import { NotPlatformAdminError, requireAdmin } from "@/core/admin-auth";
 import { buildSystemBackup } from "@/core/backup";
 
 /**
@@ -9,10 +9,25 @@ import { buildSystemBackup } from "@/core/backup";
  * `core/backup.ts#restoreOrgBackup`, mas o arquivo inteiro não tem
  * restauração automática de sistema (ver comentário em
  * `buildSystemBackup`).
+ *
+ * Diferente de uma Server Action (onde um `throw` vira um erro tratado
+ * pela árvore de componentes), um Route Handler sem try/catch devolveria
+ * um 500 genérico pra qualquer pessoa logada que tentasse acessar esta
+ * URL direto — funcionalmente já bloqueado (nenhum dado vaza), mas o
+ * catch abaixo devolve um 403 de verdade em vez de um erro de servidor
+ * confuso.
  */
 export async function GET() {
-  const { log } = await requireAdmin();
-  log.info("admin.backup.exportar");
+  let context: Awaited<ReturnType<typeof requireAdmin>>;
+  try {
+    context = await requireAdmin();
+  } catch (err) {
+    if (err instanceof NotPlatformAdminError) {
+      return new Response("Acesso restrito ao dono da plataforma.", { status: 403 });
+    }
+    throw err;
+  }
+  context.log.info("admin.backup.exportar");
 
   const backup = await buildSystemBackup();
   const filename = `mecanoerp-backup-sistema-${new Date().toISOString().slice(0, 10)}.json`;

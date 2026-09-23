@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Users } from "lucide-react";
+import { PageIcon } from "@/components/page-icon";
 import {
   CUSTOMER_SORT_OPTIONS,
   type CustomerSort,
@@ -23,7 +24,10 @@ export default async function CustomersPage({ searchParams }: PageProps<"/client
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold tracking-tight">Clientes</h1>
+        <div className="flex items-center gap-3">
+          <PageIcon icon={Users} />
+          <h1 className="text-2xl font-semibold tracking-tight">Clientes</h1>
+        </div>
         <div className="flex items-center gap-2">
           <ImportExportButtons basePath="/clientes" />
           <Button nativeButton={false} render={<Link href="/clientes/novo" />}>

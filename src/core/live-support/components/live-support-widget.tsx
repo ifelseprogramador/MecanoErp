@@ -242,7 +242,13 @@ export function LiveSupportWidget({
               fixa), o crescimento da largura empurra a borda ESQUERDA pra
               fora, dando a impressão de expandir pra esquerda, sem
               precisar de nenhum cálculo de posição. */}
-          <span className="max-w-0 overflow-hidden text-sm whitespace-nowrap opacity-0 transition-all duration-300 ease-out group-hover/button:max-w-40 group-hover/button:opacity-100">
+          {/* `@media(hover:hover)` de propósito: sem isso, num celular
+              (touch, sem mouse de verdade) o toque no botão ativa o
+              `:hover` do CSS e o texto fica "grudado" aberto até tocar em
+              outro lugar da tela — parece um bug de texto aparecendo sem
+              passar o mouse. Só expande em dispositivo que tem hover de
+              verdade. */}
+          <span className="max-w-0 overflow-hidden text-sm whitespace-nowrap opacity-0 transition-all duration-300 ease-out [@media(hover:hover)]:group-hover/button:max-w-40 [@media(hover:hover)]:group-hover/button:opacity-100">
             Chamar suporte
           </span>
         </Button>
