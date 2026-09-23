@@ -13,6 +13,7 @@ import { LiveSupportWidget } from "@/core/live-support/components/live-support-w
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { Button } from "@/components/ui/button";
+import { SyncProvider } from "@/core/offline/sync-provider";
 import { logout } from "@/app/(auth)/actions";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -48,6 +49,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex min-h-screen flex-1 flex-col">
+      {/* Só fora do modo suporte: o admin "agindo como" uma oficina
+          está numa sessão real dele, não da oficina — não faz sentido
+          ele acumular uma fila offline em nome de outra pessoa (mesmo
+          raciocínio do LiveSupportWidget logo abaixo). */}
+      {!org.impersonating && <SyncProvider />}
       {org.impersonating && (
         <div className="flex items-center justify-between bg-amber-500 px-4 py-2 text-sm font-medium text-amber-950 print:hidden">
           <span className="flex items-center gap-2">

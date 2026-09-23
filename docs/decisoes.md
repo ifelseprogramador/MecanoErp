@@ -557,3 +557,110 @@ Corrigido trocando o script `typecheck` de `tsc --noEmit` para
 tipos de rota, sem build completo, bem mais rápido que rodar `next
 build` cedo demais só para gerar tipos. Confirmado rodando com
 `.next/` apagado antes.
+
+## 2026-09-23 — Offline-first: PWA + fila local, não PowerSync
+
+Pergunta que motivou a decisão: "e se ficar sem internet o dia inteiro?"
+— a oficina precisa continuar cadastrando cliente/veículo/OS mesmo sem
+conexão, e sincronizar sozinho quando ela voltar. Avaliadas duas rotas:
+PowerSync (motor de sync genérico, replica um banco local inteiro) e uma
+versão mais simples — service worker cacheando páginas já visitadas (só
+leitura) + fila de ações pendentes em IndexedDB (só escrita). Escolhida a
+segunda: cobre o caso real (balcão continua CRIANDO o dia inteiro) sem
+trazer um motor de sincronização genérico e sua complexidade operacional
+para um MVP de oficina única. Trade-off aceito conscientemente: só fica
+disponível pra LEITURA offline o que já foi visitado antes (não é um
+banco local completo) — na prática isso cobre bem o uso real, já que o
+balcão folheia as listas o dia inteiro de qualquer forma.
+
+Peças, todas em `src/core/offline/`:
+
+- `public/sw.js` — service worker só de leitura. Nunca intercepta
+  requisição que não seja GET (Server Action é POST — não dá pra
+  responder por ela aqui sem quebrar o formato que o RSC espera de
+  volta). Navegação de página (`request.mode === "navigate"`):
+  network-first, cai pro cache da última visita se offline, e por
+  último numa página `/offline` genérica se a rota nunca foi visitada.
+  `/_next/static/` é cache-first (conteúdo tem hash no nome, nunca muda
+  pra uma mesma URL).
+- `db.ts`/`queue.ts` — fila de `PendingAction` em IndexedDB (via `idb`),
+  um evento de `window` (`QUEUE_CHANGED_EVENT`) pra UI reagir sem
+  precisar dar poll.
+- `use-offline-create-action.ts` — envolve uma Server Action de criar:
+  se `navigator.onLine` é falso, ou se a chamada falhar com um erro que
+  parece de rede (`TypeError` de `fetch`), grava na fila local em vez de
+  chamar o servidor, com um `id` gerado no cliente
+  (`crypto.randomUUID()`) que **é o mesmo id usado no insert real
+  quando sincronizar** — sem remapear URL/id depois.
+- `sync-engine.ts` — ao voltar a conexão (`sync-provider.tsx`, montado
+  em `(app)/layout.tsx`, só dentro da área autenticada), reprocessa a
+  fila **sequencialmente, nunca em paralelo**, e **para no primeiro
+  erro**: não dá pra distinguir barato "erro de validação de verdade" de
+  "essa ação depende de outra que ainda não sincronizou" (ex.: veículo
+  que referencia um cliente criado na mesma sessão offline) — parar
+  sempre é mais seguro que arriscar sincronizar fora de ordem.
+- `replay-handlers.ts` — mapa `"modulo:actionName" -> função`, mora em
+  `core/` (não dentro do módulo) pelo mesmo motivo de
+  `core/load-modules.ts`: por natureza precisa conhecer vários módulos.
+
+**Armadilhas reais encontradas testando com Playwright
+(`context.setOffline`) contra build de produção** (dev mode com
+Turbopack/HMR não hidrata direito uma página servida pelo cache do SW
+offline — testar sempre com `npm run build && npm run start`):
+
+- **Rota "pendente" tem que ser estática, nunca `/rota/[id]`**: o
+  roteador do Next tenta buscar o payload RSC do destino antes de
+  navegar — falha offline pra um id nunca visto, cai pra navegação de
+  browser de verdade, que o SW também não tem cacheado (URL nova, nunca
+  visitada). Resolvido usando `/clientes/pendente?id=xxx` (caminho
+  estático, pré-cacheável) em vez de `/clientes/pendente/[id]`, e
+  navegando com `window.location.href` (não `router.push()`, que ainda
+  tentaria buscar o RSC primeiro).
+- **`router.prefetch()` não é suficiente pra evitar `ChunkLoadError`**:
+  ele garante o payload RSC da rota, mas na prática nem sempre baixa
+  os chunks JavaScript da própria página — offline, sem esses chunks em
+  cache, a hidratação falha com `ChunkLoadError`. Resolvido com um
+  `import()` dinâmico explícito do módulo da página
+  (`sync-provider.tsx`), que força o navegador a buscar e EXECUTAR o
+  chunk de verdade (passando pelo service worker, que cacheia).
+- **`router.prefetch()` cacheia o formato ERRADO pra fallback de
+  navegação**: o que ele guarda no Cache Storage é o payload RSC (só
+  serve pra requisição com os headers especiais que o roteador do Next
+  manda), não o HTML completo que uma navegação de página cheia (ou
+  `fetch()` cru) recebe. O SW em modo "navigate" precisa do HTML
+  completo. Resolvido fazendo TAMBÉM um `fetch()` cru client-side da
+  rota e escrevendo direto no mesmo Cache Storage que o SW lê
+  (`caches.open(SW_CACHE_NAME).then(cache => cache.put(...))` —
+  `caches` é compartilhado entre a aba e o service worker na mesma
+  origem).
+- **`useSearchParams()` exige `<Suspense>`, e isso atrapalha o
+  prefetch**: com Partial Prerendering, o Next não inclui o JS de
+  dentro de um limite `<Suspense>` no `router.prefetch()` — só busca de
+  verdade na navegação real. Como a rota `/clientes/pendente` não
+  depende de nada do servidor, trocado `useSearchParams()` por ler
+  `window.location.search` direto num efeito (sem `Suspense`),
+  eliminando o boundary que causava o problema.
+- **Service worker não pode pré-cachear rota autenticada estando
+  deslogado**: `SyncProvider` mora só em `(app)/layout.tsx` (nunca no
+  layout raiz, que também serve `/login`) — senão a instalação do SW
+  podia rodar antes do login, cachear a tela de "sessão expirou" sob a
+  chave da rota protegida, e mostrar isso pra sempre offline.
+- **Primeira navegação depois do login não fica sob controle do SW
+  ainda** (ele só assume controle numa navegação seguinte à própria
+  instalação) — por isso o cache real de uma rota só existe a partir da
+  SEGUNDA vez que ela é visitada na sessão do navegador; é esperado, não
+  um bug (o app funciona normalmente, só a leitura offline daquela rota
+  específica fica disponível a partir da visita seguinte).
+
+Testado de ponta a ponta com Playwright contra build de produção e
+Supabase real: criar cliente offline → ficha "pendente" hidrata offline
+com o dado certo e o badge de pendência → aparece na listagem de
+clientes mesmo offline → volta a conexão → sincroniza sozinho (toast +
+recarrega a lista) → a ficha de verdade (`/clientes/{id}`) mostra o
+mesmo cliente, com o MESMO id gerado no cliente.
+
+Ainda falta (não é bug, é próximo passo): repetir o mesmo padrão pros
+módulos `veiculos`, `catalogo` e `ordens`; para `ordens` especificamente,
+ainda falta decidir como tratar o número sequencial da OS quando criada
+offline (colisão de numeração ao sincronizar mais de uma OS criada sem
+conexão) — número provisório local, confirmado só na sincronização.

@@ -178,6 +178,22 @@ do usuário ("acesso remoto, ver o mouse mexendo, os dois em tempo real").
   roubando clique/foco, coordenadas erradas, canal recriado perdendo
   mensagem) que vão se repetir em qualquer ajuste nessa área.
 
+## Offline-first (PWA + fila local)
+
+`src/core/offline/` — service worker (`public/sw.js`, só cache de
+leitura de páginas já visitadas) + fila de ações pendentes em
+IndexedDB (`db.ts`/`queue.ts`) para criações feitas sem conexão,
+sincronizadas sozinhas quando a rede volta (`sync-engine.ts`,
+`sync-provider.tsx`). `modules/clientes` é o template (form via
+`use-offline-create-action.ts`, ficha "pendente" em
+`(app)/clientes/pendente/page.tsx`); os demais módulos ainda vão
+copiar o padrão. **Antes de mexer aqui**, ler docs/decisoes.md
+(2026-09-23, "Offline-first") — tem várias armadilhas específicas de
+Next.js 16 + service worker já resolvidas (prefetch não é suficiente
+pra evitar `ChunkLoadError`, `useSearchParams` exige `Suspense` que
+atrapalha o prefetch, rota "pendente" precisa ser estática, etc.) que
+se repetem em qualquer módulo novo que ganhar esse suporte.
+
 ## Convenções de módulo (o que copiar do template)
 
 `modules/clientes/` é o template — `modules/veiculos/` é a segunda

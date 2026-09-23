@@ -1,6 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CustomerForm } from "@/modules/clientes/components/customer-form";
-import { createCustomer } from "@/modules/clientes/actions";
+import { NewCustomerForm } from "@/modules/clientes/components/new-customer-form";
 
 export default function NewCustomerPage() {
   return (
@@ -11,7 +10,7 @@ export default function NewCustomerPage() {
           <CardTitle>Dados do cliente</CardTitle>
         </CardHeader>
         <CardContent>
-          <CustomerForm action={createCustomer} />
+          <NewCustomerForm />
         </CardContent>
       </Card>
     </div>
