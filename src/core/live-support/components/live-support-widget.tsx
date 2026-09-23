@@ -292,6 +292,11 @@ export function LiveSupportWidget({
                 checked={session.controlGranted}
                 onCheckedChange={handleToggleControl}
                 disabled={isPending}
+                // O cinza claro padrão do estado "desligado" (pensado pra
+                // ficar sobre fundo branco comum) quase some em cima do
+                // pill azul clarinho daqui — escurecido só nesta
+                // instância.
+                className="data-unchecked:bg-zinc-400"
               />
             </label>
             <div className="h-4 w-px bg-blue-200" />
