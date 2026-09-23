@@ -19,10 +19,9 @@ import type { CustomerInput } from "@/modules/clientes/validation";
  *
  * Rota ESTÁTICA com `?id=` na query (não `clientes/pendente/[id]`) de
  * propósito: uma rota dinâmica nova (id nunca visto antes) não tem como
- * ser pré-carregada. `SyncProvider` já roda `router.prefetch()` nesta
- * rota ao montar (com sessão ativa) — o JavaScript dela fica pronto
- * antes de qualquer necessidade real, funciona offline mesmo no
- * PRIMEIRO uso.
+ * ser pré-carregada. `SyncProvider` já força o carregamento do módulo
+ * desta página (`import()` dinâmico) e cacheia o HTML dela ao montar
+ * (com sessão ativa) — funciona offline mesmo no PRIMEIRO uso.
  */
 export default function PendingCustomerPage() {
   return <PendingCustomerContent />;
