@@ -535,3 +535,25 @@ catálogo (autofill de nome/tipo/preço) e item avulso, remoção de item
 recalculando o total, cancelamento a partir de qualquer estado não
 terminal, impressão mostrando os dados certos, e 22 testes unitários
 novos (máquina de estados + cálculo de total + validação Zod).
+
+## 2026-09-23 — CI quebrado: `PageProps`/`LayoutProps` não existem num checkout limpo
+
+`npm run typecheck` (`tsc --noEmit`) rodando sozinho, sem nunca ter
+passado por `next dev`/`next build` antes, falhava com
+`Cannot find name 'PageProps'` em toda página nova. Nunca apareceu
+rodando local porque este diretório sempre teve um `.next/` de alguma
+sessão de `dev`/`build` anterior — só apareceu no CI (checkout limpo a
+cada run).
+
+Causa: `PageProps`/`LayoutProps` são tipos que o Next.js **gera**
+(`.next/types/**/*.ts`, já listado no `include` do `tsconfig.json`) a
+partir das rotas existentes — não existem até o Next processar o
+`app/` pelo menos uma vez. O workflow (`ci.yml`) roda "Checagem de
+tipos" **antes** de "Build de produção", então num checkout novo esses
+tipos simplesmente não existem ainda quando o `tsc` roda.
+
+Corrigido trocando o script `typecheck` de `tsc --noEmit` para
+`next typegen && tsc --noEmit` — `next typegen` (Next.js 16) gera só os
+tipos de rota, sem build completo, bem mais rápido que rodar `next
+build` cedo demais só para gerar tipos. Confirmado rodando com
+`.next/` apagado antes.
