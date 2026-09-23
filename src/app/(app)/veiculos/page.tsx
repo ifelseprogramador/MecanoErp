@@ -11,6 +11,7 @@ import {
 } from "@/modules/veiculos/queries";
 import { VehicleTable } from "@/modules/veiculos/components/vehicle-table";
 import { PendingVehicles } from "@/modules/veiculos/components/pending-vehicles";
+import { ImportExportButtons } from "@/components/import-export-buttons";
 
 export default async function VehiclesPage({ searchParams }: PageProps<"/veiculos">) {
   const { q, year, sort } = await searchParams;
@@ -25,12 +26,15 @@ export default async function VehiclesPage({ searchParams }: PageProps<"/veiculo
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold tracking-tight">Veículos</h1>
-        <Button nativeButton={false} render={<Link href="/veiculos/novo" />}>
-          <Plus className="h-4 w-4" />
-          Novo veículo
-        </Button>
+        <div className="flex items-center gap-2">
+          <ImportExportButtons basePath="/veiculos" />
+          <Button nativeButton={false} render={<Link href="/veiculos/novo" />}>
+            <Plus className="h-4 w-4" />
+            Novo veículo
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">

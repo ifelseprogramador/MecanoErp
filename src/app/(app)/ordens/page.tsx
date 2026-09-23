@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Download, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchBox } from "@/components/search-box";
 import { ListFilterBar } from "@/components/list-filter-bar";
@@ -28,12 +28,23 @@ export default async function WorkOrdersPage({ searchParams }: PageProps<"/orden
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold tracking-tight">Ordens de serviço</h1>
-        <Button nativeButton={false} render={<Link href="/ordens/novo" />}>
-          <Plus className="h-4 w-4" />
-          Novo orçamento
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            nativeButton={false}
+            render={<Link href="/ordens/exportar" />}
+          >
+            <Download className="h-4 w-4" />
+            Exportar
+          </Button>
+          <Button nativeButton={false} render={<Link href="/ordens/novo" />}>
+            <Plus className="h-4 w-4" />
+            Novo orçamento
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">

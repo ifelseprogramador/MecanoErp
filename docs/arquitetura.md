@@ -265,3 +265,13 @@ string`) — `sort` é uma chave de um objeto `<MODULO>_SORT_OPTIONS`
     pelo barrel — o painel só compõe resumos de módulos existentes,
     nunca faz query direta numa tabela de outro módulo. Ver
     `docs/decisoes.md` (2026-09-23, "Fase 3").
+14. Importar/exportar CSV (opcional — só faz sentido pra entidades
+    cadastrais simples, não pra algo com itens/relações como `ordens`):
+    `<modulo>/exportar/route.ts` (GET, `Content-Disposition:
+attachment`, CSV com as MESMAS colunas que a importação aceita) +
+    `<modulo>/importar/page.tsx` com `components/csv-import-form.tsx` +
+    uma action `import<Entidade>Csv` em `actions.ts` usando
+    `core/csv-import.ts#importCsvRows` (valida cada linha com o mesmo
+    schema Zod do form, insere via `create<Entidade>Record`). Botões na
+    listagem: `components/import-export-buttons.tsx`. Ver
+    `docs/decisoes.md` (2026-09-23, "Fase 4").

@@ -3,4 +3,8 @@
  * importar (nunca `schema.ts`/`actions.ts`/etc. diretamente).
  */
 export type { Customer } from "./schema.types";
-export { getCustomerDashboardSummary, listCustomersForSelect } from "./queries";
+export {
+  findCustomerByDocumentOrName,
+  getCustomerDashboardSummary,
+  listCustomersForSelect,
+} from "./queries";

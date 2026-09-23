@@ -70,6 +70,40 @@ export async function getCustomerDashboardSummary() {
   return row;
 }
 
+/** Acha um cliente pelo documento (exato) ou, se não vier documento ou
+ * não achar por ele, pelo nome (exato, sem diferenciar maiúsculas) —
+ * usado pela importação CSV de veículos pra resolver `customerId` a
+ * partir de uma coluna legível (`customerDocument`/`customerName`) em
+ * vez de exigir o UUID interno na planilha. */
+export async function findCustomerByDocumentOrName(
+  document: string | undefined,
+  name: string | undefined,
+) {
+  const { db, organizationId } = await withOrg();
+
+  if (document?.trim()) {
+    const [byDocument] = await db
+      .select({ id: customers.id, name: customers.name })
+      .from(customers)
+      .where(
+        and(eq(customers.organizationId, organizationId), eq(customers.document, document.trim())),
+      )
+      .limit(1);
+    if (byDocument) return byDocument;
+  }
+
+  if (name?.trim()) {
+    const [byName] = await db
+      .select({ id: customers.id, name: customers.name })
+      .from(customers)
+      .where(and(eq(customers.organizationId, organizationId), ilike(customers.name, name.trim())))
+      .limit(1);
+    if (byName) return byName;
+  }
+
+  return null;
+}
+
 export async function getCustomerById(id: string) {
   const { db, organizationId } = await withOrg();
 

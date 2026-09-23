@@ -937,3 +937,58 @@ de `ordens`, `clientes` e `veiculos`, que já existem.
 Testado com Playwright contra build de produção — screenshot confirma
 os 4 KPIs, a barra de status e a lista de recentes todos com dados
 reais do Supabase, sem placeholder nenhum sobrando.
+
+## 2026-09-23 — Fase 4: importar/exportar em CSV
+
+Pedido veio como "formato de planilha", sem escolher entre CSV/XLSX —
+decidido CSV (sem perguntar de novo, dava pra decidir sozinho): é o
+único formato que Excel, Google Sheets, Numbers e LibreOffice abrem
+nativamente sem biblioteca nenhuma, mesma filosofia de não trazer
+`@tanstack/react-table` só por causa de uma feature (ver decisão de
+2026-09-21). `core/csv.ts` é um parser/serializer RFC 4180 escrito à
+mão (~80 linhas, com teste de ida-e-volta) — sem `papaparse`/`xlsx`.
+
+**Padrão por módulo** (`clientes`, `veiculos`, `catalogo` têm os dois
+lados; `ordens` só exporta — ver ressalva abaixo):
+
+- `GET /<modulo>/exportar` (`route.ts`, não Server Action — precisa
+  devolver um arquivo de verdade com `Content-Disposition: attachment`,
+  isso um Server Action não faz) devolve todos os registros da
+  organização em CSV. Colunas com o MESMO nome que a importação aceita
+  de volta — um export vira modelo de import sem remapear nada.
+- `POST /<modulo>/importar` (Server Action) usa o novo
+  `core/csv-import.ts#importCsvRows`: processa linha por linha,
+  SEQUENCIALMENTE (mesma cautela do `sync-engine.ts` offline), valida
+  cada uma com o MESMO schema Zod que o formulário usa e insere via o
+  `create<Entity>Record` já extraído pro replay offline (reaproveitado
+  aqui — synergy não planejada, mas os dois casos precisavam da mesma
+  coisa: "inserir sem redirect, com validação"). Uma linha com erro não
+  trava as outras — resultado é um resumo (`N de M linhas importadas`)
+  com o motivo de cada falha, mesmo espírito de "não apagar tudo, só
+  mostrar o erro" já estabelecido nos formulários.
+- `components/csv-import-form.tsx` (upload + resumo) e
+  `components/import-export-buttons.tsx` (par de botões na listagem)
+  são genéricos, um componente só pra todos os módulos.
+
+**`veiculos` importa sem expor UUID na planilha**: a coluna
+`customerId` é interna — a planilha usa `customerDocument`/
+`customerName` (ambas exportadas), resolvidas de volta pro UUID por
+`modules/clientes/queries.ts#findCustomerByDocumentOrName` (documento
+primeiro, nome como segunda tentativa) antes de validar com
+`vehicleSchema`. Linha cujo cliente não existe ainda falha com uma
+mensagem clara em vez de estourar erro de FK.
+
+**`ordens` só exporta, não importa** (decisão, não pendência): criar
+uma OS de verdade envolve cliente+veículo já existentes, itens
+avulsos e o número sequencial atômico — fazer isso direito via CSV
+importaria a mesma complexidade relacional dos itens da OS, e o
+ganho real (a pessoa raramente cadastra OS em lote, diferente de
+cliente/veículo/catálogo) não compensa o risco. Exportação cobre o
+caso de uso real (tirar um relatório pra contabilidade/planilha).
+
+Testado de ponta a ponta com Playwright contra build de produção e
+Supabase real: exportar clientes (CSV com acentuação/vírgula
+corretos), montar um CSV novo com 2 linhas (1 válida, 1 sem nome de
+propósito), importar — resultado "1 de 2 linhas importada", a linha 3
+reportando "Informe o nome completo.", e o cliente válido aparecendo
+na listagem depois.

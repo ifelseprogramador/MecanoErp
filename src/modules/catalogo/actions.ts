@@ -5,8 +5,10 @@ import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { withOrg } from "@/core/auth";
 import type { ActionResult } from "@/core/action-result";
+import { importCsvRows, type CsvImportState } from "@/core/csv-import";
+import { parseReaisInput } from "@/core/money";
 import { catalogItems } from "./schema";
-import { parseCatalogItemFormData, type CatalogItemInput } from "./validation";
+import { catalogItemSchema, parseCatalogItemFormData, type CatalogItemInput } from "./validation";
 
 interface InsertResult extends ActionResult {
   id?: string;
@@ -92,6 +94,39 @@ export async function updateCatalogItem(
   revalidatePath("/catalogo");
   revalidatePath(`/catalogo/${itemId}`);
   return { ok: true };
+}
+
+export async function importCatalogItemsCsv(
+  _prevState: CsvImportState,
+  formData: FormData,
+): Promise<CsvImportState> {
+  const { log } = await withOrg();
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { status: "error", message: "Selecione um arquivo CSV." };
+  }
+
+  const text = await file.text();
+  const summary = await importCsvRows(
+    text,
+    (row) => {
+      const priceCents = parseReaisInput(row.defaultPrice ?? "");
+      const parsed = catalogItemSchema.safeParse({
+        type: row.type,
+        name: row.name,
+        unit: row.unit || "un",
+        defaultPriceCents: priceCents ?? undefined,
+      });
+      if (!parsed.success) {
+        return { success: false, error: parsed.error.issues.map((i) => i.message).join("; ") };
+      }
+      return { success: true, data: parsed.data };
+    },
+    (data: CatalogItemInput) => createCatalogItemRecord(data),
+  );
+
+  log.info("catalogo.importar_csv", { totalRows: summary.totalRows, imported: summary.imported });
+  return { status: "done", summary };
 }
 
 export async function deleteCatalogItem(itemId: string): Promise<ActionResult> {

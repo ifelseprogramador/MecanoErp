@@ -5,8 +5,10 @@ import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { withOrg } from "@/core/auth";
 import type { ActionResult } from "@/core/action-result";
+import { importCsvRows, type CsvImportState } from "@/core/csv-import";
+import { findCustomerByDocumentOrName } from "@/modules/clientes";
 import { vehicles } from "./schema";
-import { parseVehicleFormData, type VehicleInput } from "./validation";
+import { vehicleSchema, parseVehicleFormData, type VehicleInput } from "./validation";
 
 interface InsertResult extends ActionResult {
   id?: string;
@@ -118,6 +120,51 @@ export async function updateVehicle(
     log.error("veiculos.atualizar.falhou", { vehicleId, err });
     return { ok: false, message: "Não foi possível salvar as alterações. Tente novamente." };
   }
+}
+
+export async function importVehiclesCsv(
+  _prevState: CsvImportState,
+  formData: FormData,
+): Promise<CsvImportState> {
+  const { log } = await withOrg();
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { status: "error", message: "Selecione um arquivo CSV." };
+  }
+
+  const text = await file.text();
+  const summary = await importCsvRows(
+    text,
+    async (row) => {
+      const customer = await findCustomerByDocumentOrName(row.customerDocument, row.customerName);
+      if (!customer) {
+        return {
+          success: false,
+          error: `Cliente não encontrado (documento "${row.customerDocument || "—"}" / nome "${row.customerName || "—"}").`,
+        };
+      }
+      const parsed = vehicleSchema.safeParse({ ...row, customerId: customer.id });
+      if (!parsed.success) {
+        return { success: false, error: parsed.error.issues.map((i) => i.message).join("; ") };
+      }
+      return { success: true, data: parsed.data };
+    },
+    async (data: VehicleInput) => {
+      const result = await createVehicleRecord(data);
+      if (result.ok) return result;
+      // `createVehicleRecord` devolve `errors` (formato de form field) na
+      // duplicidade de placa, não `message` — achata pro texto de uma
+      // linha que o resumo da importação espera.
+      const fieldErrors = Object.values(result.errors ?? {})
+        .flat()
+        .join("; ");
+      const message = result.message || fieldErrors || "Falha ao salvar.";
+      return { ok: false, message };
+    },
+  );
+
+  log.info("veiculos.importar_csv", { totalRows: summary.totalRows, imported: summary.imported });
+  return { status: "done", summary };
 }
 
 export async function deleteVehicle(vehicleId: string): Promise<ActionResult> {
