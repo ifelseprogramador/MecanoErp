@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, ilike, isNotNull } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, isNotNull, sql } from "drizzle-orm";
 import { withOrg } from "@/core/auth";
 import { customers } from "@/modules/clientes/schema";
 import { vehicles } from "./schema";
@@ -97,6 +97,18 @@ export async function listVehiclesByCustomer(customerId: string) {
     .from(vehicles)
     .where(and(eq(vehicles.customerId, customerId), eq(vehicles.organizationId, organizationId)))
     .orderBy(desc(vehicles.createdAt));
+}
+
+/** Total de veículos — pro card "Veículos" do painel (`(app)/page.tsx`). */
+export async function getVehicleDashboardSummary() {
+  const { db, organizationId } = await withOrg();
+
+  const [row] = await db
+    .select({ total: sql<number>`count(*)::int` })
+    .from(vehicles)
+    .where(eq(vehicles.organizationId, organizationId));
+
+  return row;
 }
 
 export async function getVehicleById(id: string) {

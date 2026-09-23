@@ -4,4 +4,8 @@
  * diretamente.
  */
 export type { Vehicle } from "./schema.types";
-export { listVehiclesByCustomer, listVehiclesForSelect } from "./queries";
+export {
+  getVehicleDashboardSummary,
+  listVehiclesByCustomer,
+  listVehiclesForSelect,
+} from "./queries";

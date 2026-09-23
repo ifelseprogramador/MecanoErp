@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, ilike, or } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { withOrg } from "@/core/auth";
 import { customers } from "./schema";
 
@@ -52,6 +52,22 @@ export async function listCustomersForSelect() {
     .from(customers)
     .where(eq(customers.organizationId, organizationId))
     .orderBy(customers.name);
+}
+
+/** Total de clientes + quantos entraram nos últimos 30 dias — pro
+ * card "Clientes" do painel (`(app)/page.tsx`). */
+export async function getCustomerDashboardSummary() {
+  const { db, organizationId } = await withOrg();
+
+  const [row] = await db
+    .select({
+      total: sql<number>`count(*)::int`,
+      newLast30Days: sql<number>`count(*) filter (where ${customers.createdAt} >= now() - interval '30 days')::int`,
+    })
+    .from(customers)
+    .where(eq(customers.organizationId, organizationId));
+
+  return row;
 }
 
 export async function getCustomerById(id: string) {

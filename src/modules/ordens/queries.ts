@@ -22,6 +22,68 @@ const WORK_ORDER_ORDER_BY = {
 
 export type WorkOrderStatusFilter = (typeof workOrderStatusEnum.enumValues)[number];
 
+/** Resumo pro painel (`(app)/page.tsx`): contagem por status, faturamento
+ * do mês corrente (soma do total das OS concluídas/entregues com
+ * `completedAt` neste mês — não existe módulo financeiro ainda, então
+ * "faturamento" aqui é o valor de serviço já finalizado) e as OS mais
+ * recentes pra lista de atalho. */
+export async function getWorkOrderDashboardSummary() {
+  const { db, organizationId } = await withOrg();
+
+  const [statusCounts, [revenue], recent] = await Promise.all([
+    db
+      .select({ status: workOrders.status, count: sql<number>`count(*)::int` })
+      .from(workOrders)
+      .where(eq(workOrders.organizationId, organizationId))
+      .groupBy(workOrders.status),
+    db
+      .select({
+        totalCents: sql<number>`coalesce(sum(${workOrders.totalCents}), 0)::int`,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(workOrders)
+      .where(
+        and(
+          eq(workOrders.organizationId, organizationId),
+          sql`${workOrders.completedAt} >= date_trunc('month', now())`,
+        ),
+      ),
+    db
+      .select({
+        id: workOrders.id,
+        number: workOrders.number,
+        status: workOrders.status,
+        totalCents: workOrders.totalCents,
+        createdAt: workOrders.createdAt,
+        customerName: customers.name,
+        vehiclePlate: vehicles.plate,
+      })
+      .from(workOrders)
+      .innerJoin(customers, eq(customers.id, workOrders.customerId))
+      .innerJoin(vehicles, eq(vehicles.id, workOrders.vehicleId))
+      .where(eq(workOrders.organizationId, organizationId))
+      .orderBy(desc(workOrders.number))
+      .limit(6),
+  ]);
+
+  const byStatus = Object.fromEntries(
+    workOrderStatusEnum.enumValues.map((status) => [
+      status,
+      statusCounts.find((row) => row.status === status)?.count ?? 0,
+    ]),
+  ) as Record<WorkOrderStatusFilter, number>;
+
+  return {
+    byStatus,
+    openCount: byStatus.orcamento + byStatus.aprovada + byStatus.em_andamento,
+    awaitingApprovalCount: byStatus.orcamento,
+    inProgressCount: byStatus.em_andamento,
+    monthRevenueCents: revenue?.totalCents ?? 0,
+    monthCompletedCount: revenue?.count ?? 0,
+    recent,
+  };
+}
+
 export async function listWorkOrders(options?: {
   search?: string;
   status?: WorkOrderStatusFilter;

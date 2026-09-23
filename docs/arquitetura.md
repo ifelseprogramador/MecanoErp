@@ -260,3 +260,8 @@ string`) — `sort` é uma chave de um objeto `<MODULO>_SORT_OPTIONS`
     Drizzle real num mapa interno (nunca `orderBy` montado com string
     vinda de query param). Ver `docs/decisoes.md` (2026-09-23, "Fase
     2") pro desenho completo.
+13. Se o módulo tem algo relevante pro painel (`(app)/page.tsx`),
+    expor `get<Modulo>DashboardSummary()` em `queries.ts`, reexportada
+    pelo barrel — o painel só compõe resumos de módulos existentes,
+    nunca faz query direta numa tabela de outro módulo. Ver
+    `docs/decisoes.md` (2026-09-23, "Fase 3").

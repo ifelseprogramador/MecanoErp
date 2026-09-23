@@ -900,3 +900,40 @@ certas (confirmado com screenshot).
 **Pendente (fases seguintes)**: dashboard (Painel) redesenhado;
 importar/exportar em planilha por módulo; backup completo (nuvem/local/
 compartilhar) — as duas últimas ainda precisam de decisões do usuário.
+
+## 2026-09-23 — Fase 3: Painel (dashboard) com dados reais
+
+`(app)/page.tsx` era um placeholder desde o início ("os módulos
+aparecerão aqui..."). Reescrito com métricas relevantes pro dia a dia de
+quem administra o balcão — sem depender dos módulos `agenda`/
+`financeiro` do plano original (nenhum dos dois existe ainda): tudo vem
+de `ordens`, `clientes` e `veiculos`, que já existem.
+
+- **4 cards de KPI**: OS abertas (+ quantas aguardando aprovação), OS em
+  andamento, faturamento do mês, total de clientes (+ novos nos últimos
+  30 dias).
+- **"Faturamento do mês" sem módulo financeiro**: soma de
+  `totalCents` das OS com `completedAt` dentro do mês corrente
+  (`date_trunc('month', now())` no SQL) — é o valor de serviço já
+  finalizado, o proxy mais direto de receita que dá pra tirar da tabela
+  `work_orders` hoje. Quando o módulo financeiro existir (Fase 4 do
+  plano original), substitui por `financial_entries` de verdade.
+- **Barra de status das OS**: contagem por status com uma barrinha
+  proporcional ao maior valor — CSS puro (`div` com `width` em %, cor
+  por status reaproveitando a paleta de `work-order-status-badge.tsx`),
+  sem trazer lib de gráfico pro projeto só por causa disto.
+- **Lista de OS recentes** (6 últimas, por número) com link direto pra
+  cada uma.
+- **Atalhos de criação** (Cliente/Veículo/Orçamento) no topo — sem
+  precisar navegar até o módulo primeiro.
+- Cada módulo ganhou uma função `get<Modulo>DashboardSummary()` em
+  `queries.ts`, exportada pelo barrel (`index.ts`) — o painel só compõe,
+  nunca importa `queries.ts` de módulo diretamente (mesma regra de
+  acoplamento de sempre). `WorkOrderStatusBadge` e
+  `WORK_ORDER_STATUS_LABELS` também passaram a ser exportados pelo
+  barrel de `ordens`, pra o painel reaproveitar em vez de duplicar as
+  cores/labels de status.
+
+Testado com Playwright contra build de produção — screenshot confirma
+os 4 KPIs, a barra de status e a lista de recentes todos com dados
+reais do Supabase, sem placeholder nenhum sobrando.
