@@ -860,3 +860,43 @@ redesenhado; importar/exportar em planilha por módulo; backup completo
 do sistema com opção de nuvem/local/compartilhar e exportação pra
 migrar de banco (schema + dados) — as duas últimas ainda precisam de
 decisões do usuário (qual serviço de nuvem, formato de exportação).
+
+## 2026-09-23 — Fase 2: filtros, ordenação e busca padronizados
+
+Novo `components/list-filter-bar.tsx`: um select por coluna filtrável
+(`filters`, ex.: status da OS, tipo do catálogo, ano do veículo) mais um
+select de ordenação (`sortOptions`, cada opção já combina coluna+direção,
+ex.: `{value: "name_asc", label: "Nome (A→Z)"}`). Tudo vive na URL
+(`?status=`, `?type=`, `?year=`, `?sort=`) — mesmo padrão de
+`search-box.tsx` (que já existia): a página (Server Component) relê
+`searchParams`, passa pra `queries.ts`, o componente cliente só edita a
+URL. Um componente único configurado por módulo, em vez de UI de filtro
+duplicada em cada um — é o "mesmo padrão pra todas as colunas de todos
+os módulos" que foi pedido.
+
+Cada `queries.ts` ganhou:
+
+- Um objeto `<MODULO>_SORT_OPTIONS` (label pronta em português) + um
+  `ORDER_BY` interno mapeando cada chave pra uma expressão Drizzle real
+  — nunca `orderBy(sql\`${column} ${direction}\`)` com string vinda do
+  client (evita SQL injection via query param).
+- A função de listagem passou a aceitar um objeto de opções
+  (`{search?, <filtro>?, sort?}`) em vez de só `search?: string` — os 4
+  módulos ficaram com uma assinatura consistente.
+- `veiculos`: filtro por ano constrói as opções a partir dos anos que
+  EXISTEM de verdade na frota da oficina (`listVehicleYears()`,
+  `selectDistinct`), não uma faixa fixa arbitrária.
+- `ordens`: não tinha nem busca ainda — adicionada (nome do cliente,
+  placa do veículo, ou número exato da OS) junto com filtro por status
+  e ordenação por número/total. `WORK_ORDER_STATUS_LABELS` foi exportado
+  de `work-order-status-badge.tsx` (antes só um `const` interno) pra não
+  duplicar os 6 labels de status no populado do filtro.
+
+Testado com Playwright contra build de produção: filtrar OS por
+"Concluída" e catálogo por "Peça" — a URL reflete o parâmetro
+(`?status=concluida`, `?type=peca`) e a tabela mostra só as linhas
+certas (confirmado com screenshot).
+
+**Pendente (fases seguintes)**: dashboard (Painel) redesenhado;
+importar/exportar em planilha por módulo; backup completo (nuvem/local/
+compartilhar) — as duas últimas ainda precisam de decisões do usuário.

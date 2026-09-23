@@ -2,14 +2,22 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchBox } from "@/components/search-box";
-import { listCatalogItems } from "@/modules/catalogo/queries";
+import { ListFilterBar } from "@/components/list-filter-bar";
+import {
+  CATALOG_SORT_OPTIONS,
+  type CatalogSort,
+  listCatalogItems,
+} from "@/modules/catalogo/queries";
 import { CatalogItemTable } from "@/modules/catalogo/components/catalog-item-table";
 import { PendingCatalogItems } from "@/modules/catalogo/components/pending-catalog-items";
 
 export default async function CatalogPage({ searchParams }: PageProps<"/catalogo">) {
-  const { q } = await searchParams;
+  const { q, type, sort } = await searchParams;
   const search = typeof q === "string" ? q : undefined;
-  const items = await listCatalogItems(search);
+  const itemType = type === "servico" || type === "peca" ? type : undefined;
+  const itemSort =
+    typeof sort === "string" && sort in CATALOG_SORT_OPTIONS ? (sort as CatalogSort) : undefined;
+  const items = await listCatalogItems({ search, type: itemType, sort: itemSort });
 
   return (
     <div className="flex flex-col gap-6">
@@ -21,7 +29,26 @@ export default async function CatalogPage({ searchParams }: PageProps<"/catalogo
         </Button>
       </div>
 
-      <SearchBox placeholder="Buscar por nome..." />
+      <div className="flex flex-wrap items-center gap-2">
+        <SearchBox placeholder="Buscar por nome..." />
+        <ListFilterBar
+          filters={[
+            {
+              param: "type",
+              allLabel: "Todos os tipos",
+              options: [
+                { value: "servico", label: "Serviço" },
+                { value: "peca", label: "Peça" },
+              ],
+            },
+          ]}
+          sortOptions={Object.entries(CATALOG_SORT_OPTIONS).map(([value, label]) => ({
+            value,
+            label,
+          }))}
+          defaultSort="name_asc"
+        />
+      </div>
       <PendingCatalogItems />
       <CatalogItemTable items={items} />
     </div>

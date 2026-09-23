@@ -1,16 +1,42 @@
 import "server-only";
-import { and, desc, eq, ilike } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, isNotNull } from "drizzle-orm";
 import { withOrg } from "@/core/auth";
 import { customers } from "@/modules/clientes/schema";
 import { vehicles } from "./schema";
 
-export async function listVehicles(search?: string) {
+export const VEHICLE_SORT_OPTIONS = {
+  created_desc: "Mais recentes primeiro",
+  created_asc: "Mais antigos primeiro",
+  plate_asc: "Placa (A→Z)",
+  plate_desc: "Placa (Z→A)",
+  year_desc: "Ano (mais novo primeiro)",
+  year_asc: "Ano (mais antigo primeiro)",
+} as const;
+export type VehicleSort = keyof typeof VEHICLE_SORT_OPTIONS;
+
+const VEHICLE_ORDER_BY = {
+  created_desc: desc(vehicles.createdAt),
+  created_asc: asc(vehicles.createdAt),
+  plate_asc: asc(vehicles.plate),
+  plate_desc: desc(vehicles.plate),
+  year_desc: desc(vehicles.year),
+  year_asc: asc(vehicles.year),
+} as const;
+
+export async function listVehicles(options?: {
+  search?: string;
+  year?: number;
+  sort?: VehicleSort;
+}) {
   const { db, organizationId } = await withOrg();
 
-  const term = search?.trim();
+  const term = options?.search?.trim();
   const conditions = [eq(vehicles.organizationId, organizationId)];
   if (term) {
     conditions.push(ilike(vehicles.plate, `%${term.toUpperCase().replace(/[^A-Z0-9]/g, "")}%`));
+  }
+  if (options?.year) {
+    conditions.push(eq(vehicles.year, options.year));
   }
 
   return db
@@ -26,7 +52,22 @@ export async function listVehicles(search?: string) {
     .from(vehicles)
     .innerJoin(customers, eq(customers.id, vehicles.customerId))
     .where(and(...conditions))
-    .orderBy(desc(vehicles.createdAt));
+    .orderBy(VEHICLE_ORDER_BY[options?.sort ?? "created_desc"]);
+}
+
+/** Anos distintos entre os veículos da oficina, pro filtro "Ano" da
+ * listagem — construído dos dados reais em vez de uma faixa fixa de
+ * anos que não bateria com a frota de verdade. */
+export async function listVehicleYears() {
+  const { db, organizationId } = await withOrg();
+
+  const rows = await db
+    .selectDistinct({ year: vehicles.year })
+    .from(vehicles)
+    .where(and(eq(vehicles.organizationId, organizationId), isNotNull(vehicles.year)))
+    .orderBy(desc(vehicles.year));
+
+  return rows.map((r) => r.year as number);
 }
 
 /** Lista enxuta com o dono de cada veículo — pro select dependente

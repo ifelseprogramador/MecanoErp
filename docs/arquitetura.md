@@ -251,3 +251,12 @@ aplicação do mesmo padrão. Ao criar um módulo novo, copiar essa estrutura:
 11. Página de detalhe lê `searchParams` e mostra
     `components/created-banner.tsx` quando `criado === "1"` (ver item 4) — link "Cadastrar outro" apontando de volta pro formulário de
     criar do mesmo módulo.
+12. Página de LISTAGEM: `<SearchBox>` (`components/search-box.tsx`) +
+    `<ListFilterBar>` (`components/list-filter-bar.tsx`) lado a lado,
+    acima da tabela. `queries.ts` da listagem principal aceita
+    `{search?, <filtro por coluna>?, sort?}` (nunca só `search?:
+string`) — `sort` é uma chave de um objeto `<MODULO>_SORT_OPTIONS`
+    exportado da própria `queries.ts`, resolvida pra uma expressão
+    Drizzle real num mapa interno (nunca `orderBy` montado com string
+    vinda de query param). Ver `docs/decisoes.md` (2026-09-23, "Fase
+    2") pro desenho completo.

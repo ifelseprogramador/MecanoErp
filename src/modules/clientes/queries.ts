@@ -1,24 +1,46 @@
 import "server-only";
-import { and, desc, eq, ilike, or } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, or } from "drizzle-orm";
 import { withOrg } from "@/core/auth";
 import { customers } from "./schema";
 
-export async function listCustomers(search?: string) {
+export const CUSTOMER_SORT_OPTIONS = {
+  created_desc: "Mais recentes primeiro",
+  created_asc: "Mais antigos primeiro",
+  name_asc: "Nome (A→Z)",
+  name_desc: "Nome (Z→A)",
+} as const;
+export type CustomerSort = keyof typeof CUSTOMER_SORT_OPTIONS;
+
+const CUSTOMER_ORDER_BY = {
+  created_desc: desc(customers.createdAt),
+  created_asc: asc(customers.createdAt),
+  name_asc: asc(customers.name),
+  name_desc: desc(customers.name),
+} as const;
+
+export async function listCustomers(options?: {
+  search?: string;
+  type?: "pf" | "pj";
+  sort?: CustomerSort;
+}) {
   const { db, organizationId } = await withOrg();
 
-  const term = search?.trim();
+  const term = options?.search?.trim();
   const conditions = [eq(customers.organizationId, organizationId)];
   if (term) {
     conditions.push(
       or(ilike(customers.name, `%${term}%`), ilike(customers.document, `%${term}%`))!,
     );
   }
+  if (options?.type) {
+    conditions.push(eq(customers.type, options.type));
+  }
 
   return db
     .select()
     .from(customers)
     .where(and(...conditions))
-    .orderBy(desc(customers.createdAt));
+    .orderBy(CUSTOMER_ORDER_BY[options?.sort ?? "created_desc"]);
 }
 
 /** Lista enxuta para popular seletores (ex.: escolher o cliente de um veículo). */

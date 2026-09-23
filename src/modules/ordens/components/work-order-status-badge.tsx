@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import type { WorkOrderStatus } from "../domain";
 
-const LABELS: Record<WorkOrderStatus, string> = {
+export const WORK_ORDER_STATUS_LABELS: Record<WorkOrderStatus, string> = {
   orcamento: "Orçamento",
   aprovada: "Aprovada",
   em_andamento: "Em andamento",
@@ -31,7 +31,7 @@ const EXTRA_CLASSES: Partial<Record<WorkOrderStatus, string>> = {
 export function WorkOrderStatusBadge({ status }: { status: WorkOrderStatus }) {
   return (
     <Badge variant={VARIANTS[status]} className={EXTRA_CLASSES[status]}>
-      {LABELS[status]}
+      {WORK_ORDER_STATUS_LABELS[status]}
     </Badge>
   );
 }

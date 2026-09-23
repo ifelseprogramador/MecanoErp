@@ -1,12 +1,30 @@
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { listWorkOrders } from "@/modules/ordens/queries";
+import { SearchBox } from "@/components/search-box";
+import { ListFilterBar } from "@/components/list-filter-bar";
+import {
+  WORK_ORDER_SORT_OPTIONS,
+  type WorkOrderSort,
+  type WorkOrderStatusFilter,
+  listWorkOrders,
+} from "@/modules/ordens/queries";
+import { WORK_ORDER_STATUS_LABELS } from "@/modules/ordens/components/work-order-status-badge";
 import { WorkOrderTable } from "@/modules/ordens/components/work-order-table";
 import { PendingWorkOrders } from "@/modules/ordens/components/pending-work-orders";
 
-export default async function WorkOrdersPage() {
-  const orders = await listWorkOrders();
+export default async function WorkOrdersPage({ searchParams }: PageProps<"/ordens">) {
+  const { q, status, sort } = await searchParams;
+  const search = typeof q === "string" ? q : undefined;
+  const statusFilter =
+    typeof status === "string" && status in WORK_ORDER_STATUS_LABELS
+      ? (status as WorkOrderStatusFilter)
+      : undefined;
+  const orderSort =
+    typeof sort === "string" && sort in WORK_ORDER_SORT_OPTIONS
+      ? (sort as WorkOrderSort)
+      : undefined;
+  const orders = await listWorkOrders({ search, status: statusFilter, sort: orderSort });
 
   return (
     <div className="flex flex-col gap-6">
@@ -18,6 +36,26 @@ export default async function WorkOrdersPage() {
         </Button>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2">
+        <SearchBox placeholder="Buscar por cliente, placa ou nº..." />
+        <ListFilterBar
+          filters={[
+            {
+              param: "status",
+              allLabel: "Todos os status",
+              options: Object.entries(WORK_ORDER_STATUS_LABELS).map(([value, label]) => ({
+                value,
+                label,
+              })),
+            },
+          ]}
+          sortOptions={Object.entries(WORK_ORDER_SORT_OPTIONS).map(([value, label]) => ({
+            value,
+            label,
+          }))}
+          defaultSort="number_desc"
+        />
+      </div>
       <PendingWorkOrders />
       <WorkOrderTable orders={orders} />
     </div>
