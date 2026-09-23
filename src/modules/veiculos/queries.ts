@@ -29,6 +29,25 @@ export async function listVehicles(search?: string) {
     .orderBy(desc(vehicles.createdAt));
 }
 
+/** Lista enxuta com o dono de cada veículo — pro select dependente
+ * (cliente -> veículo) do formulário de OS filtrar no cliente sem outra
+ * viagem ao servidor a cada troca de cliente. */
+export async function listVehiclesForSelect() {
+  const { db, organizationId } = await withOrg();
+
+  return db
+    .select({
+      id: vehicles.id,
+      plate: vehicles.plate,
+      brand: vehicles.brand,
+      model: vehicles.model,
+      customerId: vehicles.customerId,
+    })
+    .from(vehicles)
+    .where(eq(vehicles.organizationId, organizationId))
+    .orderBy(vehicles.plate);
+}
+
 export async function listVehiclesByCustomer(customerId: string) {
   const { db, organizationId } = await withOrg();
 

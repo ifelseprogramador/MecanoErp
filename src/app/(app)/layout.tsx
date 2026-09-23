@@ -49,7 +49,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-screen flex-1 flex-col">
       {org.impersonating && (
-        <div className="flex items-center justify-between bg-amber-500 px-4 py-2 text-sm font-medium text-amber-950">
+        <div className="flex items-center justify-between bg-amber-500 px-4 py-2 text-sm font-medium text-amber-950 print:hidden">
           <span className="flex items-center gap-2">
             <Headset className="h-4 w-4" />
             Modo suporte: agindo como <strong>{org.organizationName}</strong>
@@ -64,7 +64,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       )}
 
       <div className="flex flex-1">
-        <aside className="bg-sidebar text-sidebar-foreground hidden w-60 shrink-0 flex-col border-r md:flex">
+        <aside className="bg-sidebar text-sidebar-foreground hidden w-60 shrink-0 flex-col border-r md:flex print:hidden">
           <div className="flex items-center gap-2 border-b px-4 py-3.5">
             <Wrench className="h-5 w-5" />
             <span className="font-semibold">MecanoErp</span>
@@ -73,7 +73,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex items-center justify-between border-b px-4 py-3">
+          <header className="flex items-center justify-between border-b px-4 py-3 print:hidden">
             <div className="flex items-center gap-2">
               <MobileNav modules={modules} />
               <span className="text-sm font-medium">{org.organizationName}</span>
@@ -90,7 +90,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </div>
           </header>
 
-          <main className="flex-1 p-4 md:p-6">{children}</main>
+          <main className="flex-1 p-4 md:p-6 print:p-0">{children}</main>
         </div>
       </div>
 

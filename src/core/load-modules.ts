@@ -13,7 +13,7 @@
 import "@/modules/clientes/module";
 import "@/modules/veiculos/module";
 import "@/modules/catalogo/module";
-// import "@/modules/ordens/module"; // Fase 3
+import "@/modules/ordens/module";
 // import "@/modules/agenda/module"; // Fase 4
 // import "@/modules/financeiro/module"; // Fase 4
 

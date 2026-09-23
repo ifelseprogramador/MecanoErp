@@ -484,3 +484,54 @@ para centavos, aceitando vírgula OU ponto decimal (`type="text"`, não
 input numérico nativo, que varia por navegador/SO). Usado pela primeira
 vez aqui; vai se repetir em `ordens` (preço/desconto) e depois
 `financeiro`.
+
+## 2026-09-23 — Fase 3: módulo `ordens` (o coração do sistema)
+
+Orçamento não é uma entidade separada — é uma `work_order` com
+`status = 'orcamento'`; "aprovar" é só a transição pra `aprovada`. Zero
+duplicação de modelo, como o plano original previa.
+
+- **Máquina de estados como função pura, testada sem banco**
+  (`domain.ts#isValidTransition`): `orcamento -> aprovada | cancelada`,
+  `aprovada -> em_andamento | cancelada`, `em_andamento -> concluida |
+cancelada`, `concluida -> entregue`. `entregue`/`cancelada` são
+  terminais. `actions.ts#transitionWorkOrderStatus` consulta essa função
+  antes de qualquer `UPDATE` — o banco nunca fica num estado que a UI não
+  sabe representar (pular de orçamento direto pra concluída, por
+  exemplo).
+- **Número sequencial da OS por oficina**: não dá pra usar uma
+  `SEQUENCE` nativa do Postgres (é global, não por tenant). Tabela
+  `work_order_counters` (uma linha por organização) com um
+  `INSERT ... ON CONFLICT DO UPDATE SET last_number = last_number + 1
+RETURNING` — uma única instrução atômica, sem corrida entre duas OSs
+  criadas ao mesmo tempo na mesma oficina.
+- **Total da OS é recalculado pela aplicação, não coluna gerada**: o
+  total de cada **item** (`work_order_items.total_cents`) é
+  `GENERATED ALWAYS AS (round(quantity * unit_price_cents)) STORED` de
+  verdade (só depende de colunas da própria linha). O total da **OS**
+  não pode ser gerado assim — depende da tabela filha `work_order_items`,
+  e o Postgres não permite `GENERATED ALWAYS AS` referenciar outra
+  tabela. Por isso `actions.ts#recalculateOrderTotal` é chamado depois
+  de toda mutação de item ou de desconto e grava o total via
+  `domain.ts#calculateOrderTotal` (também função pura, testada
+  isoladamente).
+- **`work_order_items` não tem `organization_id` próprio** (só
+  `work_order_id`) — `apply_org_rls()` (o helper genérico) não serve
+  aqui. RLS escrita à mão em `migrations-custom/0007_ordens_rls.sql` com
+  as 4 policies fazendo `work_order_id in (select id from work_orders
+where organization_id in (select current_org_ids()))`. `queries.ts` faz
+  o mesmo join na leitura, de propósito — mesmo com RLS não sendo a
+  proteção ativa hoje (bypassrls), a query não devia confiar só no
+  `work_order_id` vir de um contexto já validado.
+- **Impressão sem dependência nenhuma**: `/ordens/[id]/imprimir` reaproveita
+  a mesma auth/dados de sempre, só que numa página sem a casca do app —
+  `(app)/layout.tsx` ganhou classes `print:hidden` na sidebar/topo e
+  `print:p-0` no `<main>`. Ctrl+P do navegador serve tanto pra imprimir
+  quanto "salvar como PDF" — zero lib de geração de PDF no servidor.
+
+Testado de ponta a ponta no navegador: fluxo completo
+orçamento→aprovada→em_andamento→concluída→entregue, item vindo do
+catálogo (autofill de nome/tipo/preço) e item avulso, remoção de item
+recalculando o total, cancelamento a partir de qualquer estado não
+terminal, impressão mostrando os dados certos, e 22 testes unitários
+novos (máquina de estados + cálculo de total + validação Zod).

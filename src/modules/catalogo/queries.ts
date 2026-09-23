@@ -19,6 +19,24 @@ export async function listCatalogItems(search?: string) {
     .orderBy(asc(catalogItems.name));
 }
 
+/** Lista enxuta pro editor de itens da OS (select/autocomplete) — sem
+ * paginação, assumindo o catálogo de uma oficina pequena/média. */
+export async function listCatalogItemsForSelect() {
+  const { db, organizationId } = await withOrg();
+
+  return db
+    .select({
+      id: catalogItems.id,
+      type: catalogItems.type,
+      name: catalogItems.name,
+      unit: catalogItems.unit,
+      defaultPriceCents: catalogItems.defaultPriceCents,
+    })
+    .from(catalogItems)
+    .where(eq(catalogItems.organizationId, organizationId))
+    .orderBy(asc(catalogItems.name));
+}
+
 export async function getCatalogItemById(id: string) {
   const { db, organizationId } = await withOrg();
 

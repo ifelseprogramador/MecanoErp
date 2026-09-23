@@ -4,4 +4,4 @@
  * `schema.ts`/`queries.ts` diretamente.
  */
 export type { CatalogItem } from "./schema.types";
-export { searchCatalogItems } from "./queries";
+export { listCatalogItemsForSelect, searchCatalogItems } from "./queries";

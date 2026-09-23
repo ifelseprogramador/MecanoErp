@@ -13,7 +13,7 @@ src/
   app/
     (auth)/login/            # rotas públicas
     (app)/                   # rotas protegidas (proxy.ts exige sessão)
-      clientes/, veiculos/, catalogo/  # rotas finas: só compõem modules/
+      clientes/, veiculos/, catalogo/, ordens/  # rotas finas: só compõem modules/
     (admin)/admin/           # painel do dono da plataforma — ver seção própria
     api/health/
   modules/
