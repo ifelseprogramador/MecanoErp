@@ -280,8 +280,12 @@ export function LiveSupportWidget({
           {/* Controles num "pill" claro em vez de cor forçada em cima do
               cada componente: assim o Switch e o Button usam as próprias
               cores padrão (pensadas pra fundo claro), sem risco de texto
-              claro em cima de fundo claro. */}
-          <div className="flex shrink-0 items-center gap-3 rounded-full bg-white px-3 py-1 shadow-sm">
+              claro em cima de fundo claro. Fundo com leve tom azulado (em
+              vez de branco puro) pra não virar um bloco branco liso sem
+              destaque nenhum sobre a barra — e "Encerrar" com o estilo
+              destrutivo (fundo vermelho suave), pra se destacar como uma
+              ação diferente do toggle, não só mais um botão neutro. */}
+          <div className="flex shrink-0 items-center gap-3 rounded-full bg-blue-50 px-3 py-1 shadow-sm">
             <label className="flex items-center gap-2 text-xs font-medium text-zinc-700">
               Controle remoto
               <Switch
@@ -290,8 +294,8 @@ export function LiveSupportWidget({
                 disabled={isPending}
               />
             </label>
-            <div className="h-4 w-px bg-zinc-200" />
-            <Button variant="ghost" size="sm" onClick={handleEnd} disabled={isPending}>
+            <div className="h-4 w-px bg-blue-200" />
+            <Button variant="destructive" size="sm" onClick={handleEnd} disabled={isPending}>
               <X className="h-4 w-4" />
               Encerrar
             </Button>

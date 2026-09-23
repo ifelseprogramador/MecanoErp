@@ -446,7 +446,7 @@ export function LiveSessionViewer({
             </Button>
           </div>
         )}
-        <Button variant="outline" size="sm" onClick={handleEnd} disabled={isPending}>
+        <Button variant="destructive" size="sm" onClick={handleEnd} disabled={isPending}>
           <X className="h-4 w-4" />
           Encerrar sessão
         </Button>
