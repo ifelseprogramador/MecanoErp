@@ -1,6 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { WorkOrderForm } from "@/modules/ordens/components/work-order-form";
-import { createWorkOrder } from "@/modules/ordens/actions";
+import { NewWorkOrderForm } from "@/modules/ordens/components/new-work-order-form";
 import { listCustomersForSelect } from "@/modules/clientes";
 import { listVehiclesForSelect } from "@/modules/veiculos";
 
@@ -18,7 +17,7 @@ export default async function NewWorkOrderPage() {
           <CardTitle>Dados da ordem de serviço</CardTitle>
         </CardHeader>
         <CardContent>
-          <WorkOrderForm customers={customers} vehicles={vehicles} action={createWorkOrder} />
+          <NewWorkOrderForm customers={customers} vehicles={vehicles} />
         </CardContent>
       </Card>
     </div>

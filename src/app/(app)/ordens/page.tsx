@@ -3,6 +3,7 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { listWorkOrders } from "@/modules/ordens/queries";
 import { WorkOrderTable } from "@/modules/ordens/components/work-order-table";
+import { PendingWorkOrders } from "@/modules/ordens/components/pending-work-orders";
 
 export default async function WorkOrdersPage() {
   const orders = await listWorkOrders();
@@ -17,6 +18,7 @@ export default async function WorkOrdersPage() {
         </Button>
       </div>
 
+      <PendingWorkOrders />
       <WorkOrderTable orders={orders} />
     </div>
   );

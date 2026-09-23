@@ -737,3 +737,48 @@ hidrata com nome/tipo/preço certos → aparece na listagem mesmo offline
 Com `clientes`, `veiculos` e `catalogo` prontos, só falta `ordens` —
 que é o caso mais delicado por causa do número sequencial da OS (ver
 ressalva no final da seção anterior de offline-first).
+
+## 2026-09-23 — Offline-first: `ordens` (quarta e última aplicação — número sequencial)
+
+Criar uma OS é, no fluxo já existente, só o CABEÇALHO (cliente,
+veículo, km, relato, diagnóstico, desconto) — itens são adicionados
+depois, numa ação separada, na página de detalhe. Isso simplifica bem
+o caso "mais delicado" que ficava registrado como pendência: o suporte
+offline só precisa cobrir a criação do cabeçalho, igual aos outros três
+módulos; itens continuam exigindo a OS já sincronizada (com id real no
+banco), então nem entram no escopo.
+
+**A preocupação original — colisão de número sequencial entre OSs
+criadas offline — na prática não existe**, porque o número nunca é
+calculado nem mostrado no lado do cliente enquanto a OS está só na fila
+local: `createWorkOrderRecord` (a versão sem `redirect`, chamável pelo
+motor de sync — mesmo padrão dos outros três módulos) só faz o upsert
+atômico em `work_order_counters` no momento do INSERT de verdade, que
+só acontece quando o motor de sincronização processa aquele item da
+fila. Como a fila sempre roda sequencialmente (nunca em paralelo — já
+era assim desde a primeira versão do `sync-engine.ts`), cada OS pega
+seu número real um de cada vez, na hora que chega a vez dela sincronizar
+— o mesmo upsert atômico que já protegia contra corrida em criações
+online protege igual aqui. Enquanto pendente, a ficha "provisória"
+(`(app)/ordens/pendente/page.tsx`) simplesmente não mostra número
+nenhum, e a listagem mostra "Nova OS" no lugar de "OS #N".
+
+Mesmos 5 passos do template, sem surpresa: `createWorkOrderRecord`
+extraído, entrada `"ordens:createWorkOrder"` em `replay-handlers.ts`,
+`new-work-order-form.tsx`, `(app)/ordens/pendente/page.tsx` +
+`pending-work-orders.tsx`, rota adicionada em `PENDING_ROUTES`.
+
+Testado de ponta a ponta com Playwright contra build de produção e
+Supabase real: criar OS offline (cliente e veículo já sincronizados
+antes) → ficha pendente sem número, com os dados do cabeçalho → aparece
+como "Nova OS" na listagem mesmo offline → volta a conexão → toast de
+sincronização → ficha de verdade (`/ordens/{id}`) mostra a OS com
+número sequencial real (`OS #6` no teste), status "Orçamento", MESMO id.
+
+Com isso, os 4 módulos (`clientes`, `veiculos`, `catalogo`, `ordens`)
+têm suporte a criação offline. **Fora do escopo, de propósito** (ver
+`core/offline/db.ts`): editar e apagar continuam exigindo conexão —
+reconciliar uma edição feita offline com o que pode ter mudado no
+servidor nesse meio tempo é bem mais complexo, e não é o caso de uso
+real de uma oficina de balcão único (que precisa sobretudo continuar
+CADASTRANDO o dia inteiro, não editando registros antigos sem rede).

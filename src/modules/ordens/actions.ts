@@ -7,7 +7,15 @@ import { withOrg } from "@/core/auth";
 import type { ActionResult } from "@/core/action-result";
 import { calculateOrderTotal, isValidTransition, type WorkOrderStatus } from "./domain";
 import { workOrderCounters, workOrderItems, workOrders } from "./schema";
-import { parseWorkOrderHeaderFormData, parseWorkOrderItemFormData } from "./validation";
+import {
+  parseWorkOrderHeaderFormData,
+  parseWorkOrderItemFormData,
+  type WorkOrderHeaderInput,
+} from "./validation";
+
+interface InsertResult extends ActionResult {
+  id?: string;
+}
 
 /** Recalcula e grava o total da OS a partir dos itens atuais + desconto —
  * chamado depois de toda mutação de item ou de desconto, nunca calculado
@@ -34,20 +42,27 @@ async function recalculateOrderTotal(
   return totalCents;
 }
 
-export async function createWorkOrder(
-  _prevState: ActionResult,
-  formData: FormData,
-): Promise<ActionResult> {
+/**
+ * Faz o INSERT em si, sem `redirect()` — mesmo padrão de
+ * `modules/clientes/actions.ts#createCustomerRecord`: chamável direto
+ * pelo motor de sincronização offline (`core/offline/replay-handlers.ts`).
+ *
+ * O número sequencial (`workOrderCounters`) só é obtido AQUI, no momento
+ * do insert de verdade — nunca calculado/mostrado no cliente enquanto a
+ * OS está só na fila offline. É o que evita qualquer colisão de
+ * numeração: mesmo que várias OSs tenham sido criadas offline na mesma
+ * sessão, o motor de sync as reprocessa sequencialmente (nunca em
+ * paralelo — ver `sync-engine.ts`), e cada uma só pega seu número real
+ * quando chega a vez dela sincronizar de verdade, pelo mesmo upsert
+ * atômico de sempre. Enquanto pendente, a ficha "provisória" simplesmente
+ * não mostra número nenhum (ver `(app)/ordens/pendente/page.tsx`).
+ */
+export async function createWorkOrderRecord(
+  data: WorkOrderHeaderInput,
+  id?: string,
+): Promise<InsertResult> {
   const { db, organizationId, log } = await withOrg();
-  log.info("ordens.criar");
-
-  const parsed = parseWorkOrderHeaderFormData(formData);
-  if (!parsed.success) {
-    log.warn("ordens.criar.validacao_falhou", {
-      fields: Object.keys(parsed.error.flatten().fieldErrors),
-    });
-    return { ok: false, errors: parsed.error.flatten().fieldErrors };
-  }
+  log.info("ordens.criar", { offline: Boolean(id) });
 
   // Upsert atômico: uma única instrução, sem corrida entre duas OSs
   // criadas ao mesmo tempo na mesma oficina (ver comentário em
@@ -63,12 +78,34 @@ export async function createWorkOrder(
 
   const [order] = await db
     .insert(workOrders)
-    .values({ ...parsed.data, organizationId, number: lastNumber })
+    .values({ ...data, organizationId, number: lastNumber, ...(id && { id }) })
     .returning({ id: workOrders.id });
   log.info("ordens.criar.sucesso", { orderId: order.id, number: lastNumber });
 
   revalidatePath("/ordens");
-  redirect(`/ordens/${order.id}`);
+  return { ok: true, id: order.id };
+}
+
+export async function createWorkOrder(
+  _prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  // `withOrg()` aqui de propósito, antes até de validar o form — mesmo
+  // motivo documentado em modules/clientes/actions.ts#createCustomer.
+  const { log } = await withOrg();
+  const parsed = parseWorkOrderHeaderFormData(formData);
+  if (!parsed.success) {
+    log.warn("ordens.criar.validacao_falhou", {
+      fields: Object.keys(parsed.error.flatten().fieldErrors),
+    });
+    return { ok: false, errors: parsed.error.flatten().fieldErrors };
+  }
+
+  const result = await createWorkOrderRecord(parsed.data);
+
+  // `redirect()` fica fora do try/catch pelo mesmo motivo documentado em
+  // modules/clientes/actions.ts#createCustomer.
+  redirect(`/ordens/${result.id}`);
 }
 
 export async function updateWorkOrderHeader(

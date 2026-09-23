@@ -6,6 +6,8 @@ import { createVehicleRecord } from "@/modules/veiculos/actions";
 import type { VehicleInput } from "@/modules/veiculos/validation";
 import { createCatalogItemRecord } from "@/modules/catalogo/actions";
 import type { CatalogItemInput } from "@/modules/catalogo/validation";
+import { createWorkOrderRecord } from "@/modules/ordens/actions";
+import type { WorkOrderHeaderInput } from "@/modules/ordens/validation";
 
 /**
  * Mapa `module:actionName -> função que refaz a ação de verdade no
@@ -27,4 +29,6 @@ export const REPLAY_HANDLERS: Record<
   "veiculos:createVehicle": (record, id) => createVehicleRecord(record as VehicleInput, id),
   "catalogo:createCatalogItem": (record, id) =>
     createCatalogItemRecord(record as CatalogItemInput, id),
+  "ordens:createWorkOrder": (record, id) =>
+    createWorkOrderRecord(record as WorkOrderHeaderInput, id),
 };
