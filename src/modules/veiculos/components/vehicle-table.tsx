@@ -8,6 +8,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatPlate } from "@/core/format";
+import { RowActions } from "@/components/row-actions";
+import { deleteVehicle } from "../actions";
 
 interface VehicleRow {
   id: string;
@@ -33,6 +35,7 @@ export function VehicleTable({ vehicles }: { vehicles: VehicleRow[] }) {
           <TableHead>Veículo</TableHead>
           <TableHead>Ano</TableHead>
           <TableHead>Cliente</TableHead>
+          <TableHead className="w-0" />
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -46,6 +49,14 @@ export function VehicleTable({ vehicles }: { vehicles: VehicleRow[] }) {
             <TableCell>{[vehicle.brand, vehicle.model].filter(Boolean).join(" ") || "—"}</TableCell>
             <TableCell>{vehicle.year ?? "—"}</TableCell>
             <TableCell>{vehicle.customerName}</TableCell>
+            <TableCell>
+              <RowActions
+                editHref={`/veiculos/${vehicle.id}`}
+                deleteTitle="Remover veículo"
+                deleteDescription="Essa ação não pode ser desfeita. O veículo só pode ser removido se não tiver ordens de serviço vinculadas."
+                onDelete={deleteVehicle.bind(null, vehicle.id)}
+              />
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>

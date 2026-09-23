@@ -68,7 +68,7 @@ export async function createCustomer(
   // `redirect()` funciona lançando um erro especial que o Next.js
   // reconhece — precisa ficar FORA de qualquer try/catch, senão um catch
   // genérico o trataria como uma falha de verdade.
-  redirect(`/clientes/${result.id}`);
+  redirect(`/clientes/${result.id}?criado=1`);
 }
 
 export async function updateCustomer(

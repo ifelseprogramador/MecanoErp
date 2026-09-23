@@ -8,7 +8,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { RowActions } from "@/components/row-actions";
 import { formatCents } from "@/core/money";
+import { deleteCatalogItem } from "../actions";
 import type { CatalogItem } from "../schema.types";
 
 export function CatalogItemTable({ items }: { items: CatalogItem[] }) {
@@ -26,6 +28,7 @@ export function CatalogItemTable({ items }: { items: CatalogItem[] }) {
           <TableHead>Tipo</TableHead>
           <TableHead>Unidade</TableHead>
           <TableHead>Preço padrão</TableHead>
+          <TableHead className="w-0" />
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -37,10 +40,20 @@ export function CatalogItemTable({ items }: { items: CatalogItem[] }) {
               </Link>
             </TableCell>
             <TableCell>
-              <Badge variant="secondary">{item.type === "servico" ? "Serviço" : "Peça"}</Badge>
+              <Badge variant={item.type === "servico" ? "default" : "secondary"}>
+                {item.type === "servico" ? "Serviço" : "Peça"}
+              </Badge>
             </TableCell>
             <TableCell>{item.unit}</TableCell>
             <TableCell>{formatCents(item.defaultPriceCents)}</TableCell>
+            <TableCell>
+              <RowActions
+                editHref={`/catalogo/${item.id}`}
+                deleteTitle="Remover item"
+                deleteDescription="Essa ação não pode ser desfeita. O item só pode ser removido se não estiver usado em alguma ordem de serviço."
+                onDelete={deleteCatalogItem.bind(null, item.id)}
+              />
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>

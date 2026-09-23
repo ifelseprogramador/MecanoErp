@@ -231,13 +231,20 @@ export function LiveSupportWidget({
       {!session && (
         <Button
           variant="outline"
-          size="icon"
           title="Chamar suporte"
-          className="fixed right-4 bottom-4 z-50 rounded-full shadow-lg"
+          className="bg-background fixed right-4 bottom-4 z-50 h-10 gap-2 overflow-hidden rounded-full px-3 shadow-lg transition-[padding] duration-300 ease-out"
           onClick={handleCallForSupport}
           disabled={isPending}
         >
-          <Headset className="h-4 w-4" />
+          <Headset className="h-4 w-4 shrink-0" />
+          {/* Some fechado por padrão (max-width 0) e cresce ao passar o
+              mouse — como o botão fica ancorado com `right-4` (posição
+              fixa), o crescimento da largura empurra a borda ESQUERDA pra
+              fora, dando a impressão de expandir pra esquerda, sem
+              precisar de nenhum cálculo de posição. */}
+          <span className="max-w-0 overflow-hidden text-sm whitespace-nowrap opacity-0 transition-all duration-300 ease-out group-hover/button:max-w-40 group-hover/button:opacity-100">
+            Chamar suporte
+          </span>
         </Button>
       )}
 

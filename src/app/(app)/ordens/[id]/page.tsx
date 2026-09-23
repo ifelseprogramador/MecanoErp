@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Printer } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { CreatedBanner } from "@/components/created-banner";
 import { formatCents } from "@/core/money";
 import { getWorkOrderById, listWorkOrderItems } from "@/modules/ordens/queries";
 import {
@@ -20,8 +21,12 @@ import { listCustomersForSelect } from "@/modules/clientes";
 import { listVehiclesForSelect } from "@/modules/veiculos";
 import { listCatalogItemsForSelect } from "@/modules/catalogo";
 
-export default async function WorkOrderDetailPage({ params }: PageProps<"/ordens/[id]">) {
+export default async function WorkOrderDetailPage({
+  params,
+  searchParams,
+}: PageProps<"/ordens/[id]">) {
   const { id } = await params;
+  const { criado } = await searchParams;
   const [order, items, customers, vehicles, catalogItems] = await Promise.all([
     getWorkOrderById(id),
     listWorkOrderItems(id),
@@ -44,6 +49,13 @@ export default async function WorkOrderDetailPage({ params }: PageProps<"/ordens
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
+      {criado === "1" && (
+        <CreatedBanner
+          message="Ordem de serviço criada com sucesso."
+          createAnotherHref="/ordens/novo"
+          createAnotherLabel="Criar outra"
+        />
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">OS #{order.number}</h1>

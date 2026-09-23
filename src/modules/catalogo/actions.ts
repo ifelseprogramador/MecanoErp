@@ -57,7 +57,7 @@ export async function createCatalogItem(
 
   // `redirect()` fica fora do try/catch pelo mesmo motivo documentado em
   // modules/clientes/actions.ts#createCustomer.
-  redirect(`/catalogo/${result.id}`);
+  redirect(`/catalogo/${result.id}?criado=1`);
 }
 
 export async function updateCatalogItem(

@@ -4,12 +4,15 @@ import { formatDate, formatPlate } from "@/core/format";
 import { getWorkOrderById, listWorkOrderItems } from "@/modules/ordens/queries";
 import { getActiveOrg } from "@/core/auth";
 import { WorkOrderStatusBadge } from "@/modules/ordens/components/work-order-status-badge";
+import { AutoPrint } from "@/components/auto-print";
 
 /**
  * Impressão/PDF sem dependência nenhuma: CSS puro (`print:`, ver
- * `(app)/layout.tsx` escondendo a barra lateral/topo) + o botão nativo
- * "Imprimir" do navegador (Ctrl+P), que também serve pra "salvar como
- * PDF". Zero lib de geração de PDF no servidor.
+ * `(app)/layout.tsx` escondendo a barra lateral/topo) + o diálogo nativo
+ * de impressão do navegador (Ctrl+P, que também serve pra "salvar como
+ * PDF"), aberto sozinho por `<AutoPrint />` assim que a página carrega —
+ * a pessoa não precisa apertar Ctrl+P na mão depois de clicar em
+ * "Imprimir". Zero lib de geração de PDF no servidor.
  */
 export default async function PrintWorkOrderPage({ params }: PageProps<"/ordens/[id]/imprimir">) {
   const { id } = await params;
@@ -25,6 +28,7 @@ export default async function PrintWorkOrderPage({ params }: PageProps<"/ordens/
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6 text-sm">
+      <AutoPrint />
       <div className="flex items-center justify-between border-b pb-4">
         <div>
           <h1 className="text-xl font-semibold">{org.organizationName}</h1>

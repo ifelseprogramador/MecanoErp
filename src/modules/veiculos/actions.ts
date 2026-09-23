@@ -73,7 +73,7 @@ export async function createVehicle(
 
   // `redirect()` fica fora do try/catch pelo mesmo motivo documentado em
   // modules/clientes/actions.ts#createCustomer.
-  redirect(`/veiculos/${result.id}`);
+  redirect(`/veiculos/${result.id}?criado=1`);
 }
 
 export async function updateVehicle(

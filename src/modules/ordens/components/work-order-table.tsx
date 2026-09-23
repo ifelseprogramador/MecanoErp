@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/table";
 import { formatCents } from "@/core/money";
 import { formatDate, formatPlate } from "@/core/format";
+import { RowActions } from "@/components/row-actions";
 import { WorkOrderStatusBadge } from "./work-order-status-badge";
 import type { WorkOrderStatus } from "../domain";
 
@@ -41,6 +42,7 @@ export function WorkOrderTable({ orders }: { orders: WorkOrderRow[] }) {
           <TableHead>Status</TableHead>
           <TableHead>Total</TableHead>
           <TableHead>Criada em</TableHead>
+          <TableHead className="w-0" />
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -58,6 +60,9 @@ export function WorkOrderTable({ orders }: { orders: WorkOrderRow[] }) {
             </TableCell>
             <TableCell>{formatCents(order.totalCents)}</TableCell>
             <TableCell>{formatDate(order.createdAt)}</TableCell>
+            <TableCell>
+              <RowActions editHref={`/ordens/${order.id}`} />
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>

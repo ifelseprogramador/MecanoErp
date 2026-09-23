@@ -217,14 +217,18 @@ aplicação do mesmo padrão. Ao criar um módulo novo, copiar essa estrutura:
 4. `actions.ts` retornando sempre `ActionResult` (`@/core/action-result`):
    `{ ok, errors?, message? }`, nunca um `throw` que o form precise
    adivinhar como exibir. Log de entrada (`log.info`) e de erro
-   (`log.error`) em cada action. Ação de **criar**: `redirect()` para a
-   ficha do registro após salvar (sempre fora do `try/catch`). Ação de
-   **editar**: retorna `{ok:true}` e deixa o form mostrar um toast (ver
+   (`log.error`) em cada action. Ação de **criar**: `redirect()` para
+   `/<modulo>/{id}?criado=1` (não só `/{id}` — o `?criado=1` liga o
+   banner de "salvo, cadastrar outro", ver item 10) após salvar (sempre
+   fora do `try/catch`). Ação de **editar**: retorna `{ok:true}` e
+   deixa o form mostrar um toast (ver
    `customer-form.tsx`/`vehicle-form.tsx`).
-5. Reaproveitar `components/search-box.tsx` e
-   `components/confirm-delete-button.tsx` em vez de duplicar. No
-   `ConfirmDeleteButton`, passar a Server Action com `.bind(null, id)`,
-   nunca uma arrow function nova — ver `docs/decisoes.md` (2026-09-22).
+5. Reaproveitar `components/search-box.tsx`,
+   `components/confirm-delete-button.tsx` (botão "Remover" da página de
+   DETALHE) e `components/row-actions.tsx` (par de ícones editar/apagar
+   discretos numa célula de tabela — usado nas listas) em vez de
+   duplicar. Passar a Server Action com `.bind(null, id)`, nunca uma
+   arrow function nova — ver `docs/decisoes.md` (2026-09-22).
 6. Todo `Select` do formulário precisa da prop `items` (mapa valor →
    label) no componente raiz — sem ela o Base UI mostra o valor bruto em
    vez do texto legível. Ver `docs/decisoes.md` (2026-09-22).
@@ -236,3 +240,14 @@ aplicação do mesmo padrão. Ao criar um módulo novo, copiar essa estrutura:
    depois de salvar.
 9. Testes de `validation.ts` sempre; testes de lógica de negócio pura
    (cálculos, máquinas de estado) sempre.
+10. Página `[id]/imprimir/page.tsx`: Server Component simples, com
+    `<AutoPrint />` (`components/auto-print.tsx`) logo no topo — abre o
+    diálogo de impressão do navegador sozinho ao carregar, em vez de
+    esperar a pessoa apertar Ctrl+P. Botão "Imprimir" na página de
+    detalhe abre essa rota numa aba nova (`target="_blank"`). Ver
+    `(app)/ordens/[id]/imprimir/page.tsx` como referência de layout
+    (cabeçalho com nome da oficina, `print:` do Tailwind já cuida de
+    esconder sidebar/topo).
+11. Página de detalhe lê `searchParams` e mostra
+    `components/created-banner.tsx` quando `criado === "1"` (ver item 4) — link "Cadastrar outro" apontando de volta pro formulário de
+    criar do mesmo módulo.

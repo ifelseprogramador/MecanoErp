@@ -782,3 +782,81 @@ reconciliar uma edição feita offline com o que pode ter mudado no
 servidor nesse meio tempo é bem mais complexo, e não é o caso de uso
 real de uma oficina de balcão único (que precisa sobretudo continuar
 CADASTRANDO o dia inteiro, não editando registros antigos sem rede).
+
+## 2026-09-23 — Leva grande de UX (Fase 1 de um pedido maior)
+
+Pedido do usuário veio com ~10 frentes (filtros/busca padronizados,
+impressão em todo módulo, preservar formulário em erro, dashboard novo,
+mais cor + ações discretas nas listas, fluxo "salvar e já criar o
+próximo", importar/exportar planilha, backup completo com nuvem). Óbvio
+demais pra uma tacada só — dividido em fases com o usuário, começando
+pela que é toda visual/comportamental, sem migração de schema nem
+decisão externa pendente (nuvem, formato de exportação, etc. ficam pras
+fases seguintes). Itens desta fase:
+
+- **Botão de suporte expande ao passar o mouse** (`live-support-widget.tsx`):
+  trocado o botão só-ícone por um com um `<span>` de texto começando em
+  `max-w-0 opacity-0` e crescendo em `group-hover/button:max-w-40
+opacity-100` (a classe `group/button` já vem do próprio componente
+  `Button`). Como o botão é `fixed right-4`, crescer a largura empurra a
+  borda ESQUERDA pra fora — dá a impressão de "abrir pra esquerda" sem
+  nenhum cálculo de posição.
+- **Botão discreto de editar/apagar nas listas** — novo componente
+  `components/row-actions.tsx` (ícone de lápis linkando pra página de
+  detalhe + ícone de lixeira com o mesmo dialog de confirmação de
+  `ConfirmDeleteButton`, mas sem `redirectTo`: ao remover, a pessoa
+  continua na lista, que só dá `router.refresh()`). Adicionado nas 4
+  tabelas (`clientes`, `veiculos`, `catalogo`, `ordens` — esta última só
+  com editar, OS não tem exclusão, usa cancelamento por status).
+- **Mais cor, tema "oficina"**: o tema inteiro (`globals.css`) era
+  cinza puro (chroma 0 em quase todo token — o "neutral" padrão do
+  shadcn). Trocado `--primary` por um laranja (ferramenta/sinalização),
+  sidebar por um grafite escuro em vez de cinza claro (visual de
+  bancada/garagem), com o item ativo do menu em laranja sólido. Badges
+  de tipo (PF/PJ, serviço/peça) e de status da OS (aprovada=azul,
+  concluída=verde, entregue=violeta) ganharam cores distintas em vez de
+  todo mundo cair no `variant="secondary"` cinza. Fundo/cartões do
+  conteúdo continuam neutros de propósito — a cor entra só nos pontos de
+  ação/destaque, não satura a tela inteira.
+- **Imprimir = diálogo de impressão direto, em todo módulo**: o botão
+  "Imprimir" de `ordens` já existia mas só abria a página de impressão
+  numa aba nova, esperando a pessoa apertar Ctrl+P por conta própria.
+  Criado `components/auto-print.tsx` (`useEffect(() => window.print())`
+  ao montar) e colocado no topo de toda página `[id]/imprimir/` — agora
+  o diálogo abre sozinho. Réplicas dessa rota criadas para `clientes`,
+  `veiculos` e `catalogo` (só `ordens` tinha antes), cada uma com botão
+  "Imprimir" na página de detalhe, mesmo padrão visual (`print:` do
+  Tailwind, escondendo sidebar/topo — já configurado em
+  `(app)/layout.tsx`).
+- **Preservar formulário em erro de validação**: investigado antes de
+  mexer — já funcionava em todos os módulos, não só em `ordens`. Todo
+  formulário de criar/editar usa `useActionState` com campos NÃO
+  controlados (`defaultValue`) e uma `key` que só muda quando o
+  registro é salvo de verdade (`updatedAt` novo vindo do servidor) —
+  numa falha de validação a `key` não muda, o React não remonta os
+  campos, e o que a pessoa digitou continua lá. Confirmado com teste
+  Playwright (campo de e-mail com valor inválido continua preenchido
+  depois do clique em Salvar). Nada para corrigir aqui.
+- **"Salvar e já ficar pronto pro próximo"**: as 4 actions de criar
+  (`createCustomer`, `createVehicle`, `createCatalogItem`,
+  `createWorkOrder`) agora fazem `redirect` pra
+  `/<modulo>/{id}?criado=1` em vez de só `/{id}`. A página de detalhe
+  lê esse `criado=1` e mostra `components/created-banner.tsx`: uma
+  tarja verde confirmando o que foi salvo + um botão "Cadastrar
+  outro"/"Criar outra" linkando direto pro formulário de criar de novo
+  (no caso de veículo, já com `?customerId=` do mesmo cliente
+  preenchido). O `?criado=1` não sobrevive a um refresh/nova visita —
+  não precisa de estado nem de dispensar manualmente.
+
+Testado visualmente com Playwright contra build de produção
+(screenshots + asserções): hover do botão de suporte expandindo,
+tarja de "criado com sucesso" aparecendo com o botão de atalho, valor
+de campo inválido permanecendo preenchido após erro, botões de
+editar/apagar aparecendo na lista.
+
+**Pendente (fases seguintes, já combinadas com o usuário)**: filtros
+e busca padronizados por coluna em todos os módulos; dashboard (Painel)
+redesenhado; importar/exportar em planilha por módulo; backup completo
+do sistema com opção de nuvem/local/compartilhar e exportação pra
+migrar de banco (schema + dados) — as duas últimas ainda precisam de
+decisões do usuário (qual serviço de nuvem, formato de exportação).

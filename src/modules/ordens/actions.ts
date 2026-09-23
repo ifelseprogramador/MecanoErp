@@ -105,7 +105,7 @@ export async function createWorkOrder(
 
   // `redirect()` fica fora do try/catch pelo mesmo motivo documentado em
   // modules/clientes/actions.ts#createCustomer.
-  redirect(`/ordens/${result.id}`);
+  redirect(`/ordens/${result.id}?criado=1`);
 }
 
 export async function updateWorkOrderHeader(

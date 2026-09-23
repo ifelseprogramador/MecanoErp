@@ -8,7 +8,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { RowActions } from "@/components/row-actions";
 import { formatDocument } from "@/core/document";
+import { deleteCustomer } from "../actions";
 import type { Customer } from "../schema.types";
 
 // Lista simples, sem sort/paginação: o volume esperado (clientes de uma
@@ -30,6 +32,7 @@ export function CustomerTable({ customers }: { customers: Customer[] }) {
           <TableHead>Tipo</TableHead>
           <TableHead>CPF/CNPJ</TableHead>
           <TableHead>Telefone</TableHead>
+          <TableHead className="w-0" />
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -41,12 +44,20 @@ export function CustomerTable({ customers }: { customers: Customer[] }) {
               </Link>
             </TableCell>
             <TableCell>
-              <Badge variant="secondary">
+              <Badge variant={customer.type === "pf" ? "default" : "secondary"}>
                 {customer.type === "pf" ? "Pessoa física" : "Pessoa jurídica"}
               </Badge>
             </TableCell>
             <TableCell>{customer.document ? formatDocument(customer.document) : "—"}</TableCell>
             <TableCell>{customer.phone || "—"}</TableCell>
+            <TableCell>
+              <RowActions
+                editHref={`/clientes/${customer.id}`}
+                deleteTitle="Remover cliente"
+                deleteDescription="Essa ação não pode ser desfeita. O cliente só pode ser removido se não tiver veículos ou ordens de serviço vinculados."
+                onDelete={deleteCustomer.bind(null, customer.id)}
+              />
+            </TableCell>
           </TableRow>
         ))}
       </TableBody>

@@ -70,9 +70,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       )}
 
       <div className="flex flex-1">
-        <aside className="bg-sidebar text-sidebar-foreground hidden w-60 shrink-0 flex-col border-r md:flex print:hidden">
-          <div className="flex items-center gap-2 border-b px-4 py-3.5">
-            <Wrench className="h-5 w-5" />
+        <aside className="bg-sidebar text-sidebar-foreground border-sidebar-border hidden w-60 shrink-0 flex-col border-r md:flex print:hidden">
+          <div className="border-sidebar-border flex items-center gap-2 border-b px-4 py-3.5">
+            <Wrench className="text-sidebar-primary h-5 w-5" />
             <span className="font-semibold">MecanoErp</span>
           </div>
           <SidebarNav modules={modules} />

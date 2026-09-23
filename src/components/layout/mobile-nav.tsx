@@ -19,9 +19,12 @@ export function MobileNav({ modules }: { modules: ModuleDefinition[] }) {
           </Button>
         }
       />
-      <SheetContent side="left" className="w-64 p-0">
-        <SheetHeader className="border-b px-4 py-3">
-          <SheetTitle>MecanoErp</SheetTitle>
+      <SheetContent
+        side="left"
+        className="bg-sidebar text-sidebar-foreground border-sidebar-border w-64 p-0"
+      >
+        <SheetHeader className="border-sidebar-border border-b px-4 py-3">
+          <SheetTitle className="text-sidebar-foreground">MecanoErp</SheetTitle>
         </SheetHeader>
         <SidebarNav modules={modules} onNavigate={() => setOpen(false)} />
       </SheetContent>
