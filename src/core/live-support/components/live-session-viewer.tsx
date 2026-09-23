@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Replayer } from "rrweb";
+import { MouseInteractions, Replayer, ReplayerEvents } from "rrweb";
 import type { eventWithTime } from "@rrweb/types";
 // A classe crua `Replayer` (diferente do pacote `rrweb-player`) não injeta
 // seu próprio CSS. Sem isso, o cursor do rrweb (`.replayer-mouse`) e o
@@ -16,6 +16,23 @@ import { Badge } from "@/components/ui/badge";
 import { logger } from "@/core/logger";
 import { getRealtimeChannel, liveSessionChannelName } from "../realtime";
 import { endLiveSession, getFullSnapshot } from "../actions";
+
+// `target` de um evento "mouse-interaction" do Replayer vem do
+// `contentDocument` do iframe — outro realm de JS, com seu próprio
+// `HTMLElement`. `instanceof HTMLElement` (a classe do realm de FORA)
+// sempre dá falso mesmo pra um elemento real; checar "por pato" (tem
+// `.style`?) funciona em qualquer realm.
+interface StyledElement {
+  style: CSSStyleDeclaration;
+}
+function isStyledElement(value: unknown): value is StyledElement {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "style" in value &&
+    typeof (value as { style?: unknown }).style === "object"
+  );
+}
 
 /**
  * Player ao vivo do lado do admin: espelha a tela do app do usuário
@@ -62,6 +79,10 @@ export function LiveSessionViewer({
     null,
   );
   const tryCreateReplayerRef = useRef<() => void>(() => {});
+  // Elemento marcado como "focado" no espelho — ver comentário no listener
+  // de "mouse-interaction" abaixo (por que precisa disso em vez do
+  // `:focus` nativo).
+  const highlightedElementRef = useRef<StyledElement | null>(null);
 
   useEffect(() => {
     controlGrantedRef.current = controlGranted;
@@ -111,6 +132,36 @@ export function LiveSessionViewer({
       // `useVirtualDom: false` já resolvendo a causa de verdade, não
       // precisa mais mexer no baselineTime — o padrão está certo.
       replayerRef.current.startLive();
+      // O espelho não mostra o cursor de texto piscando de verdade — o
+      // rrweb até chama `.focus()` no elemento certo dentro do iframe,
+      // mas isso também foca o `<iframe>` do ponto de vista do admin, e
+      // o polling que desfoca o iframe (pra ele não roubar o teclado do
+      // admin, ver useEffect mais abaixo) cancela esse foco junto. Em
+      // vez de brigar com isso, desenha um contorno visível no campo
+      // focado à mão — dá pra ver ONDE a oficina está digitando, mesmo
+      // sem o cursor piscando nativo.
+      replayerRef.current.on(ReplayerEvents.MouseInteraction, (payload) => {
+        const { type, target } = payload as { type: MouseInteractions; target: unknown };
+        // `target` vem do `contentDocument` do iframe — outro realm de
+        // JS, com seu próprio `HTMLElement`. `target instanceof
+        // HTMLElement` (usando a classe do realm de FORA) sempre dá
+        // falso mesmo pra um elemento real — precisa checar "por pato"
+        // (tem `.style`?), não por classe.
+        if (!isStyledElement(target)) return;
+        if (type === MouseInteractions.Focus) {
+          if (highlightedElementRef.current && highlightedElementRef.current !== target) {
+            highlightedElementRef.current.style.outline = "";
+            highlightedElementRef.current.style.outlineOffset = "";
+          }
+          target.style.outline = "2px solid #3b82f6";
+          target.style.outlineOffset = "1px";
+          highlightedElementRef.current = target;
+        } else if (type === MouseInteractions.Blur && target === highlightedElementRef.current) {
+          target.style.outline = "";
+          target.style.outlineOffset = "";
+          highlightedElementRef.current = null;
+        }
+      });
       // O Meta entra ANTES do FullSnapshot — é ele que revela o iframe
       // (o rrweb cria o iframe do Replayer com `display: none` por
       // padrão e só troca pra `inherit` ao aplicar um Meta, que também

@@ -3,6 +3,8 @@ import { ShieldAlert, LogOut } from "lucide-react";
 import { requireAdmin, NotPlatformAdminError } from "@/core/admin-auth";
 import { Button } from "@/components/ui/button";
 import { logout } from "@/app/(auth)/actions";
+import { listPendingUserRequestsForAdmin } from "@/core/live-support/queries";
+import { SupportNotificationBell } from "@/core/admin/components/support-notification-bell";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   try {
@@ -29,6 +31,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     throw err;
   }
 
+  const pendingRequests = await listPendingUserRequestsForAdmin();
+
   return (
     <div className="flex min-h-screen flex-1 flex-col">
       <header className="flex items-center justify-between border-b bg-zinc-950 px-4 py-3 text-zinc-50">
@@ -40,6 +44,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <Link href="/" className="text-sm text-zinc-300 hover:text-zinc-50">
             Voltar ao app
           </Link>
+          <SupportNotificationBell initialRequests={pendingRequests} />
           <form action={logout}>
             <Button
               variant="ghost"

@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Headset } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -26,7 +25,6 @@ interface PendingRequest {
 export function SupportInbox({ initialRequests }: { initialRequests: PendingRequest[] }) {
   const [requests, setRequests] = useState(initialRequests);
   const [isPending, startTransition] = useTransition();
-  const router = useRouter();
 
   useEffect(() => {
     const channel = getRealtimeChannel(adminSupportInboxChannelName());
@@ -56,7 +54,11 @@ export function SupportInbox({ initialRequests }: { initialRequests: PendingRequ
       const result = await acceptSupportRequest(sessionId);
       if (result.ok) {
         setRequests((prev) => prev.filter((r) => r.sessionId !== sessionId));
-        router.push(`/admin/organizacoes/${organizationId}`);
+        // Recarregamento completo — ver comentário equivalente em
+        // support-notification-bell.tsx (router.push podia reaproveitar
+        // um prefetch antigo da mesma rota, capturado antes da sessão
+        // virar ativa).
+        window.location.href = `/admin/organizacoes/${organizationId}`;
       } else {
         toast.error(result.message ?? "Não foi possível aceitar.");
       }

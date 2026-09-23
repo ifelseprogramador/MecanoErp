@@ -392,6 +392,48 @@ de teste manual:
   Não mexido: resolver isso direito exigiria repensar o mecanismo de
   proteção do teclado, risco maior que o ganho cosmético por agora.
 
+## 2026-09-22 — Suporte ao vivo: destaque de campo, sino global, sessão sumindo sozinha
+
+Mais uma rodada, incluindo a correção do "cursor piscando" que a entrada
+anterior tinha deixado como limitação conhecida:
+
+- **Destaque do campo focado resolvido**: o `target` de um evento
+  `mouse-interaction` do `Replayer` vem do `contentDocument` do iframe —
+  **outro realm de JavaScript**, com seu próprio `HTMLElement`. A checagem
+  `target instanceof HTMLElement` (usando a classe do realm de FORA, a
+  página do admin) sempre dá falso, mesmo pra um elemento real — um
+  clássico problema de `instanceof` entre realms diferentes. Trocado por
+  checagem "por pato" (`isStyledElement`: tem `.style`?), que funciona em
+  qualquer realm. Com isso, o contorno azul no campo focado (a
+  alternativa ao cursor nativo, já que esse não dá pra mostrar — ver
+  entrada anterior) finalmente aparece.
+- **Sino de notificação no cabeçalho do admin**: `SupportInbox` só
+  existia na página inicial (`/admin`) — um admin na ficha de outra
+  oficina não via nada quando alguém chamava o suporte. Novo
+  `SupportNotificationBell` no `layout.tsx` de `/admin/*` (visível em
+  toda página da área admin), com toast ao vivo e dropdown listando os
+  pedidos pendentes; clicar num pedido aceita e leva pra ficha da
+  oficina.
+- **Sessão "Ao vivo" aparecia e sumia sozinha, sem erro nenhum, ao
+  aceitar por qualquer um dos inboxes (sino ou card)**: o `router.push()`
+  do Next.js, navegando pra uma rota que o navegador já tinha uma versão
+  em cache (prefetch de antes da sessão virar `active`), mostrava a tela
+  correta por um instante e depois voltava pra "Solicitar acesso" quando
+  esse cache antigo resolvia por cima — uma corrida de dados sem
+  qualquer mensagem de erro. Tentei `router.refresh()` também, que só
+  piorou (criava uma SEGUNDA busca concorrente com a do `push`, uma
+  cancelando a outra — "stream closed early" no log do servidor).
+  Corrigido trocando por `window.location.href` (recarregamento
+  completo): mais lento, mas garante exatamente UMA busca sempre fresca,
+  sem essa ambiguidade de cache do router. Diagnosticado rodando um
+  `for` de 10 segundos checando "Ao vivo" a cada 1s — sem isso, um teste
+  rápido de "apareceu?" não pegava o problema.
+- Banner do usuário e botão "Encerrar" redesenhados: em vez de forçar
+  cor em cada componente por cima de um fundo azul sólido, os controles
+  (toggle + botão) ficam dentro de um "pill" branco — usam as cores
+  padrão deles mesmos (pensadas pra fundo claro), sem risco de
+  ilegibilidade.
+
 ## 2026-09-22 — Nome do projeto: MecanoErp
 
 Pasta local e repositório GitHub (`ifelseprogramador/MecanoErp`) usam

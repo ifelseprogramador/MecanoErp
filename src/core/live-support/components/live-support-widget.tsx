@@ -272,27 +272,26 @@ export function LiveSupportWidget({
       )}
 
       {session?.status === "active" && (
-        <div className="flex items-center justify-between bg-blue-600 px-4 py-2 text-sm font-medium text-white">
+        <div className="flex items-center justify-between gap-4 bg-blue-600 px-4 py-2 text-sm font-medium text-white">
           <span className="flex items-center gap-2">
             <Headset className="h-4 w-4" />
             Sessão de suporte ativa — sua tela está sendo acompanhada ao vivo
           </span>
-          <div className="flex items-center gap-3">
-            <label className="flex items-center gap-2">
-              <span>Permitir controle remoto</span>
+          {/* Controles num "pill" claro em vez de cor forçada em cima do
+              cada componente: assim o Switch e o Button usam as próprias
+              cores padrão (pensadas pra fundo claro), sem risco de texto
+              claro em cima de fundo claro. */}
+          <div className="flex shrink-0 items-center gap-3 rounded-full bg-white px-3 py-1 shadow-sm">
+            <label className="flex items-center gap-2 text-xs font-medium text-zinc-700">
+              Controle remoto
               <Switch
                 checked={session.controlGranted}
                 onCheckedChange={handleToggleControl}
                 disabled={isPending}
               />
             </label>
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-foreground bg-white"
-              onClick={handleEnd}
-              disabled={isPending}
-            >
+            <div className="h-4 w-px bg-zinc-200" />
+            <Button variant="ghost" size="sm" onClick={handleEnd} disabled={isPending}>
               <X className="h-4 w-4" />
               Encerrar
             </Button>
