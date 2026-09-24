@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { EditLink } from "@/components/edit-link";
 import {
   Table,
   TableBody,
@@ -49,9 +49,9 @@ export function WorkOrderTable({ orders }: { orders: WorkOrderRow[] }) {
         {orders.map((order) => (
           <TableRow key={order.id}>
             <TableCell>
-              <Link href={`/ordens/${order.id}`} className="font-medium hover:underline">
+              <EditLink href={`/ordens/${order.id}`} className="font-medium">
                 #{order.number}
-              </Link>
+              </EditLink>
             </TableCell>
             <TableCell>{order.customerName}</TableCell>
             <TableCell>{formatPlate(order.vehiclePlate)}</TableCell>

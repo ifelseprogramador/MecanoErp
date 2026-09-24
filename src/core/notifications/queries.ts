@@ -8,7 +8,8 @@ import { organizations } from "@/db/schema/tenancy";
 /**
  * Notificações visíveis pra organização de quem está logado — "pra
  * todos" (`organization_id` nulo) ou só a dela — com `read` já
- * calculado pra ESTA pessoa (`userId`), mais recente primeiro.
+ * calculado pra ESTA pessoa (`userId`), mais recente primeiro. As que
+ * ela apagou do sino (`dismissedAt`) ficam de fora.
  */
 export async function listNotificationsForCurrentUser() {
   const { db, organizationId, userId } = await withOrg();
@@ -31,7 +32,10 @@ export async function listNotificationsForCurrentUser() {
       ),
     )
     .where(
-      or(isNull(notifications.organizationId), eq(notifications.organizationId, organizationId)),
+      and(
+        or(isNull(notifications.organizationId), eq(notifications.organizationId, organizationId)),
+        isNull(notificationReads.dismissedAt),
+      ),
     )
     .orderBy(desc(notifications.createdAt));
 

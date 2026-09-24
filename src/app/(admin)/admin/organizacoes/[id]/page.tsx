@@ -1,6 +1,5 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { BackButton } from "@/components/back-button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getOrganizationForAdmin } from "@/core/admin/queries";
@@ -41,27 +40,22 @@ export default async function AdminOrganizationDetailPage({
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
-      <Link
-        href="/admin"
-        className="text-muted-foreground hover:text-foreground flex w-fit items-center gap-1 text-sm"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Oficinas
-      </Link>
-
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{org.name}</h1>
-          <div className="mt-1 flex gap-2">
-            <Badge variant={org.status === "blocked" ? "destructive" : "secondary"}>
-              {org.status === "blocked" ? "Bloqueada" : "Ativa"}
-            </Badge>
-            <Badge variant="outline">
-              {customerCount} cliente{customerCount === 1 ? "" : "s"}
-            </Badge>
-            <Badge variant="outline">
-              {vehicleCount} veículo{vehicleCount === 1 ? "" : "s"}
-            </Badge>
+        <div className="flex items-start gap-2">
+          <BackButton href="/admin" />
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">{org.name}</h1>
+            <div className="mt-1 flex gap-2">
+              <Badge variant={org.status === "blocked" ? "destructive" : "secondary"}>
+                {org.status === "blocked" ? "Bloqueada" : "Ativa"}
+              </Badge>
+              <Badge variant="outline">
+                {customerCount} cliente{customerCount === 1 ? "" : "s"}
+              </Badge>
+              <Badge variant="outline">
+                {vehicleCount} veículo{vehicleCount === 1 ? "" : "s"}
+              </Badge>
+            </div>
           </div>
         </div>
         <div className="flex gap-2">

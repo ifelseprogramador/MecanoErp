@@ -24,6 +24,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.9.0",
+    date: "2026-09-24",
+    changes: [
+      {
+        type: "novo",
+        text: "Avisos da equipe MecanoErp chegam na hora, sem precisar atualizar a página: aparecem no canto da tela por alguns segundos e depois ficam guardados no sininho.",
+      },
+      {
+        type: "novo",
+        text: "Dá pra apagar avisos do sininho, um por um (lixeira ao lado) ou todos de uma vez.",
+      },
+      {
+        type: "melhoria",
+        text: "Nas listas, ao passar o mouse no nome aparece um destaque colorido com um lápis, mostrando que ali você abre pra editar.",
+      },
+    ],
+  },
+  {
     version: "0.8.1",
     date: "2026-09-24",
     changes: [

@@ -44,6 +44,11 @@ export const notifications = pgTable(
  * saber exatamente quem viu o aviso. `organizationId` guardado junto só
  * pra não precisar de outro join pra mostrar "de qual oficina" na lista
  * de leitores.
+ *
+ * `dismissedAt`: a pessoa apagou do PRÓPRIO sino. A notificação em si
+ * não some (é compartilhada com a oficina inteira ou com todas), só
+ * deixa de aparecer pra ela. Apagar implica ter lido, por isso mora
+ * aqui e não numa tabela à parte.
  */
 export const notificationReads = pgTable(
   "notification_reads",
@@ -57,6 +62,7 @@ export const notificationReads = pgTable(
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     readAt: timestamp("read_at", { withTimezone: true }).notNull().defaultNow(),
+    dismissedAt: timestamp("dismissed_at", { withTimezone: true }),
   },
   (table) => [
     uniqueIndex("notification_reads_unique").on(table.notificationId, table.userId),

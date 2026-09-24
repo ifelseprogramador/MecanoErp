@@ -92,7 +92,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <span className="text-sm font-medium">{org.organizationName}</span>
             </div>
             <div className="flex items-center gap-3">
-              <NotificationBell initialItems={notifications} />
+              <NotificationBell organizationId={org.organizationId} initialItems={notifications} />
               <span className="text-muted-foreground hidden text-sm sm:inline">
                 {org.userEmail}
               </span>

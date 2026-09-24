@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { EditLink } from "@/components/edit-link";
 import { Bell, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BackButton } from "@/components/back-button";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { RowActions } from "@/components/row-actions";
 import {
@@ -24,6 +26,7 @@ export default async function AdminNotificationsPage() {
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
+          <BackButton href="/admin" />
           <div className="bg-accent text-accent-foreground rounded-lg p-2">
             <Bell className="h-5 w-5" />
           </div>
@@ -67,12 +70,12 @@ export default async function AdminNotificationsPage() {
               return (
                 <TableRow key={notification.id}>
                   <TableCell>
-                    <Link
+                    <EditLink
                       href={`/admin/notificacoes/${notification.id}`}
-                      className="font-medium hover:underline"
+                      className="font-medium"
                     >
                       {notification.title}
-                    </Link>
+                    </EditLink>
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className={`gap-1 ${meta.className}`}>

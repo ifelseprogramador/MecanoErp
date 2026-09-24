@@ -1316,3 +1316,66 @@ com o usuário:
   com oficinas pagando, precisa do Pro. Registrado no README.
 - Passo a passo completo de publicação: README, seção "Publicar na
   internet (Vercel)".
+
+## 2026-09-24 — Link de edição nas listas: `EditLink` em vez de sublinhado
+
+O nome/número de cada linha nas listas dos módulos (clientes, veículos,
+catálogo, ordens — e as listas de pendentes offline) abre a edição, mas
+o `hover:underline` não comunicava isso. Agora todas usam
+`src/components/edit-link.tsx`: no hover/foco o link ganha um fundo
+`bg-primary/10` com texto na cor primária e um ícone de lápis que
+desliza pra dentro. O `-mx-1.5 px-1.5` faz o destaque transbordar pra
+fora sem desalinhar o texto da coluna. Links de navegação que não são
+edição (painel inicial, backup, card de pedidos de suporte) continuam
+com sublinhado. Na área do dono, as tabelas de oficinas e de
+notificações e o card de pedidos de suporte também usam `EditLink`. A
+tabela de oficinas ganhou a coluna de ações (`RowActions`), mas só com o
+lápis: apagar oficina é definitivo e já tem confirmação própria na ficha
+(digitar o nome).
+
+Área do dono, navegação:
+
+- `BackButton` aceita `href` opcional. Sem ele, continua voltando pelo
+  histórico (`router.back()`). Com ele, vai sempre ao destino fixo. A
+  lista de notificações e a ficha da oficina usam `href="/admin"`: o
+  "voltar" do dono é sempre a tela inicial, mesmo quando a pessoa chegou
+  pelo menu do topo ou por um link direto, casos em que o histórico
+  levaria pra fora do admin. A ficha da oficina trocou o antigo link de
+  texto "← Oficinas" por esse botão, igual às fichas do app.
+- No topo, "Notificações" virou botão com borda e ícone de megafone (o
+  sino ao lado já é o de pedidos de suporte), e "Voltar ao app" virou
+  botão discreto (ghost).
+
+## 2026-09-24 — Notificações do dono ao vivo + apagar do próprio sino
+
+**Ao vivo.** Antes o sino só via uma notificação nova depois de
+recarregar a página. Agora `createNotification`/`updateNotification`/
+`deleteNotification`/`deleteAllNotifications` mandam um Broadcast do
+Supabase Realtime (`sendBroadcast`, mesma infra do suporte ao vivo) no
+canal `notifications:all` (aviso pra todas) ou `notifications-org:{id}`
+(aviso pra uma oficina). O sino escuta os dois.
+
+- **Payload vazio, de propósito**: o evento só diz "mudou, releia". O
+  sino chama a Server Action `fetchMyNotifications`, que é a mesma
+  consulta do layout, com o filtro por oficina no servidor. Mesmo modelo
+  de confiança do suporte ao vivo: um nome de canal previsível não vaza
+  conteúdo nenhum.
+- Toast (sonner, 8s, com ícone/cor da categoria) só para ids que o sino
+  ainda não conhecia (`knownIds` em ref, porque o handler do canal é
+  registrado uma vez só e leria um state velho). Depois disso a
+  notificação fica no sino como não lida.
+- Na edição, o aviso vai pro destino antigo E pro novo: se o dono trocar
+  a oficina, a antiga precisa perder o aviso.
+- Falha no Realtime só é logada (`notificacoes.broadcast_falhou`). A
+  notificação já está salva e aparece no próximo carregamento de página.
+
+**Apagar pelo usuário.** A notificação é compartilhada, então "apagar" é
+por pessoa: coluna `notification_reads.dismissed_at` (migration 0010).
+Apagar implica ter lido, por isso fica na tabela de leituras e não numa
+tabela à parte. `dismissNotifications(ids | "all")` faz upsert e só
+aceita ids que a pessoa enxerga. Com RLS, o upsert exige uma policy de
+UPDATE, restrita à linha da própria pessoa (custom 0009). O dono continua
+vendo quem leu, inclusive quem depois apagou. Na UI: lixeira por linha
+(aparece no hover no desktop e fica sempre visível no celular) e
+"Apagar todas", que pede um segundo clique pra confirmar em vez de abrir
+um modal por cima do dropdown.

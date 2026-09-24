@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { EditLink } from "@/components/edit-link";
+import { RowActions } from "@/components/row-actions";
 import { DatabaseBackup } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -55,18 +57,16 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
             <TableHead>Cobrança</TableHead>
             <TableHead>Vencimento</TableHead>
             <TableHead>Criada em</TableHead>
+            <TableHead className="w-0" />
           </TableRow>
         </TableHeader>
         <TableBody>
           {organizations.map((org) => (
             <TableRow key={org.id}>
               <TableCell>
-                <Link
-                  href={`/admin/organizacoes/${org.id}`}
-                  className="font-medium hover:underline"
-                >
+                <EditLink href={`/admin/organizacoes/${org.id}`} className="font-medium">
                   {org.name}
-                </Link>
+                </EditLink>
               </TableCell>
               <TableCell>
                 <Badge variant={org.status === "blocked" ? "destructive" : "secondary"}>
@@ -84,6 +84,12 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
               </TableCell>
               <TableCell>{org.nextDueDate ? formatDate(org.nextDueDate) : "—"}</TableCell>
               <TableCell>{formatDate(org.createdAt)}</TableCell>
+              <TableCell>
+                {/* Só editar: apagar oficina é definitivo e tem confirmação
+                    própria (digitar o nome) na ficha — não cabe na lixeira
+                    rápida da linha. */}
+                <RowActions editHref={`/admin/organizacoes/${org.id}`} />
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>

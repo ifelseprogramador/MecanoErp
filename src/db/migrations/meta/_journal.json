@@ -71,6 +71,13 @@
       "when": 1790206385139,
       "tag": "0009_slippery_doctor_faustus",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790216432101,
+      "tag": "0010_peaceful_shooting_star",
+      "breakpoints": true
     }
   ]
 }

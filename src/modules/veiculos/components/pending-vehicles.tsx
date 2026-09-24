@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { EditLink } from "@/components/edit-link";
 import { RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { PendingListHint } from "@/components/pending-list-hint";
@@ -35,9 +35,7 @@ export function PendingVehicles() {
           const data = action.record as VehicleInput;
           return (
             <li key={action.id} className="flex items-center justify-between text-sm">
-              <Link href={`/veiculos/pendente?id=${action.id}`} className="hover:underline">
-                {data.plate}
-              </Link>
+              <EditLink href={`/veiculos/pendente?id=${action.id}`}>{data.plate}</EditLink>
               <Badge variant="outline" className="gap-1">
                 <RefreshCw className="h-3 w-3" />
                 {action.status === "error" ? "Erro" : "Pendente"}

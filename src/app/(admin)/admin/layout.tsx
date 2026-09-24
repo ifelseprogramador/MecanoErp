@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ShieldAlert, LogOut } from "lucide-react";
+import { ArrowLeftRight, LogOut, Megaphone, ShieldAlert } from "lucide-react";
 import { requireAdmin, NotPlatformAdminError } from "@/core/admin-auth";
 import { Button } from "@/components/ui/button";
 import { VersionBadge } from "@/components/version-badge";
@@ -43,12 +43,30 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </Link>
         <div className="flex items-center gap-3">
           <VersionBadge className="text-zinc-400 hover:bg-zinc-800 hover:text-zinc-50" />
-          <Link href="/admin/notificacoes" className="text-sm text-zinc-300 hover:text-zinc-50">
+          {/* Botões (não links soltos de texto) pra ficar claro que são
+              ações/destinos — "Notificações" com borda por ser a área do
+              dono; "Voltar ao app" mais discreto, só no hover. Megafone e
+              não sino: o sino ao lado já é o de pedidos de suporte. */}
+          <Button
+            variant="outline"
+            size="sm"
+            nativeButton={false}
+            render={<Link href="/admin/notificacoes" />}
+            className="border-zinc-700 bg-zinc-900 text-zinc-100 hover:border-zinc-500 hover:bg-zinc-800 hover:text-zinc-50"
+          >
+            <Megaphone className="h-4 w-4" />
             Notificações
-          </Link>
-          <Link href="/" className="text-sm text-zinc-300 hover:text-zinc-50">
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            nativeButton={false}
+            render={<Link href="/" />}
+            className="text-zinc-300 hover:bg-zinc-800 hover:text-zinc-50"
+          >
+            <ArrowLeftRight className="h-4 w-4" />
             Voltar ao app
-          </Link>
+          </Button>
           <SupportNotificationBell initialRequests={pendingRequests} />
           <form action={logout}>
             <Button

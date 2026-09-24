@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { EditLink } from "@/components/edit-link";
 import {
   Table,
   TableBody,
@@ -42,9 +42,9 @@ export function VehicleTable({ vehicles }: { vehicles: VehicleRow[] }) {
         {vehicles.map((vehicle) => (
           <TableRow key={vehicle.id}>
             <TableCell>
-              <Link href={`/veiculos/${vehicle.id}`} className="font-medium hover:underline">
+              <EditLink href={`/veiculos/${vehicle.id}`} className="font-medium">
                 {formatPlate(vehicle.plate)}
-              </Link>
+              </EditLink>
             </TableCell>
             <TableCell>{[vehicle.brand, vehicle.model].filter(Boolean).join(" ") || "—"}</TableCell>
             <TableCell>{vehicle.year ?? "—"}</TableCell>
