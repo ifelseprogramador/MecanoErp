@@ -1288,3 +1288,31 @@ Selo "vX.Y.Z" no canto do menu (e no cabeçalho do admin); clicar abre
   bloqueado, só não aparece a bolinha.
 - Evitar símbolos Unicode incomuns no texto (ex.: "ⓘ") — a fonte do
   app não tem o glifo e aparece como quadradinho.
+
+## 2026-09-24 — Hospedagem: Vercel em São Paulo (gru1)
+
+O projeto nunca tinha sido publicado — o plano original citava o Vercel,
+mas nada estava configurado lá (só o `vercel.json` do cron). Decidido
+com o usuário:
+
+- **Vercel, região `gru1` (São Paulo)**, fixada em `vercel.json`
+  (`"regions": ["gru1"]`). O banco Supabase está em `sa-east-1` (São
+  Paulo); app e banco na mesma região é o que mais pesa na velocidade —
+  medido ~28ms por query no pooler dentro da região vs. ~150–200ms com
+  o app nos EUA (latência de ida e volta). Cada tela faz várias
+  consultas, então isso multiplica.
+- Alternativas avaliadas: Fly.io (também tem São Paulo, mas mais
+  configuração/operação), Render/Railway (sem região no Brasil — piores
+  pra latência), VPS própria (segurança e atualizações por conta do
+  dono). Vercel = menos operação, HTTPS e segredos gerenciados, deploy a
+  cada push, e o cron do backup diário já pronto.
+- Cron do backup: `0 6 * * *` (Vercel usa UTC → 03h em Brasília; antes
+  estava `0 3`, que caía à meia-noite daqui).
+- Migrations continuam manuais (`npm run db:migrate` local, mesmo banco)
+  — não rodar migration automaticamente num build serverless evita duas
+  instâncias migrando ao mesmo tempo e deixa o dono no controle de
+  quando o schema muda.
+- Custo: Hobby (grátis) é só uso não comercial pelos termos do Vercel;
+  com oficinas pagando, precisa do Pro. Registrado no README.
+- Passo a passo completo de publicação: README, seção "Publicar na
+  internet (Vercel)".

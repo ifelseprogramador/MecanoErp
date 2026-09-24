@@ -5,7 +5,7 @@ import { buildOrgBackup, listOrgsWithAutoBackupEnabled, saveAutomaticBackup } fr
 
 /**
  * Backup automático diário — disparado pelo Vercel Cron (`vercel.json`,
- * `0 3 * * *`, 03h UTC). Protegido por `CRON_SECRET`: o Vercel Cron manda
+ * `0 6 * * *` = 06h UTC = 03h em Brasília). Protegido por `CRON_SECRET`: o Vercel Cron manda
  * automaticamente `Authorization: Bearer <CRON_SECRET>` quando essa
  * variável existe no projeto — sem ela configurada, esta rota bloqueia
  * qualquer chamada (nunca roda "aberta"). Ver docs/decisoes.md.

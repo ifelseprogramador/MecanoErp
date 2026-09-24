@@ -56,6 +56,57 @@ linkado acima.
    oficina, ou [http://localhost:3000/admin](http://localhost:3000/admin)
    para o painel do dono da plataforma (login de `SEED_ADMIN_EMAIL`).
 
+## Publicar na internet (Vercel)
+
+O app roda no **Vercel**, na região **São Paulo (`gru1`)**, a mesma do
+banco no Supabase (`sa-east-1`). App e banco na mesma cidade é o que
+deixa as telas rápidas: cada consulta leva ~30ms em vez de ~150–200ms.
+A região e o backup diário já estão configurados em `vercel.json`, não
+precisa mexer.
+
+1. **Criar a conta** em [vercel.com](https://vercel.com) entrando com a
+   conta do GitHub.
+2. **Importar o projeto**: _Add New… → Project_ → escolher o repositório
+   `MecanoErp` → _Import_. O Vercel detecta o Next.js sozinho, não mude
+   nada em _Build Settings_.
+3. **Variáveis de ambiente** (na mesma tela, em _Environment Variables_,
+   ou depois em _Project Settings → Environment Variables_). Copie os
+   valores do seu `.env.local`:
+
+   | Variável                        | Observação                                                         |
+   | ------------------------------- | ------------------------------------------------------------------ |
+   | `NEXT_PUBLIC_SUPABASE_URL`      | igual ao `.env.local`                                              |
+   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | igual ao `.env.local`                                              |
+   | `SUPABASE_SERVICE_ROLE_KEY`     | igual ao `.env.local` — **secreta**, nunca exponha                 |
+   | `DATABASE_URL`                  | a do **pooler** (`…pooler.supabase.com:6543`), nunca `db.…:5432`   |
+   | `CRON_SECRET`                   | um valor aleatório **novo** (ex.: `openssl rand -hex 32`), secreto |
+
+   As `SEED_*` não vão pro Vercel — só servem pro script de seed local.
+
+4. **Deploy**: clicar _Deploy_. Em ~2 minutos sai o endereço
+   (`https://mecano-erp-xxxx.vercel.app`). A partir daí, **todo `git push`
+   na `main` publica sozinho** (e o CI continua rodando no GitHub).
+5. **Conferir**:
+   - _Project Settings → Functions → Function Region_ deve mostrar
+     **São Paulo (gru1)**.
+   - Abrir `https://SEU-ENDERECO/api/health` — deve mostrar
+     `{"status":"ok","database":"ok"}`.
+   - _Project Settings → Cron Jobs_ deve listar `/api/cron/backup` (roda
+     todo dia às 3h de Brasília).
+6. **(Opcional) Endereço próprio** (ex.: `app.mecanoerp.com.br`):
+   _Project Settings → Domains_.
+
+**Banco:** as migrations não rodam no deploy. Quando uma mudança trouxer
+migration nova, rode `npm run db:migrate` do seu computador (o
+`.env.local` aponta pro mesmo Supabase de produção) antes ou logo depois
+do push.
+
+**Custo:** o plano grátis do Vercel (Hobby) é só para uso não comercial.
+Quando as oficinas começarem a pagar, é preciso o plano Pro (confira o
+preço atual em vercel.com/pricing). No Supabase, o plano pago traz
+backup automático do banco inteiro. O backup diário do próprio app
+(página _Backup_) funciona em qualquer plano.
+
 ## Scripts
 
 | Comando             | O que faz                                                        |
