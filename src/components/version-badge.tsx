@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { History } from "lucide-react";
+import { ArrowLeft, ChevronRight, History } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -85,26 +87,49 @@ export function VersionBadge({ className }: { className?: string }) {
           <span className="bg-primary absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full" />
         )}
       </DialogTrigger>
-      <DialogContent className="max-h-[85vh] overflow-hidden sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>O que mudou</DialogTitle>
-          <DialogDescription>Você está na versão {APP_VERSION}.</DialogDescription>
+      {/* Cabeçalho e rodapé FIXOS, só o meio rola — antes o "X" padrão
+          do Dialog era pequeno e fácil de não achar numa lista comprida.
+          Agora dá pra sair pela seta de voltar (topo), pelo botão
+          "Fechar" (sempre visível embaixo), pelo Esc ou clicando fora. */}
+      <DialogContent
+        showCloseButton={false}
+        className="flex max-h-[85dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg"
+      >
+        <DialogHeader className="flex-row items-center gap-2 border-b p-4">
+          <DialogClose
+            render={<Button variant="ghost" size="icon-sm" aria-label="Voltar" title="Voltar" />}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </DialogClose>
+          <div className="flex flex-col gap-1">
+            <DialogTitle>O que mudou</DialogTitle>
+            <DialogDescription>Você está na versão {APP_VERSION}.</DialogDescription>
+          </div>
         </DialogHeader>
-        <div className="-mx-4 flex max-h-[65vh] flex-col gap-5 overflow-y-auto px-4">
+
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
           {CHANGELOG.map((entry, index) => (
-            <section key={entry.version} className="flex flex-col gap-2">
-              <div className="flex items-baseline gap-2">
-                <h3 className="font-semibold">v{entry.version}</h3>
+            // `<details>` nativo: a versão atual já vem aberta, as
+            // anteriores recolhidas — lista curta por padrão, sem perder
+            // o histórico (um toque abre cada uma).
+            <details
+              key={entry.version}
+              open={index === 0}
+              className="group rounded-lg border [&_summary::-webkit-details-marker]:hidden"
+            >
+              <summary className="hover:bg-muted/50 flex cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2">
+                <ChevronRight className="text-muted-foreground h-4 w-4 shrink-0 transition-transform group-open:rotate-90" />
+                <span className="font-semibold">v{entry.version}</span>
                 <span className="text-muted-foreground text-xs">
                   {formatChangelogDate(entry.date)}
                 </span>
                 {index === 0 && (
-                  <span className="bg-primary text-primary-foreground rounded-full px-2 py-0.5 text-[10px] font-medium">
+                  <span className="bg-primary text-primary-foreground ml-auto rounded-full px-2 py-0.5 text-[10px] font-medium">
                     Atual
                   </span>
                 )}
-              </div>
-              <ul className="flex flex-col gap-1.5">
+              </summary>
+              <ul className="flex flex-col gap-1.5 px-3 pt-1 pb-3">
                 {entry.changes.map((change) => {
                   const meta = TYPE_META[change.type];
                   return (
@@ -122,8 +147,12 @@ export function VersionBadge({ className }: { className?: string }) {
                   );
                 })}
               </ul>
-            </section>
+            </details>
           ))}
+        </div>
+
+        <div className="border-t p-3">
+          <DialogClose render={<Button variant="outline" className="w-full" />}>Fechar</DialogClose>
         </div>
       </DialogContent>
     </Dialog>

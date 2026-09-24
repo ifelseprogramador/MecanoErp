@@ -24,6 +24,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.8.1",
+    date: "2026-09-24",
+    changes: [
+      {
+        type: "correcao",
+        text: 'Tela "O que mudou" mais curta e fácil de fechar: seta de voltar no topo e botão Fechar embaixo.',
+      },
+    ],
+  },
+  {
     version: "0.8.0",
     date: "2026-09-23",
     changes: [
