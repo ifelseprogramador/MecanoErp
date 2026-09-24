@@ -18,6 +18,7 @@ export async function listNotificationsForCurrentUser() {
       id: notifications.id,
       title: notifications.title,
       body: notifications.body,
+      category: notifications.category,
       createdAt: notifications.createdAt,
       readAt: notificationReads.readAt,
     })
@@ -52,6 +53,7 @@ export async function listNotificationsForAdmin() {
       id: notifications.id,
       title: notifications.title,
       body: notifications.body,
+      category: notifications.category,
       organizationId: notifications.organizationId,
       organizationName: organizations.name,
       createdAt: notifications.createdAt,
@@ -70,6 +72,7 @@ export async function getNotificationForAdmin(notificationId: string) {
       id: notifications.id,
       title: notifications.title,
       body: notifications.body,
+      category: notifications.category,
       organizationId: notifications.organizationId,
       organizationName: organizations.name,
       createdAt: notifications.createdAt,

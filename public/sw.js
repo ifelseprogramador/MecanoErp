@@ -10,7 +10,11 @@
 // sido guardado numa versão anterior deste arquivo. Precisa bater com
 // `SW_CACHE_NAME` em src/core/offline/constants.ts (o app também escreve
 // direto no Cache Storage, fora deste worker — ver sync-provider.tsx).
-const CACHE_NAME = "mecanoerp-v1";
+// v2 (2026-09-23): invalida páginas cacheadas de antes do tema de cor
+// "oficina" (globals.css) — sem isso, quem já tinha o SW ativo
+// continuaria vendo a versão preto-e-branco antiga no fallback offline
+// mesmo depois do deploy novo.
+const CACHE_NAME = "mecanoerp-v2";
 const OFFLINE_URL = "/offline";
 
 // Só páginas simples aqui: buscar a URL crua com `fetch()` (como este

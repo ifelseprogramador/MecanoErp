@@ -1216,3 +1216,53 @@ listas de "criado offline" explicando o que "pendente" significa. Não
 colocado em todo lugar de propósito — só onde um formato ou
 comportamento não é óbvio de cara; texto de label já claro não ganhou
 hint (viraria ruído).
+
+## 2026-09-23 — Lentidão, "volta pro preto e branco", categorias de notificação
+
+**Lentidão — causa principal: conexão direta com o banco em vez do
+pooler.** O `.env.local` apontava `DATABASE_URL` pra conexão direta
+(`db.<ref>.supabase.co:5432`), apesar do `.env.example` e do próprio
+`core/db.ts` (`prepare: false`) já assumirem o pooler em modo
+Transaction. Medido com o mesmo projeto e a mesma senha:
+
+|               | 1ª query (conexão nova) | queries seguintes |
+| ------------- | ----------------------- | ----------------- |
+| direto (5432) | ~850 ms                 | ~131 ms           |
+| pooler (6543) | ~200 ms                 | ~28 ms            |
+
+`/api/health` caiu de ~1,5 s pra ~35 ms; trocar de rota em dev caiu de
+~4–5 s pra ~1,2–1,6 s. O `.env.local` foi corrigido; **a mesma
+variável precisa ser conferida no Vercel** (Project Settings →
+Environment Variables) — se lá também estiver com `db.*:5432`, a
+produção tem a mesma lentidão. O ~1 s que sobra em `next dev` é o
+custo normal do Turbopack compilar/validar a rota sob demanda — não
+existe em produção (build feito uma vez só).
+
+**Lentidão — contribuições menores:**
+
+- `rrweb` (gravação do suporte ao vivo) era importado estaticamente em
+  `live-support-widget.tsx`, que monta em `(app)/layout.tsx` — toda
+  página autenticada baixava a biblioteca mesmo sem sessão de suporte.
+  Virou `import("rrweb")` dinâmico, carregado só quando uma sessão fica
+  ativa.
+
+**"Atualizar volta pro preto e branco, F5 volta a cor"** — o service
+worker (offline-first) registrava também em `next dev`. Com Fast
+Refresh, o Turbopack aborta requisições no meio de uma recompilação; o
+SW via isso como "sem rede" e servia a página que tinha em cache — de
+antes do tema de cor. Um F5 logo depois pegava a rede a tempo.
+Corrigido em `core/offline/sync-provider.tsx`: o SW só registra com
+`NODE_ENV === "production"`; em dev, desregistra qualquer SW antigo e
+apaga os caches dele (autocorreção pra quem já tinha testado antes).
+`CACHE_NAME` subiu pra `mecanoerp-v2` (e `SW_CACHE_NAME` junto) pra
+invalidar em produção qualquer página cacheada antes do tema novo.
+Verificado com 5 reloads seguidos em dev: `--primary` laranja em todos.
+
+**Categorias de notificação** (`aviso`, `novidade`, `dica`): nova
+coluna `notifications.category` (enum Postgres, padrão `aviso`, migration
+0009). Metadados visuais num lugar só — `core/notifications/category.tsx`
+(label + ícone lucide + cor): aviso = triângulo âmbar, novidade =
+brilho azul, dica = lâmpada verde. Usado pelo form do admin (select com
+ícone), pela listagem do admin (badge) e pelo sino do usuário (ícone
+colorido ao lado de cada notificação), pra nunca desalinhar entre os
+três.

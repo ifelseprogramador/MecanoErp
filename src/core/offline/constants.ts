@@ -5,4 +5,4 @@
  * app (não o service worker) escreve direto no Cache Storage — ver
  * `sync-provider.tsx`.
  */
-export const SW_CACHE_NAME = "mecanoerp-v1";
+export const SW_CACHE_NAME = "mecanoerp-v2";

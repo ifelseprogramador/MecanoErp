@@ -64,6 +64,13 @@
       "when": 1790193155048,
       "tag": "0008_massive_shockwave",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790206385139,
+      "tag": "0009_slippery_doctor_faustus",
+      "breakpoints": true
     }
   ]
 }

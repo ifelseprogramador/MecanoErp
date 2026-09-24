@@ -5,9 +5,13 @@ import { z } from "zod";
  * `components/list-filter-bar.tsx#ALL`. */
 export const ALL_ORGANIZATIONS = "__all__";
 
+export const NOTIFICATION_CATEGORIES = ["aviso", "novidade", "dica"] as const;
+export type NotificationCategory = (typeof NOTIFICATION_CATEGORIES)[number];
+
 export const notificationSchema = z.object({
   title: z.string().trim().min(1, "Informe um título."),
   body: z.string().trim().min(1, "Informe a mensagem."),
+  category: z.enum(NOTIFICATION_CATEGORIES).default("aviso"),
   // undefined = pra todas as oficinas (organization_id nulo no banco).
   organizationId: z
     .string()
@@ -22,6 +26,7 @@ export function parseNotificationFormData(formData: FormData) {
   return notificationSchema.safeParse({
     title: formData.get("title"),
     body: formData.get("body"),
+    category: formData.get("category") ?? undefined,
     organizationId: formData.get("organizationId"),
   });
 }

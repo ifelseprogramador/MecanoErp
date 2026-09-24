@@ -1,0 +1,2 @@
+CREATE TYPE "public"."notification_category" AS ENUM('aviso', 'novidade', 'dica');--> statement-breakpoint
+ALTER TABLE "notifications" ADD COLUMN "category" "notification_category" DEFAULT 'aviso' NOT NULL;

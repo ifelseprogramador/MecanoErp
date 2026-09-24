@@ -24,6 +24,7 @@ export async function createNotification(
     .values({
       title: parsed.data.title,
       body: parsed.data.body,
+      category: parsed.data.category,
       organizationId: parsed.data.organizationId ?? null,
       createdBy: userId,
     })
@@ -54,6 +55,7 @@ export async function updateNotification(
     .set({
       title: parsed.data.title,
       body: parsed.data.body,
+      category: parsed.data.category,
       organizationId: parsed.data.organizationId ?? null,
       updatedAt: new Date(),
     })

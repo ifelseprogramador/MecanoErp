@@ -49,6 +49,7 @@ export default async function NotificationDetailPage({
             notification={{
               title: notification.title,
               body: notification.body,
+              category: notification.category,
               organizationId: notification.organizationId,
             }}
             organizations={organizations}

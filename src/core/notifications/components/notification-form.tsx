@@ -14,7 +14,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { ActionResult } from "@/core/action-result";
-import { ALL_ORGANIZATIONS } from "../validation";
+import { NOTIFICATION_CATEGORY_META } from "../category";
+import {
+  ALL_ORGANIZATIONS,
+  NOTIFICATION_CATEGORIES,
+  type NotificationCategory,
+} from "../validation";
 
 const initialState: ActionResult = { ok: false };
 
@@ -23,7 +28,12 @@ export function NotificationForm({
   organizations,
   action,
 }: {
-  notification?: { title: string; body: string; organizationId: string | null };
+  notification?: {
+    title: string;
+    body: string;
+    category: NotificationCategory;
+    organizationId: string | null;
+  };
   organizations: { id: string; name: string }[];
   action: (prevState: ActionResult, formData: FormData) => Promise<ActionResult>;
 }) {
@@ -55,6 +65,35 @@ export function NotificationForm({
             {error}
           </p>
         ))}
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="category">Categoria</Label>
+        <Select
+          name="category"
+          items={Object.fromEntries(
+            NOTIFICATION_CATEGORIES.map((c) => [c, NOTIFICATION_CATEGORY_META[c].label]),
+          )}
+          defaultValue={notification?.category ?? "aviso"}
+        >
+          <SelectTrigger id="category" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {NOTIFICATION_CATEGORIES.map((category) => {
+              const meta = NOTIFICATION_CATEGORY_META[category];
+              const Icon = meta.icon;
+              return (
+                <SelectItem key={category} value={category}>
+                  <span className="flex items-center gap-2">
+                    <Icon className="h-3.5 w-3.5" />
+                    {meta.label}
+                  </span>
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="flex flex-col gap-2">

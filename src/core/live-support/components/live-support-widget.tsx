@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { EventType, record } from "rrweb";
 import type { eventWithTime } from "@rrweb/types";
 import { toast } from "sonner";
 import { Headset, X } from "lucide-react";
@@ -125,44 +124,58 @@ export function LiveSupportWidget({
   // Liga/desliga a gravação junto do status virar/deixar de ser "active".
   useEffect(() => {
     if (session && session.status === "active" && !stopRecordingRef.current) {
+      let cancelled = false;
       const channel = getRealtimeChannel(liveSessionChannelName(session.id));
-      let lastMeta: eventWithTime | null = null;
-      const stop = record({
-        emit(event: eventWithTime) {
-          if (event.type === EventType.Meta) {
-            // O rrweb começa o iframe do Replayer com `display: none` e só
-            // revela (`display: inherit`) ao aplicar um Meta — carrega a
-            // largura/altura da tela gravada. Guarda aqui pra mandar junto
-            // do instantâneo completo (ver abaixo): se o Meta fosse só
-            // pelo Broadcast, sofreria da mesma corrida que o instantâneo
-            // sofria antes (perdido se o admin ainda não tiver se
-            // inscrito) — só que Meta sempre chega perto do início da
-            // gravação, quando o admin tem MENOS tempo de estar pronto,
-            // então na prática se perdia mais (o conteúdo até renderizava
-            // dentro do iframe, mas ele continuava invisível).
-            lastMeta = event;
-          }
-          if (event.type === EventType.FullSnapshot) {
-            // O instantâneo completo (o DOM inteiro da página) passa dos
-            // 200KB até numa oficina vazia — bem acima do limite de
-            // tamanho de mensagem do Realtime Broadcast, que aceita o
-            // envio (retorna "ok") mas descarta silenciosamente rio
-            // abaixo. Por isso vai persistido via Server Action (o admin
-            // busca sob demanda), nunca pelo Broadcast. Só os eventos
-            // incrementais (poucas centenas de bytes cada) vão por aqui.
-            void saveFullSnapshot(session.id, { meta: lastMeta, snapshot: event }).then(
-              (result) => {
-                if (!result.ok) {
-                  logger.error("live_support.snapshot_falhou", { sessionId: session.id });
-                }
-              },
-            );
-            return;
-          }
-          void channel.send({ type: "broadcast", event: "rrweb", payload: event });
-        },
+      // `import()` dinâmico de propósito: rrweb só entra no bundle do
+      // navegador quando uma sessão de suporte fica ativa de verdade —
+      // este componente monta em `(app)/layout.tsx`, pra TODA página
+      // autenticada, então um `import` estático no topo do arquivo
+      // faria toda pessoa baixar essa biblioteca (relativamente grande,
+      // só usada nesse caso raro) mesmo sem nunca chamar suporte. Ver
+      // docs/decisoes.md (2026-09-23, "lentidão").
+      import("rrweb").then(({ record, EventType }) => {
+        if (cancelled) return;
+        let lastMeta: eventWithTime | null = null;
+        const stop = record({
+          emit(event: eventWithTime) {
+            if (event.type === EventType.Meta) {
+              // O rrweb começa o iframe do Replayer com `display: none` e só
+              // revela (`display: inherit`) ao aplicar um Meta — carrega a
+              // largura/altura da tela gravada. Guarda aqui pra mandar junto
+              // do instantâneo completo (ver abaixo): se o Meta fosse só
+              // pelo Broadcast, sofreria da mesma corrida que o instantâneo
+              // sofria antes (perdido se o admin ainda não tiver se
+              // inscrito) — só que Meta sempre chega perto do início da
+              // gravação, quando o admin tem MENOS tempo de estar pronto,
+              // então na prática se perdia mais (o conteúdo até renderizava
+              // dentro do iframe, mas ele continuava invisível).
+              lastMeta = event;
+            }
+            if (event.type === EventType.FullSnapshot) {
+              // O instantâneo completo (o DOM inteiro da página) passa dos
+              // 200KB até numa oficina vazia — bem acima do limite de
+              // tamanho de mensagem do Realtime Broadcast, que aceita o
+              // envio (retorna "ok") mas descarta silenciosamente rio
+              // abaixo. Por isso vai persistido via Server Action (o admin
+              // busca sob demanda), nunca pelo Broadcast. Só os eventos
+              // incrementais (poucas centenas de bytes cada) vão por aqui.
+              void saveFullSnapshot(session.id, { meta: lastMeta, snapshot: event }).then(
+                (result) => {
+                  if (!result.ok) {
+                    logger.error("live_support.snapshot_falhou", { sessionId: session.id });
+                  }
+                },
+              );
+              return;
+            }
+            void channel.send({ type: "broadcast", event: "rrweb", payload: event });
+          },
+        });
+        stopRecordingRef.current = stop ?? null;
       });
-      stopRecordingRef.current = stop ?? null;
+      return () => {
+        cancelled = true;
+      };
     }
     if (session?.status !== "active" && stopRecordingRef.current) {
       stopRecordingRef.current();

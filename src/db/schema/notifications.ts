@@ -1,5 +1,15 @@
-import { pgTable, uuid, text, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
+import { pgTable, pgEnum, uuid, text, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
 import { organizations } from "./tenancy";
+
+/** "aviso" (algo que exige atenção — manutenção, mudança de regra),
+ * "novidade" (funcionalidade nova) ou "dica" (sugestão de uso) — o
+ * ícone/cor no sino do usuário (`notification-bell.tsx`) varia por
+ * categoria, pra dar pra identificar o tipo de relance sem abrir. */
+export const notificationCategoryEnum = pgEnum("notification_category", [
+  "aviso",
+  "novidade",
+  "dica",
+]);
 
 /**
  * Avisos que o dono da plataforma manda pras oficinas — não é um
@@ -18,6 +28,7 @@ export const notifications = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     title: text("title").notNull(),
     body: text("body").notNull(),
+    category: notificationCategoryEnum("category").notNull().default("aviso"),
     organizationId: uuid("organization_id").references(() => organizations.id, {
       onDelete: "cascade",
     }),

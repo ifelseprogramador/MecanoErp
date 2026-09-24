@@ -13,11 +13,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { formatDate } from "@/core/format";
 import { markNotificationRead } from "../actions";
+import { NOTIFICATION_CATEGORY_META } from "../category";
+import type { NotificationCategory } from "../validation";
 
 export interface NotificationItem {
   id: string;
   title: string;
   body: string;
+  category: NotificationCategory;
   createdAt: Date;
   readAt: Date | null;
 }
@@ -69,20 +72,31 @@ export function NotificationBell({ initialItems }: { initialItems: NotificationI
             </p>
           ) : (
             <ul className="flex max-h-80 flex-col divide-y overflow-y-auto">
-              {items.map((item) => (
-                <li key={item.id} className="flex flex-col gap-0.5 px-2 py-2.5 text-sm">
-                  <div className="flex items-center gap-2">
-                    {!item.readAt && (
-                      <span className="bg-primary h-1.5 w-1.5 shrink-0 rounded-full" />
-                    )}
-                    <span className="font-medium">{item.title}</span>
-                  </div>
-                  <p className="text-muted-foreground text-xs whitespace-pre-wrap">{item.body}</p>
-                  <span className="text-muted-foreground text-[11px]">
-                    {formatDate(item.createdAt)}
-                  </span>
-                </li>
-              ))}
+              {items.map((item) => {
+                const meta = NOTIFICATION_CATEGORY_META[item.category];
+                const Icon = meta.icon;
+                return (
+                  <li key={item.id} className="flex gap-2 px-2 py-2.5 text-sm">
+                    <div className={`mt-0.5 shrink-0 rounded-md p-1 ${meta.className}`}>
+                      <Icon className="h-3.5 w-3.5" />
+                    </div>
+                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <div className="flex items-center gap-2">
+                        {!item.readAt && (
+                          <span className="bg-primary h-1.5 w-1.5 shrink-0 rounded-full" />
+                        )}
+                        <span className="truncate font-medium">{item.title}</span>
+                      </div>
+                      <p className="text-muted-foreground text-xs whitespace-pre-wrap">
+                        {item.body}
+                      </p>
+                      <span className="text-muted-foreground text-[11px]">
+                        {formatDate(item.createdAt)}
+                      </span>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </DropdownMenuGroup>

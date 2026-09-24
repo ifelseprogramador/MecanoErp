@@ -37,6 +37,16 @@ describe("notificationSchema", () => {
     }
   });
 
+  it("usa 'aviso' como categoria padrão e rejeita categoria desconhecida", () => {
+    const semCategoria = notificationSchema.safeParse({ title: "x", body: "y" });
+    expect(semCategoria.success && semCategoria.data.category).toBe("aviso");
+    const dica = notificationSchema.safeParse({ title: "x", body: "y", category: "dica" });
+    expect(dica.success && dica.data.category).toBe("dica");
+    expect(
+      notificationSchema.safeParse({ title: "x", body: "y", category: "promocao" }).success,
+    ).toBe(false);
+  });
+
   it("rejeita título ou mensagem vazios", () => {
     expect(notificationSchema.safeParse({ title: "", body: "x" }).success).toBe(false);
     expect(notificationSchema.safeParse({ title: "x", body: "" }).success).toBe(false);

@@ -67,13 +67,34 @@ export function SyncProvider() {
   const syncingRef = useRef(false);
 
   useEffect(() => {
+    // NUNCA registra em `next dev` — só em produção (`next build` +
+    // `next start`, ou o deploy de verdade). Um service worker ativo
+    // durante desenvolvimento intercepta toda navegação e passa a
+    // servir HTML cacheado quando o Turbopack aborta uma requisição no
+    // meio de uma recompilação (comum com Fast Refresh) — dá exatamente
+    // o sintoma de "atualizar volta pra versão antiga (sem cor), só o
+    // F5 (que dessa vez pega a rede a tempo) mostra a atual". Se já tem
+    // um service worker registrado de uma sessão de dev anterior a esta
+    // correção, desregistra e limpa o cache dele — sem isso, o problema
+    // continuaria acontecendo pra quem já tinha testado antes. Ver
+    // docs/decisoes.md (2026-09-23, "lentidão").
     if ("serviceWorker" in navigator) {
+      if (process.env.NODE_ENV !== "production") {
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          for (const registration of registrations) void registration.unregister();
+        });
+        if ("caches" in window) {
+          caches.keys().then((keys) => keys.forEach((key) => caches.delete(key)));
+        }
+        return;
+      }
       navigator.serviceWorker.register("/sw.js").catch(() => {
         // Sem service worker o app continua funcionando online — só
         // perde a leitura offline de páginas já visitadas. Não é motivo
         // pra travar nada, só não tenta de novo.
       });
     }
+    if (process.env.NODE_ENV !== "production") return;
     for (const { path, load } of PENDING_ROUTES) {
       load().catch(() => {});
       if ("caches" in window) {

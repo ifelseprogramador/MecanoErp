@@ -11,9 +11,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/core/format";
 import { listNotificationsForAdmin } from "@/core/notifications/queries";
 import { deleteAllNotifications, deleteNotification } from "@/core/notifications/admin-actions";
+import { NOTIFICATION_CATEGORY_META } from "@/core/notifications/category";
 
 export default async function AdminNotificationsPage() {
   const notifications = await listNotificationsForAdmin();
@@ -52,34 +54,45 @@ export default async function AdminNotificationsPage() {
           <TableHeader>
             <TableRow>
               <TableHead>Título</TableHead>
+              <TableHead>Categoria</TableHead>
               <TableHead>Destinatário</TableHead>
               <TableHead>Enviada em</TableHead>
               <TableHead className="w-0" />
             </TableRow>
           </TableHeader>
           <TableBody>
-            {notifications.map((notification) => (
-              <TableRow key={notification.id}>
-                <TableCell>
-                  <Link
-                    href={`/admin/notificacoes/${notification.id}`}
-                    className="font-medium hover:underline"
-                  >
-                    {notification.title}
-                  </Link>
-                </TableCell>
-                <TableCell>{notification.organizationName ?? "Todas as oficinas"}</TableCell>
-                <TableCell>{formatDate(notification.createdAt)}</TableCell>
-                <TableCell>
-                  <RowActions
-                    editHref={`/admin/notificacoes/${notification.id}`}
-                    deleteTitle="Apagar notificação"
-                    deleteDescription="Essa ação não pode ser desfeita."
-                    onDelete={deleteNotification.bind(null, notification.id)}
-                  />
-                </TableCell>
-              </TableRow>
-            ))}
+            {notifications.map((notification) => {
+              const meta = NOTIFICATION_CATEGORY_META[notification.category];
+              const Icon = meta.icon;
+              return (
+                <TableRow key={notification.id}>
+                  <TableCell>
+                    <Link
+                      href={`/admin/notificacoes/${notification.id}`}
+                      className="font-medium hover:underline"
+                    >
+                      {notification.title}
+                    </Link>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className={`gap-1 ${meta.className}`}>
+                      <Icon className="h-3 w-3" />
+                      {meta.label}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{notification.organizationName ?? "Todas as oficinas"}</TableCell>
+                  <TableCell>{formatDate(notification.createdAt)}</TableCell>
+                  <TableCell>
+                    <RowActions
+                      editHref={`/admin/notificacoes/${notification.id}`}
+                      deleteTitle="Apagar notificação"
+                      deleteDescription="Essa ação não pode ser desfeita."
+                      onDelete={deleteNotification.bind(null, notification.id)}
+                    />
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       )}
