@@ -1266,3 +1266,25 @@ brilho azul, dica = lâmpada verde. Usado pelo form do admin (select com
 ícone), pela listagem do admin (badge) e pelo sino do usuário (ícone
 colorido ao lado de cada notificação), pra nunca desalinhar entre os
 três.
+
+## 2026-09-23 — Versão visível + histórico do que mudou
+
+Selo "vX.Y.Z" no canto do menu (e no cabeçalho do admin); clicar abre
+"O que mudou" com todas as versões. Decisões:
+
+- **Fonte única em código** (`src/core/changelog.ts`), não em banco:
+  o histórico acompanha o deploy — a versão que a pessoa vê é
+  exatamente a do código que está rodando, sem tela de admin pra
+  manter nem risco de dizer "v0.9" rodando código da v0.8.
+- `package.json#version` sincronizado por teste
+  (`core/__tests__/changelog.test.ts`), não por script — falha no CI
+  se alguém subir uma sem a outra.
+- Histórico retroativo (0.1.0 a 0.7.0) montado a partir do `git log`,
+  agrupado por entrega e reescrito em linguagem de oficina (o que a
+  pessoa nota, não como foi feito). 0.8.0 = esta rodada.
+- Tipos de mudança: Novo / Melhoria / Correção, cada um com cor.
+- Bolinha "novidade não vista" via `localStorage` — é conveniência por
+  navegador, não dado importante; se o armazenamento estiver
+  bloqueado, só não aparece a bolinha.
+- Evitar símbolos Unicode incomuns no texto (ex.: "ⓘ") — a fonte do
+  app não tem o glifo e aparece como quadradinho.

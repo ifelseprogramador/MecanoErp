@@ -5,6 +5,7 @@ import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
+import { VersionBadge } from "@/components/version-badge";
 import type { ModuleDefinition } from "@/core/registry";
 
 export function MobileNav({ modules }: { modules: ModuleDefinition[] }) {
@@ -27,6 +28,9 @@ export function MobileNav({ modules }: { modules: ModuleDefinition[] }) {
           <SheetTitle className="text-sidebar-foreground">MecanoErp</SheetTitle>
         </SheetHeader>
         <SidebarNav modules={modules} onNavigate={() => setOpen(false)} />
+        <div className="border-sidebar-border mt-auto border-t px-2 py-2">
+          <VersionBadge className="text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground" />
+        </div>
       </SheetContent>
     </Sheet>
   );

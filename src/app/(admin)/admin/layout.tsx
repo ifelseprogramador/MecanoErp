@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ShieldAlert, LogOut } from "lucide-react";
 import { requireAdmin, NotPlatformAdminError } from "@/core/admin-auth";
 import { Button } from "@/components/ui/button";
+import { VersionBadge } from "@/components/version-badge";
 import { logout } from "@/app/(auth)/actions";
 import { listPendingUserRequestsForAdmin } from "@/core/live-support/queries";
 import { SupportNotificationBell } from "@/core/admin/components/support-notification-bell";
@@ -41,6 +42,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <span className="font-semibold">MecanoErp — Administração da plataforma</span>
         </Link>
         <div className="flex items-center gap-3">
+          <VersionBadge className="text-zinc-400 hover:bg-zinc-800 hover:text-zinc-50" />
           <Link href="/admin/notificacoes" className="text-sm text-zinc-300 hover:text-zinc-50">
             Notificações
           </Link>

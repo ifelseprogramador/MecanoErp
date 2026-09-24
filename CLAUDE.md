@@ -10,6 +10,13 @@ documentação viva (arquitetura, decisões técnicas) e o plano original em
 `docs/decisoes.md` junto de qualquer mudança relevante de código — não
 deixar a documentação para o fim.
 
+**Versão e histórico**: toda mudança que a pessoa usuária perceba ganha
+uma entrada NOVA no topo de `src/core/changelog.ts` (texto em linguagem
+de oficina, não técnica — é o que aparece no selo "vX.Y.Z" do menu) e o
+`version` do `package.json` sobe junto (correção = patch, algo novo =
+minor). Nunca editar uma versão já publicada. O teste
+`src/core/__tests__/changelog.test.ts` falha se os dois não baterem.
+
 Antes de mexer em roteamento, Server Actions, middleware ou qualquer API do
 Next.js: este projeto está no Next.js 16, que tem breaking changes em
 relação a versões anteriores (ex.: `middleware.ts` virou `proxy.ts`). Ver

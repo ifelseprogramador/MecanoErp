@@ -259,6 +259,18 @@ usuário vê no sino do cabeçalho
 policy padrão bloquearia `organization_id` nulo. Ver docs/decisoes.md
 (2026-09-23) pro desenho completo.
 
+## Versão e histórico (`core/changelog.ts`)
+
+`CHANGELOG` (mais nova no topo) é a fonte única da versão:
+`APP_VERSION = CHANGELOG[0].version`, mostrada no selo
+`components/version-badge.tsx` no rodapé do menu lateral, no menu
+mobile e no cabeçalho do admin — clique abre o histórico completo.
+Uma bolinha marca "tem versão nova que você ainda não viu"
+(`localStorage`, por navegador). Toda mudança perceptível pra pessoa
+usuária = entrada nova no topo + `package.json#version` junto (ver
+`CLAUDE.md`); `core/__tests__/changelog.test.ts` falha se não baterem,
+se houver versão repetida ou fora de ordem.
+
 ## Hints contextuais (`components/hint.tsx`)
 
 Ícone de dúvida com tooltip (shadcn `components/ui/tooltip.tsx` +
