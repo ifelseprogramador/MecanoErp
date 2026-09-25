@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ActionLink } from "@/components/action-link";
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -91,12 +92,12 @@ export default async function CustomerDetailPage({
             <ul className="flex flex-col gap-2">
               {vehicles.map((vehicle) => (
                 <li key={vehicle.id}>
-                  <Link href={`/veiculos/${vehicle.id}`} className="text-sm hover:underline">
+                  <ActionLink href={`/veiculos/${vehicle.id}`} className="text-sm">
                     {formatPlate(vehicle.plate)}
                     {vehicle.brand || vehicle.model
                       ? ` — ${[vehicle.brand, vehicle.model].filter(Boolean).join(" ")}`
                       : ""}
-                  </Link>
+                  </ActionLink>
                 </li>
               ))}
             </ul>

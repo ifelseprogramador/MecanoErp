@@ -1379,3 +1379,23 @@ vendo quem leu, inclusive quem depois apagou. Na UI: lixeira por linha
 (aparece no hover no desktop e fica sempre visível no celular) e
 "Apagar todas", que pede um segundo clique pra confirmar em vez de abrir
 um modal por cima do dropdown.
+
+## 2026-09-24 — `EditLink` virou `ActionLink`: todo link de texto no mesmo padrão
+
+O pedido foi estender a animação do `EditLink` pra TODOS os links (tinha
+faltado o Painel, a ficha do cliente, o "Baixar" do backup, as telas de
+importar e as de registro pendente não encontrado). Nem todos esses
+links abrem uma edição, e um lápis em "Baixar" confundiria. Por isso o
+componente foi generalizado e renomeado para `src/components/action-link.tsx`:
+
+- `icon` diz o que o clique faz: `Pencil` (padrão) pra abrir/editar um
+  registro, `Download` pra baixar, `Plus` pra criar e `ArrowRight` pra
+  só navegar (ex.: "volte pra lista").
+- `inline` é pra link no meio de uma frase: o ícone tem largura 0 até o
+  hover (senão abriria um buraco no texto) e o texto fica sempre na cor
+  primária. Antes esses links tinham sublinhado fixo pra serem achados, e
+  sem ele a cor é o que mostra que ali é clicável.
+
+Fora do padrão, de propósito: o menu lateral (`sidebar-nav`, estilo
+próprio de navegação), o logo do topo do admin e os `Button` que
+renderizam um `Link`.

@@ -1,4 +1,4 @@
-import { EditLink } from "@/components/edit-link";
+import { ActionLink } from "@/components/action-link";
 import {
   Table,
   TableBody,
@@ -35,9 +35,9 @@ export function CatalogItemTable({ items }: { items: CatalogItem[] }) {
         {items.map((item) => (
           <TableRow key={item.id}>
             <TableCell>
-              <EditLink href={`/catalogo/${item.id}`} className="font-medium">
+              <ActionLink href={`/catalogo/${item.id}`} className="font-medium">
                 {item.name}
-              </EditLink>
+              </ActionLink>
             </TableCell>
             <TableCell>
               <Badge variant={item.type === "servico" ? "default" : "secondary"}>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { EditLink } from "@/components/edit-link";
+import { ActionLink } from "@/components/action-link";
 import { toast } from "sonner";
 import { Headset } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -78,9 +78,9 @@ export function SupportInbox({ initialRequests }: { initialRequests: PendingRequ
       <CardContent className="flex flex-col gap-2">
         {requests.map((r) => (
           <div key={r.sessionId} className="flex items-center justify-between text-sm">
-            <EditLink href={`/admin/organizacoes/${r.organizationId}`}>
+            <ActionLink href={`/admin/organizacoes/${r.organizationId}`}>
               {r.organizationName}
-            </EditLink>
+            </ActionLink>
             <Button
               size="sm"
               onClick={() => handleAccept(r.sessionId, r.organizationId)}

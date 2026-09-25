@@ -24,6 +24,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.9.1",
+    date: "2026-09-24",
+    changes: [
+      {
+        type: "melhoria",
+        text: "Todos os links do sistema agora mostram o mesmo destaque colorido ao passar o mouse, com um ícone do que o clique faz: lápis pra abrir, seta pra ir, sinal de mais pra criar e download pra baixar.",
+      },
+    ],
+  },
+  {
     version: "0.9.0",
     date: "2026-09-24",
     changes: [

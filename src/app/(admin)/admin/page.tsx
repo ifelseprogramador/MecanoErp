@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { EditLink } from "@/components/edit-link";
+import { ActionLink } from "@/components/action-link";
 import { RowActions } from "@/components/row-actions";
 import { DatabaseBackup } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -64,9 +64,9 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
           {organizations.map((org) => (
             <TableRow key={org.id}>
               <TableCell>
-                <EditLink href={`/admin/organizacoes/${org.id}`} className="font-medium">
+                <ActionLink href={`/admin/organizacoes/${org.id}`} className="font-medium">
                   {org.name}
-                </EditLink>
+                </ActionLink>
               </TableCell>
               <TableCell>
                 <Badge variant={org.status === "blocked" ? "destructive" : "secondary"}>

@@ -1,5 +1,5 @@
-import Link from "next/link";
-import { History } from "lucide-react";
+import { ActionLink } from "@/components/action-link";
+import { Download, History } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BackupDownloadButton } from "@/components/backup-download-button";
 import { BackupRestoreForm } from "@/components/backup-restore-form";
@@ -52,12 +52,13 @@ export default async function BackupPage() {
               {automaticBackups.map((backup) => (
                 <li key={backup.id} className="flex items-center justify-between py-2 text-sm">
                   <span>{formatDate(backup.createdAt)}</span>
-                  <Link
+                  <ActionLink
                     href={`/backup/automatico/${backup.id}`}
-                    className="text-primary hover:underline"
+                    icon={Download}
+                    className="text-primary"
                   >
                     Baixar
-                  </Link>
+                  </ActionLink>
                 </li>
               ))}
             </ul>

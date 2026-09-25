@@ -1,4 +1,5 @@
-import Link from "next/link";
+import { ActionLink } from "@/components/action-link";
+import { Download } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CsvImportForm } from "@/components/csv-import-form";
 import { importVehiclesCsv } from "@/modules/veiculos/actions";
@@ -18,9 +19,9 @@ export default function ImportVehiclesPage() {
             <code>currentKm</code>, <code>customerDocument</code>, <code>customerName</code>. O
             cliente já precisa existir — é achado pelo documento (ou, se vazio, pelo nome exato).
             Baixe{" "}
-            <Link href="/veiculos/exportar" className="underline">
+            <ActionLink href="/veiculos/exportar" icon={Download} inline>
               a lista atual em CSV
-            </Link>{" "}
+            </ActionLink>{" "}
             pra usar como modelo.
           </p>
           <CsvImportForm action={importVehiclesCsv} entityLabel="veículos" />

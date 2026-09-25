@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { EditLink } from "@/components/edit-link";
+import { ActionLink } from "@/components/action-link";
 import { Bell, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BackButton } from "@/components/back-button";
@@ -70,12 +70,12 @@ export default async function AdminNotificationsPage() {
               return (
                 <TableRow key={notification.id}>
                   <TableCell>
-                    <EditLink
+                    <ActionLink
                       href={`/admin/notificacoes/${notification.id}`}
                       className="font-medium"
                     >
                       {notification.title}
-                    </EditLink>
+                    </ActionLink>
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className={`gap-1 ${meta.className}`}>

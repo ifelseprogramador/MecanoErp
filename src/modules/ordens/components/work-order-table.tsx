@@ -1,4 +1,4 @@
-import { EditLink } from "@/components/edit-link";
+import { ActionLink } from "@/components/action-link";
 import {
   Table,
   TableBody,
@@ -49,9 +49,9 @@ export function WorkOrderTable({ orders }: { orders: WorkOrderRow[] }) {
         {orders.map((order) => (
           <TableRow key={order.id}>
             <TableCell>
-              <EditLink href={`/ordens/${order.id}`} className="font-medium">
+              <ActionLink href={`/ordens/${order.id}`} className="font-medium">
                 #{order.number}
-              </EditLink>
+              </ActionLink>
             </TableCell>
             <TableCell>{order.customerName}</TableCell>
             <TableCell>{formatPlate(order.vehiclePlate)}</TableCell>

@@ -1,4 +1,5 @@
-import Link from "next/link";
+import { ActionLink } from "@/components/action-link";
+import { Download } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CsvImportForm } from "@/components/csv-import-form";
 import { importCustomersCsv } from "@/modules/clientes/actions";
@@ -16,9 +17,9 @@ export default function ImportCustomersPage() {
             Colunas esperadas: <code>name</code>, <code>type</code> (pf ou pj),{" "}
             <code>document</code>, <code>phone</code>, <code>email</code>, <code>address</code>,{" "}
             <code>notes</code>. Baixe{" "}
-            <Link href="/clientes/exportar" className="underline">
+            <ActionLink href="/clientes/exportar" icon={Download} inline>
               a lista atual em CSV
-            </Link>{" "}
+            </ActionLink>{" "}
             pra usar como modelo — linhas com erro não impedem as outras de importar.
           </p>
           <CsvImportForm action={importCustomersCsv} entityLabel="clientes" />

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { RefreshCw } from "lucide-react";
+import { ActionLink } from "@/components/action-link";
+import { ArrowRight, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCents } from "@/core/money";
@@ -47,15 +47,15 @@ function PendingWorkOrderContent() {
           Este registro pendente não foi encontrado neste navegador — ou já sincronizou. Confira{" "}
           {id && (
             <>
-              <Link href={`/ordens/${id}`} className="underline">
+              <ActionLink href={`/ordens/${id}`} inline>
                 a ordem
-              </Link>{" "}
+              </ActionLink>{" "}
               ou volte pra{" "}
             </>
           )}
-          <Link href="/ordens" className="underline">
+          <ActionLink href="/ordens" icon={ArrowRight} inline>
             lista de ordens de serviço
-          </Link>
+          </ActionLink>
           .
         </p>
       </div>

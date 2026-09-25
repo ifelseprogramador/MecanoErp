@@ -1,4 +1,4 @@
-import { EditLink } from "@/components/edit-link";
+import { ActionLink } from "@/components/action-link";
 import {
   Table,
   TableBody,
@@ -39,9 +39,9 @@ export function CustomerTable({ customers }: { customers: Customer[] }) {
         {customers.map((customer) => (
           <TableRow key={customer.id}>
             <TableCell>
-              <EditLink href={`/clientes/${customer.id}`} className="font-medium">
+              <ActionLink href={`/clientes/${customer.id}`} className="font-medium">
                 {customer.name}
-              </EditLink>
+              </ActionLink>
             </TableCell>
             <TableCell>
               <Badge variant={customer.type === "pf" ? "default" : "secondary"}>

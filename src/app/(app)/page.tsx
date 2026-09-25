@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ActionLink } from "@/components/action-link";
 import { ClipboardList, Clock, FileClock, Plus, TrendingUp, Users, Wrench } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -147,26 +148,25 @@ export default async function DashboardPage() {
             {orderSummary.recent.length === 0 ? (
               <p className="text-muted-foreground py-6 text-center text-sm">
                 Nenhuma ordem de serviço ainda —{" "}
-                <Link href="/ordens/novo" className="underline">
+                <ActionLink href="/ordens/novo" icon={Plus} inline>
                   criar a primeira
-                </Link>
+                </ActionLink>
                 .
               </p>
             ) : (
               <ul className="flex flex-col divide-y">
                 {orderSummary.recent.map((order) => (
                   <li key={order.id} className="flex items-center justify-between gap-3 py-2.5">
-                    <Link
-                      href={`/ordens/${order.id}`}
-                      className="flex min-w-0 flex-col hover:underline"
-                    >
-                      <span className="truncate text-sm font-medium">
-                        #{order.number} — {order.customerName}
+                    <ActionLink href={`/ordens/${order.id}`} className="min-w-0">
+                      <span className="flex min-w-0 flex-col">
+                        <span className="truncate text-sm font-medium">
+                          #{order.number} — {order.customerName}
+                        </span>
+                        <span className="text-muted-foreground text-xs">
+                          {formatPlate(order.vehiclePlate)}
+                        </span>
                       </span>
-                      <span className="text-muted-foreground text-xs">
-                        {formatPlate(order.vehiclePlate)}
-                      </span>
-                    </Link>
+                    </ActionLink>
                     <div className="flex shrink-0 items-center gap-3">
                       <WorkOrderStatusBadge status={order.status} />
                       <span className="w-20 text-right text-sm font-medium">

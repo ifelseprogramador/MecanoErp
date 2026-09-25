@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { RefreshCw } from "lucide-react";
+import { ActionLink } from "@/components/action-link";
+import { ArrowRight, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCents } from "@/core/money";
@@ -45,15 +45,15 @@ function PendingCatalogItemContent() {
           Este registro pendente não foi encontrado neste navegador — ou já sincronizou. Confira{" "}
           {id && (
             <>
-              <Link href={`/catalogo/${id}`} className="underline">
+              <ActionLink href={`/catalogo/${id}`} inline>
                 o item
-              </Link>{" "}
+              </ActionLink>{" "}
               ou volte pro{" "}
             </>
           )}
-          <Link href="/catalogo" className="underline">
+          <ActionLink href="/catalogo" icon={ArrowRight} inline>
             catálogo
-          </Link>
+          </ActionLink>
           .
         </p>
       </div>

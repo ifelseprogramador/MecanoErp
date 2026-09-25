@@ -1,4 +1,4 @@
-import { EditLink } from "@/components/edit-link";
+import { ActionLink } from "@/components/action-link";
 import {
   Table,
   TableBody,
@@ -42,9 +42,9 @@ export function VehicleTable({ vehicles }: { vehicles: VehicleRow[] }) {
         {vehicles.map((vehicle) => (
           <TableRow key={vehicle.id}>
             <TableCell>
-              <EditLink href={`/veiculos/${vehicle.id}`} className="font-medium">
+              <ActionLink href={`/veiculos/${vehicle.id}`} className="font-medium">
                 {formatPlate(vehicle.plate)}
-              </EditLink>
+              </ActionLink>
             </TableCell>
             <TableCell>{[vehicle.brand, vehicle.model].filter(Boolean).join(" ") || "—"}</TableCell>
             <TableCell>{vehicle.year ?? "—"}</TableCell>
