@@ -19,6 +19,7 @@ import { listNotificationsForCurrentUser } from "@/core/notifications/queries";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { VersionBadge } from "@/components/version-badge";
+import { OrgBrandingStyle } from "@/components/org-branding-style";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -57,6 +58,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     throw err;
   }
 
+  const displayName = (user?.user_metadata?.display_name as string | undefined) ?? org.userEmail;
+
   const modules = await getEnabledModulesForOrg(org.organizationId);
   const stopImpersonationWithId = stopImpersonation.bind(null, org.organizationId);
 
@@ -67,12 +70,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const notifications = await listNotificationsForCurrentUser();
 
   return (
-    <div
-      className="flex min-h-screen flex-1 flex-col"
-      style={
-        org.primaryColor ? ({ "--primary": org.primaryColor } as React.CSSProperties) : undefined
-      }
-    >
+    <div className="flex min-h-screen flex-1 flex-col">
+      <OrgBrandingStyle primaryColor={org.primaryColor} />
       {/* Só fora do modo suporte: o admin "agindo como" uma oficina
           está numa sessão real dele, não da oficina — não faz sentido
           ele acumular uma fila offline em nome de outra pessoa (mesmo
@@ -125,9 +124,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                   render={
                     <Button variant="ghost" size="sm" className="gap-2">
                       <User className="h-4 w-4" />
-                      <span className="text-muted-foreground hidden sm:inline">
-                        {org.userEmail}
-                      </span>
+                      <span className="text-muted-foreground hidden sm:inline">{displayName}</span>
                     </Button>
                   }
                 />

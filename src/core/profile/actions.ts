@@ -185,16 +185,62 @@ export async function updateOrganizationBranding(
     logoUrl = `${publicUrl.publicUrl}?v=${Date.now()}`;
   }
 
-  await db
+  const updated = await db
     .update(organizations)
     .set({
       primaryColor: parsed.data.primaryColor ?? null,
       ...(logoUrl && { logoUrl }),
       updatedAt: new Date(),
     })
-    .where(eq(organizations.id, organizationId));
+    .where(eq(organizations.id, organizationId))
+    .returning({ id: organizations.id });
+
+  // Aqui a conexão do app tem bypassrls (RLS é só defesa em profundidade,
+  // não a proteção ativa — ver docs/decisoes.md), então isto nunca deveria
+  // dar 0 linhas na prática; mantido por paridade com base-erp/prisma
+  // (onde RLS ativa pode bloquear silenciosamente) e como rede de
+  // segurança caso o modelo de conexão mude no futuro.
+  if (updated.length === 0) {
+    log.error("perfil.branding.sem_permissao", { organizationId });
+    return {
+      ok: false,
+      message:
+        "Não foi possível salvar — você pode não ter permissão para alterar esta organização.",
+    };
+  }
 
   log.info("perfil.branding.atualizar", { organizationId });
+  revalidatePath("/", "layout");
+  revalidatePath("/perfil");
+  return { ok: true };
+}
+
+/** Volta a cor primária pro padrão do sistema (remove o override — o
+ * logo não é afetado, só a cor). Mesma checagem de permissão de
+ * `updateOrganizationBranding`. */
+export async function resetOrganizationColor(): Promise<ActionResult> {
+  const { db, organizationId, role, log } = await withOrg();
+
+  if (role !== "owner") {
+    return { ok: false, message: "Só o dono da organização pode alterar a aparência do sistema." };
+  }
+
+  const updated = await db
+    .update(organizations)
+    .set({ primaryColor: null, updatedAt: new Date() })
+    .where(eq(organizations.id, organizationId))
+    .returning({ id: organizations.id });
+
+  if (updated.length === 0) {
+    log.error("perfil.branding.sem_permissao", { organizationId });
+    return {
+      ok: false,
+      message:
+        "Não foi possível salvar — você pode não ter permissão para alterar esta organização.",
+    };
+  }
+
+  log.info("perfil.branding.resetar_cor", { organizationId });
   revalidatePath("/", "layout");
   revalidatePath("/perfil");
   return { ok: true };

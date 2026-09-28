@@ -1437,3 +1437,35 @@ o bastante. Replicado do base-erp (mesma data) — ver
 quase idênticas da mesma query SQL bruta. `ResetMemberPasswordButton`
 trocou a prop `email` por `label` (nome de exibição, não
 necessariamente um e-mail).
+
+## 2026-09-28 (cont.) — Branding: rede de segurança + cabeçalho com nome + UID de volta nas listas + botão de restaurar cor
+
+Ronda de ajustes pedidos depois de testar a mesma entrega no prisma
+(vertical-irmão) em produção — ver `base-erp/docs/decisoes.md` e
+`prisma/docs/decisoes.md` (mesma data) pro detalhe completo do bug
+principal (branding nunca persistindo, causado por RLS ativa faltando
+policy — não se aplica aqui, a conexão do app tem `bypassrls`, mas as
+outras peças da ronda sim):
+
+- `core/profile/actions.ts#updateOrganizationBranding` e o novo
+  `resetOrganizationColor` passaram a checar `.returning()` antes de
+  reportar sucesso — por paridade com base-erp/prisma, não porque o
+  bug de fato ocorresse aqui.
+- Cabeçalho mostra `user_metadata.display_name` (fallback: e-mail) em
+  vez do e-mail cru.
+- "Pessoas com acesso"/"Histórico" voltaram a mostrar o UID **junto**
+  com o nome (o fix anterior tinha tirado o UID de vez).
+- Botão "Restaurar cor padrão" em `/perfil` — zera `primaryColor`, não
+  mexe no logo.
+- `components/org-branding-style.tsx` (novo) substitui o `style` inline
+  no `<div>` por um `<style>:root{--primary:...}</style>` — mais
+  robusto contra indireção de variável CSS do Tailwind v4, mesmo aqui
+  não tendo o bug de RLS.
+- Corrigido também um bug de tipagem real achado nesta ronda:
+  `core/auth.ts#getActiveOrg()` não tinha um tipo de retorno explícito
+  (diferente de base-erp/prisma, que usam `ActiveOrgResult`), e o branch
+  de membership comum esqueceu de incluir `primaryColor`/`logoUrl` no
+  objeto retornado (só o branch de impersonation tinha) — o TypeScript
+  inferiu a união dos dois shapes e pegou o erro
+  (`string | null | undefined` não é `string | null`) antes de ir pra
+  produção.

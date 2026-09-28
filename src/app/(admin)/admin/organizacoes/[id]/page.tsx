@@ -112,11 +112,12 @@ export default async function AdminOrganizationDetailPage({
             <ul className="flex flex-col gap-2 text-sm">
               {members.map((m) => (
                 <li key={m.id} className="flex items-center justify-between gap-2">
-                  <div>
-                    <p>{m.name}</p>
-                    {m.email && m.email !== m.name && (
-                      <p className="text-muted-foreground text-xs">{m.email}</p>
-                    )}
+                  <div className="min-w-0">
+                    <p className="truncate">{m.name}</p>
+                    <p className="text-muted-foreground truncate font-mono text-xs">
+                      {m.email && m.email !== m.name ? `${m.email} · ` : ""}
+                      {m.userId}
+                    </p>
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline">{m.role === "owner" ? "Dono" : "Equipe"}</Badge>

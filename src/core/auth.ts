@@ -160,6 +160,8 @@ export async function getActiveOrg() {
     role: membership.role,
     impersonating: false as const,
     organizationStatus: "active" as const, // já teria lançado acima se bloqueada
+    primaryColor: membership.primaryColor,
+    logoUrl: membership.logoUrl,
   };
 }
 

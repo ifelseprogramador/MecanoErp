@@ -24,6 +24,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.10.2",
+    date: "2026-09-28",
+    changes: [
+      {
+        type: "melhoria",
+        text: "O cabeçalho agora mostra seu nome de exibição (definido em Perfil) em vez do e-mail.",
+      },
+      {
+        type: "melhoria",
+        text: 'Na área do administrador, "Pessoas com acesso" e o histórico voltaram a mostrar o código da conta, agora junto com o nome (antes só um dos dois aparecia).',
+      },
+      {
+        type: "novo",
+        text: 'Em Perfil, quem é dono da oficina agora tem um botão "Restaurar cor padrão" para desfazer a personalização de cor e voltar à cor original do sistema.',
+      },
+    ],
+  },
+  {
     version: "0.10.1",
     date: "2026-09-28",
     changes: [
