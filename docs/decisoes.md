@@ -1399,3 +1399,41 @@ componente foi generalizado e renomeado para `src/components/action-link.tsx`:
 Fora do padrão, de propósito: o menu lateral (`sidebar-nav`, estilo
 próprio de navegação), o logo do topo do admin e os `Button` que
 renderizam um `Link`.
+
+## 2026-09-28 — Troca de senha obrigatória + módulo Perfil (nome, tema, branding da oficina)
+
+Peça de core/tenancy construída primeiro no BaseERP
+(`/home/eduardo/code/base-erp`, template do qual este projeto nasceu) e
+replicada aqui pela regra de manutenção — ver
+`base-erp/docs/decisoes.md`, 2026-09-28, para as decisões completas
+(onde cada dado fica: `app_metadata` vs `user_metadata` vs coluna nova
+em `organizations`, bucket de Storage idempotente, por que Perfil não é
+um módulo de `src/modules/`).
+
+Única adaptação real ao portar: este projeto usa RLS só como defesa em
+profundidade (`withOrg()` devolve `db` direto, não `withDb`) — todo
+código copiado do base-erp que usava `withDb((db) => ...)` virou uso
+direto de `db`, mesmo padrão do resto do `core/admin/` e `core/profile/`
+daqui.
+
+`resetMemberPassword` (reset de senha pelo dono da plataforma, senha
+provisória gerada por `generateTemporaryPassword()`) é peça nova aqui
+também — não existia neste projeto nem no base-erp antes desta entrega
+(só o `prisma`, vertical-irmão nascido do mesmo template, já tinha algo
+parecido, construído independentemente).
+
+## 2026-09-28 (cont.) — `core/user-lookup.ts`: nome de exibição em vez de UID cru em `/admin`
+
+Bug reportado depois da entrega acima: "Pessoas com acesso" e o
+"Histórico" (auditoria) na ficha de uma oficina mostravam o UUID cru do
+usuário quando o e-mail vindo de `auth.users` não dava um rótulo legível
+o bastante. Replicado do base-erp (mesma data) — ver
+`base-erp/docs/decisoes.md` para o detalhe completo. Resumo: extraído
+`core/user-lookup.ts#getUserDisplayInfoByIds`, único lugar que lê
+`auth.users` por uma lista de ids e devolve `{ email, name }` (`name` =
+`display_name` do Perfil, senão e-mail, senão o próprio UID). Usado em
+`core/admin/queries.ts` (membros + auditoria) e
+`core/notifications/queries.ts` ("quem leu"), substituindo três cópias
+quase idênticas da mesma query SQL bruta. `ResetMemberPasswordButton`
+trocou a prop `email` por `label` (nome de exibição, não
+necessariamente um e-mail).

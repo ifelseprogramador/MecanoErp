@@ -1,6 +1,7 @@
 import "server-only";
 import { headers, cookies } from "next/headers";
 import { eq } from "drizzle-orm";
+import type { User } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/core/supabase/server";
 import { db } from "@/core/db";
 import { memberships, organizations } from "@/db/schema";
@@ -41,6 +42,21 @@ export async function getSession() {
     data: { user },
   } = await supabase.auth.getUser();
   return user;
+}
+
+/**
+ * `true` quando a pessoa precisa trocar a senha antes de acessar
+ * qualquer outra tela — setado em `app_metadata` (só editável via Admin
+ * API/service role, nunca pelo próprio usuário) por
+ * `core/admin/actions.ts#createOrganization` (usuário novo, senha
+ * inicial) e `#resetMemberPassword` (reset feito pelo dono da
+ * plataforma). Zerado por `core/profile/actions.ts#setNewPassword`
+ * depois que a pessoa define uma senha própria. Ver
+ * `app/(auth)/trocar-senha-obrigatoria/` e o gate nos layouts de
+ * `(app)`/`(admin)`.
+ */
+export function mustChangePassword(user: User): boolean {
+  return user.app_metadata?.must_change_password === true;
 }
 
 /**
@@ -85,7 +101,13 @@ export async function getActiveOrg() {
   const impersonatedOrgId = await getImpersonatedOrgId(user.id);
   if (impersonatedOrgId) {
     const [org] = await db
-      .select({ id: organizations.id, name: organizations.name, status: organizations.status })
+      .select({
+        id: organizations.id,
+        name: organizations.name,
+        status: organizations.status,
+        primaryColor: organizations.primaryColor,
+        logoUrl: organizations.logoUrl,
+      })
       .from(organizations)
       .where(eq(organizations.id, impersonatedOrgId))
       .limit(1);
@@ -99,6 +121,8 @@ export async function getActiveOrg() {
         role: "owner" as const,
         impersonating: true,
         organizationStatus: org.status,
+        primaryColor: org.primaryColor,
+        logoUrl: org.logoUrl,
       };
     }
     // Organização foi apagada durante o modo suporte — cai para o fluxo
@@ -112,6 +136,8 @@ export async function getActiveOrg() {
       membershipActive: memberships.active,
       organizationName: organizations.name,
       organizationStatus: organizations.status,
+      primaryColor: organizations.primaryColor,
+      logoUrl: organizations.logoUrl,
     })
     .from(memberships)
     .innerJoin(organizations, eq(organizations.id, memberships.organizationId))

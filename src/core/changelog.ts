@@ -24,6 +24,30 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.10.1",
+    date: "2026-09-28",
+    changes: [
+      {
+        type: "correcao",
+        text: 'Na área do administrador, a lista de "Pessoas com acesso" de cada oficina e o histórico de ações mostravam um código longo (o identificador interno da conta) em vez do nome da pessoa. Agora mostram o nome de exibição — ou o e-mail, se a pessoa ainda não tiver definido um nome no Perfil.',
+      },
+    ],
+  },
+  {
+    version: "0.10.0",
+    date: "2026-09-28",
+    changes: [
+      {
+        type: "novo",
+        text: "Ao entrar pela primeira vez com uma senha provisória (criada pelo administrador), o sistema agora pede pra trocar a senha antes de liberar qualquer outra tela. Se alguém esquecer a senha depois, o administrador pode gerar uma nova senha provisória a qualquer momento, sem apagar nada do que já foi cadastrado.",
+      },
+      {
+        type: "novo",
+        text: "Chegou o menu Perfil (clique no seu e-mail, no canto superior direito): dá pra trocar o nome de exibição, o tema claro/escuro e a senha. Quem é dono da oficina também escolhe ali a cor e o logo que aparecem pra toda a equipe.",
+      },
+    ],
+  },
+  {
     version: "0.9.1",
     date: "2026-09-24",
     changes: [

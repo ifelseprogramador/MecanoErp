@@ -11,9 +11,12 @@ fases, modelo de dados), ver
 ```
 src/
   app/
-    (auth)/login/            # rotas públicas
+    (auth)/
+      login/                  # rotas públicas
+      trocar-senha-obrigatoria/ # gate de troca de senha (ver core/profile/)
     (app)/                   # rotas protegidas (proxy.ts exige sessão)
       clientes/, veiculos/, catalogo/, ordens/  # rotas finas: só compõem modules/
+      perfil/                # módulo Perfil (nome, tema, senha, branding)
     (admin)/admin/           # painel do dono da plataforma — ver seção própria
     api/health/
   modules/
@@ -34,6 +37,8 @@ src/
     action-result.ts, money.ts, format.ts, document.ts, env.ts
     admin/        # backend do painel do dono — não é um "módulo" plugável
       queries.ts, actions.ts, validation.ts, audit.ts, components/
+    profile/       # perfil pessoal (nome, senha) + branding da org (cor, logo)
+      actions.ts, components/
     live-support/  # suporte ao vivo (co-browsing) — usado por (app) e /admin
       queries.ts, actions.ts, realtime.ts, control-events.ts,
       apply-control-event.ts, components/
@@ -98,6 +103,26 @@ padrão de toda Server Action e query — devolve `db`, `organizationId` e um
 `logger` já contextualizado (`requestId`/`userId`/`organizationId`). Nenhum
 módulo deve montar esse contexto na mão nem filtrar por organização "à
 mão" fora desse helper.
+
+## Troca de senha obrigatória e Perfil (`core/profile/`)
+
+`must_change_password` (`app_metadata` do usuário Supabase, só gravável
+via Admin API) é setado quando o dono da plataforma cria uma oficina com
+senha inicial (`core/admin/actions.ts#createOrganization`) ou reseta a
+senha de alguém (`#resetMemberPassword`). `app/(app)/layout.tsx` e
+`app/(admin)/admin/layout.tsx` checam essa flag via
+`core/auth.ts#mustChangePassword(user)` e redirecionam para
+`/trocar-senha-obrigatoria` antes de qualquer outra coisa. A troca de
+senha (`core/profile/actions.ts#setNewPassword`) zera a flag pelo Admin
+API depois de `supabase.auth.updateUser({ password })`.
+
+`app/(app)/perfil/` reúne: nome de exibição e senha (`user_metadata`,
+qualquer pessoa edita a própria), tema claro/escuro (`next-themes`, só
+no navegador, sem persistir no backend) e, só para `role === "owner"`,
+a cor primária e o logo da oficina (`organizations.primaryColor`/
+`logoUrl`, aplicados no shell do app para toda a equipe). O logo é
+enviado para o bucket público `branding` do Supabase Storage, criado de
+forma idempotente pela própria action.
 
 ## Área do dono da plataforma (`/admin`)
 

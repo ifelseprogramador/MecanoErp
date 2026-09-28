@@ -78,6 +78,13 @@
       "when": 1790216432101,
       "tag": "0010_peaceful_shooting_star",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790610107965,
+      "tag": "0011_living_logan",
+      "breakpoints": true
     }
   ]
 }
