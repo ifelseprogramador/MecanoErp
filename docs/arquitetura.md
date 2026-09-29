@@ -136,13 +136,16 @@ Separada dos módulos de negócio (não é uma "funcionalidade da oficina",
   `core/admin-auth.ts#requireAdmin()`, o equivalente ao `withOrg()` dos
   módulos comuns, mas **sem** filtro de organização — ver
   "Por que não precisa de outra chave" logo abaixo.
-- **Por que não precisa de outra chave/service role**: a conexão do banco
-  do app inteiro (`core/db.ts`, via `DATABASE_URL`) já ignora RLS
-  (`bypassrls = true` no papel `postgres` do Supabase — ver
-  `docs/decisoes.md`, 2026-09-22). Então `core/admin/` usa a mesma `db`
-  sem nenhum `where organization_id = ...`, e a única proteção real é a
-  checagem de `requireAdmin()` ter rodado antes. **Nunca** exporte uma
-  query/action de `core/admin/` sem passar por `requireAdmin()` primeiro.
+- **Por que não precisa de outra chave/service role**: com RLS ativa
+  (ver `docs/decisoes.md`, 2026-09-29, "RLS ativa desde o início"), a
+  visibilidade total de `/admin` vem da policy
+  `is_current_user_platform_admin()` (`migrations-custom/
+0002_platform_admin_rls.sql`), não de a conexão ignorar RLS —
+  `requireAdmin()#withDb` roda dentro de uma transação com
+  `app.current_user_id` igual ao admin, igual a `withOrg()`. A proteção
+  real continua sendo a checagem de `requireAdmin()` ter rodado antes
+  de qualquer query. **Nunca** exporte uma query/action de `core/admin/`
+  sem passar por `requireAdmin()` primeiro.
 - **O que dá pra fazer hoje**: criar oficina + usuário dono (via Admin API
   do Supabase, `core/supabase/admin.ts` — a única peça que usa a
   `SUPABASE_SERVICE_ROLE_KEY` fora do seed), bloquear/desbloquear o
@@ -195,10 +198,12 @@ do usuário ("acesso remoto, ver o mouse mexendo, os dois em tempo real").
 - **Controle remoto**: sempre uma concessão à parte
   (`live_sessions.controlGranted`), nunca junto do "ver a tela". O admin
   nunca controla sem essa concessão explícita.
-- **Transporte por Broadcast, não Postgres Changes**: evita precisar de
-  RLS de verdade (a conexão do app ignora RLS — ver docs/decisoes.md,
-  "bypassrls"). O nome de cada canal usa o id da sessão (UUID) como
-  segredo — mesmo modelo de um link de videochamada. A ação sempre
+- **Transporte por Broadcast, não Postgres Changes**: o servidor publica
+  via `core/supabase/realtime-sender.ts` (API Realtime `channel.send`,
+  não o client `createBrowserClient` — não faz sentido aqui, que roda
+  sem cookies/sessão de navegador). O nome de cada canal usa o id da
+  sessão (UUID) como segredo — mesmo modelo de um link de
+  videochamada. A ação sempre
   reconfirma no banco antes de qualquer efeito; o Broadcast só avisa
   "releia".
 - **Antes de mexer aqui**, ler docs/decisoes.md (2026-09-22, "Suporte ao
