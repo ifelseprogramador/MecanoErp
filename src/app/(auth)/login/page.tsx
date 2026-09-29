@@ -6,10 +6,13 @@ import { BRAND } from "@/core/brand";
 import { LoginForm } from "./login-form";
 
 /**
- * Tela de entrada do sistema — a primeira coisa que qualquer pessoa vê.
- * Marca (ícone + nome + slogan, `core/brand.ts`) + selo de conexão
- * segura antes de só cair direto no formulário — mesmo padrão já usado
- * no BaseERP/Prisma.
+ * Tela de entrada do sistema — a primeira coisa que qualquer pessoa vê
+ * (`/` sem sessão redireciona pra cá, ver `PUBLIC_PATHS` em
+ * `core/supabase/middleware.ts`). Marca (ícone + nome + slogan,
+ * `core/brand.ts`) + selo de conexão segura antes de só cair direto no
+ * formulário — passa mais profissionalismo/confiança logo de cara, já
+ * que é multi-tenant (várias organizações diferentes confiam os
+ * próprios dados a este login).
  */
 export default function LoginPage() {
   return (

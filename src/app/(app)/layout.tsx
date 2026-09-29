@@ -10,6 +10,7 @@ import {
   OrganizationBlockedError,
   UnauthorizedError,
 } from "@/core/auth";
+import { runWithUserContext } from "@/core/db";
 import { getEnabledModulesForOrg } from "@/core/module-settings";
 import { stopImpersonation } from "@/core/admin/actions";
 import { getOpenSessionForMyOrg } from "@/core/live-support/queries";
@@ -63,7 +64,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const displayName =
     (user?.user_metadata?.display_name as string | undefined) ?? org.organizationName;
 
-  const modules = await getEnabledModulesForOrg(org.userId, org.organizationId);
+  const modules = await runWithUserContext(org.userId, (tx) =>
+    getEnabledModulesForOrg(tx, org.organizationId),
+  );
   const stopImpersonationWithId = stopImpersonation.bind(null, org.organizationId);
 
   // Nunca durante modo suporte: quem está "usando" a oficina ali é o

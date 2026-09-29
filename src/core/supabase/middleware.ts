@@ -7,8 +7,8 @@ const PUBLIC_PATHS = ["/login"];
 
 /**
  * Renova a sessão do Supabase a cada request e redireciona para /login
- * quando não há usuário autenticado. Chamado a partir de `proxy.ts`
- * (o antigo `middleware.ts`, renomeado no Next 16).
+ * quando não há usuário autenticado. Chamado a partir de `proxy.ts` (o
+ * antigo `middleware.ts`, renomeado no Next 16).
  *
  * `requestHeaders`, quando informado, substitui os headers originais da
  * request nas respostas geradas aqui — é como `proxy.ts` propaga o

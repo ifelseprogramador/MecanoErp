@@ -3,8 +3,13 @@ import { BackButton } from "@/components/back-button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getOrganizationForAdmin } from "@/core/admin/queries";
-import { hardDeleteOrganization, updateBilling } from "@/core/admin/actions";
+import {
+  hardDeleteOrganization,
+  updateBilling,
+  updateOrganizationName,
+} from "@/core/admin/actions";
 import { OrgStatusToggle } from "@/core/admin/components/org-status-toggle";
+import { OrganizationNameForm } from "@/core/admin/components/organization-name-form";
 import { ImpersonateButton } from "@/core/admin/components/impersonate-button";
 import { BillingForm } from "@/core/admin/components/billing-form";
 import { ModuleToggleList } from "@/core/admin/components/module-toggle-list";
@@ -31,6 +36,7 @@ export default async function AdminOrganizationDetailPage({
   const { organization: org, members, customerCount, vehicleCount, moduleSettings, audit } = data;
   const updateBillingWithId = updateBilling.bind(null, org.id);
   const hardDeleteWithId = hardDeleteOrganization.bind(null, org.id);
+  const updateNameWithId = updateOrganizationName.bind(null, org.id);
 
   const overrideBySlug = new Map(moduleSettings.map((m) => [m.moduleSlug, m.enabled]));
   const modules = getAllModules().map((m) => ({
@@ -45,7 +51,10 @@ export default async function AdminOrganizationDetailPage({
         <div className="flex items-start gap-2">
           <BackButton href="/admin" />
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">{org.name}</h1>
+            <div className="flex items-center gap-1">
+              <h1 className="text-2xl font-semibold tracking-tight">{org.name}</h1>
+              <OrganizationNameForm currentName={org.name} action={updateNameWithId} />
+            </div>
             <div className="mt-1 flex gap-2">
               <Badge variant={org.status === "blocked" ? "destructive" : "secondary"}>
                 {org.status === "blocked" ? "Bloqueada" : "Ativa"}

@@ -26,7 +26,7 @@ export class NoActiveOrganizationError extends Error {
 /**
  * A organização (ou o membership da pessoa dentro dela) foi bloqueada
  * pelo dono da plataforma — normalmente por falta de pagamento. Ver
- * `core/admin/actions.ts#setOrganizationStatus` e a tela em `/admin`.
+ * `core/admin/actions.ts#setOrganizationStatus`.
  */
 export class OrganizationBlockedError extends Error {
   constructor(message = "Acesso bloqueado.") {
@@ -71,23 +71,36 @@ async function getImpersonatedOrgId(userId: string): Promise<string | null> {
   if (!orgId) return null;
 
   if (!(await isPlatformAdmin(userId))) {
-    // Sessão comum com um cookie de suporte "órfão" (ex.: admin perdeu o
-    // acesso). Nunca honrar — mas não é uma ação do próprio usuário, não
-    // vale a pena tentar apagar o cookie aqui (Server Component é
-    // somente leitura); a action de logout/stopImpersonation limpa.
+    // Sessão comum com um cookie de suporte "órfão". Nunca honrar — mas
+    // não é uma ação do próprio usuário, não vale a pena tentar apagar o
+    // cookie aqui (Server Component é somente leitura); a action de
+    // logout/stopImpersonation limpa.
     return null;
   }
 
   return orgId;
 }
 
+interface ActiveOrgResult {
+  userId: string;
+  userEmail: string | undefined;
+  organizationId: string;
+  organizationName: string;
+  role: "owner" | "staff";
+  impersonating: boolean;
+  organizationStatus: "active" | "blocked";
+  primaryColor: string | null;
+  sidebarColor: string | null;
+  logoUrl: string | null;
+}
+
 /**
  * A organização ativa do usuário + seu papel nela.
  *
- * O MVP não tem troca de organização (uma pessoa pertence a uma oficina só
- * — ver "Multi-tenant barato agora, pronto depois" no plano), então
- * simplesmente pega o primeiro membership. Trocar isso por uma organização
- * "ativa" escolhida pelo usuário é a mudança principal para virar SaaS.
+ * Simplificação do MVP: sem troca de organização (uma pessoa pertence a
+ * uma organização só) — pega o primeiro membership. Trocar isso por uma
+ * organização "ativa" escolhida pelo usuário é a mudança principal para
+ * virar multi-organização por pessoa.
  *
  * Exceção: um platform admin em modo suporte (ver `core/impersonation.ts`)
  * "vira" o dono da organização que está acessando, mesmo sem membership.
@@ -96,7 +109,7 @@ async function getImpersonatedOrgId(userId: string): Promise<string | null> {
  * (RLS ativa — ver docs/decisoes.md): sem isso, a policy de `organizations`/
  * `memberships` não libera nenhuma linha.
  */
-export async function getActiveOrg() {
+export async function getActiveOrg(): Promise<ActiveOrgResult> {
   const user = await getSession();
   if (!user) {
     throw new UnauthorizedError();
@@ -125,7 +138,7 @@ export async function getActiveOrg() {
           userEmail: user.email,
           organizationId: org.id,
           organizationName: org.name,
-          role: "owner" as const,
+          role: "owner",
           impersonating: true,
           organizationStatus: org.status,
           primaryColor: org.primaryColor,
@@ -167,8 +180,8 @@ export async function getActiveOrg() {
       organizationId: membership.organizationId,
       organizationName: membership.organizationName,
       role: membership.role,
-      impersonating: false as const,
-      organizationStatus: "active" as const, // já teria lançado acima se bloqueada
+      impersonating: false,
+      organizationStatus: "active", // já teria lançado acima se bloqueada
       primaryColor: membership.primaryColor,
       sidebarColor: membership.sidebarColor,
       logoUrl: membership.logoUrl,
@@ -187,8 +200,8 @@ async function getRequestId(): Promise<string | undefined> {
 }
 
 export interface OrgContext {
-  userId: string;
   organizationId: string;
+  userId: string;
   role: "owner" | "staff";
   impersonating: boolean;
   log: Logger;
@@ -204,10 +217,11 @@ export interface OrgContext {
 
 /**
  * Ponto de entrada padrão de toda Server Action e query de módulo:
- * resolve a sessão + organização ativa e devolve um logger já contextualizado
- * (requestId, userId, organizationId) — nenhum módulo deve montar esse
- * contexto na mão. Lança `UnauthorizedError`/`NoActiveOrganizationError`
- * quando não há sessão ou organização válida.
+ * resolve a sessão + organização ativa e devolve um logger já
+ * contextualizado (requestId, userId, organizationId) — nenhum módulo
+ * deve montar esse contexto na mão. Lança `UnauthorizedError`/
+ * `NoActiveOrganizationError`/`OrganizationBlockedError` quando não há
+ * sessão ou organização válida.
  *
  * Uso:
  *   const { withDb, organizationId, log } = await withOrg();

@@ -1,10 +1,9 @@
 /**
  * CSV mínimo, sem dependência (RFC 4180: aspas duplas escapando aspas e
- * qualquer campo com vírgula/aspas/quebra de linha) — mesma filosofia de
- * `@tanstack/react-table` removido do projeto (docs/decisoes.md,
- * 2026-09-21): CSV é o único formato de "planilha" que qualquer app
- * (Excel, Google Sheets, Numbers, LibreOffice) abre nativamente sem
- * biblioteca nenhuma, então não traz `xlsx`/`papaparse` só pra isso.
+ * qualquer campo com vírgula/aspas/quebra de linha). Decisão: CSV é o
+ * único formato de "planilha" que qualquer app (Excel, Google Sheets,
+ * Numbers, LibreOffice) abre nativamente sem biblioteca nenhuma, então
+ * não traz `xlsx`/`papaparse` só pra isso — ver docs/decisoes.md.
  */
 
 export function toCsv(rows: Record<string, string>[], headers: string[]): string {
@@ -15,7 +14,7 @@ export function toCsv(rows: Record<string, string>[], headers: string[]): string
     lines.push(headers.map((h) => escape(row[h] ?? "")).join(","));
   }
   // BOM UTF-8 na frente: Excel no Windows só detecta acentuação certa com
-  // ele — sem isso "José" vira "JosÃ©" ao abrir um CSV com å-til.
+  // ele — sem isso "José" vira "JosÃ©" ao abrir um CSV com acento.
   return "﻿" + lines.join("\r\n") + "\r\n";
 }
 

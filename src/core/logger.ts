@@ -2,8 +2,8 @@
  * Logger estruturado central da aplicação.
  *
  * Por quê: quando algo quebra em produção, o objetivo é achar em minutos
- * *qual usuário, em qual oficina, em qual ação, com quais dados* — ver a
- * seção "Observabilidade" do plano. Por isso:
+ * *qual usuário, em qual organização, em qual ação, com quais dados*.
+ * Por isso:
  *   - Nunca use `console.*` diretamente (o ESLint bloqueia fora deste
  *     arquivo e dos arquivos de config) — sempre passe por este logger.
  *   - Todo log carrega contexto (requestId, userId, organizationId,
@@ -14,11 +14,11 @@
  * Uso típico dentro de uma Server Action (ver `core/auth.ts#withOrg`):
  *
  *   const { log } = await withOrg();
- *   log.info("cliente.criar", { customerId });
+ *   log.info("modulo.acao", { id });
  *   try {
  *     ...
  *   } catch (err) {
- *     log.error("cliente.criar.falhou", { err });
+ *     log.error("modulo.acao.falhou", { err });
  *     throw err;
  *   }
  */

@@ -1667,3 +1667,84 @@ Subi `npm run dev` local e confirmei `/login`, `/icon`, `/apple-icon`,
 `/opengraph-image` respondendo 200 antes de considerar pronto pra
 commitar. Versão `0.11.0` (`src/core/changelog.ts`/`package.json`) —
 várias features novas, minor bump.
+
+## 2026-09-29 — Reconciliação com o BaseERP e entrada na automação de sync
+
+Pedido do usuário: já que a migração de RLS deixou o mecano-erp
+tecnicamente igual ao BaseERP (`withOrg()`/`withDb`, sem `bypassrls`),
+unificar de fato a fundação compartilhada — o que hoje diverge só por
+histórico deveria estar idêntico nos três projetos (BaseERP/Prisma/
+mecano-erp), e só o MÓDULO DE NEGÓCIO de cada vertical (`modules/
+ordens`, `modules/veiculos` etc.) deveria mesmo ser diferente. Isso
+libera o mecano-erp para entrar em `scripts/verticals.txt`, a mesma
+automação de sync bidirecional já usada com o Prisma.
+
+**Lógica de módulo que tinha vazado pro `core/` (extraída pros
+módulos)**: `core/backup.ts` importava `customers`/`vehicles`/
+`catalogItems`/`workOrder*` direto de `@/modules/*/schema` — virou o
+motor genérico do BaseERP (`BACKUP_TABLES`/`registerBackupTable`), e
+cada `modules/{clientes,veiculos,catalogo,ordens}/module.ts` passou a
+chamar `registerBackupTable({key, table, dateColumns})`, igual ao
+Prisma (`modules/clientes/module.ts`). Efeito colateral aceito: como o
+motor genérico só sabe filtrar tabelas com `organization_id` direto,
+`work_order_items` (que não tem — é filtrado via `work_order_id`) saiu
+do escopo do backup por organização — mesma limitação já aceita no
+Prisma pra `pedido_itens`, documentada lá pelo mesmo motivo. Também
+generalizados por causa do mesmo padrão de vazamento: `core/
+registry.ts` (`registerModule` virou `upsert` por `slug` em vez de
+`push` puro — corrige duplicação de módulo no Fast Refresh do
+Turbopack em dev, bug já achado e corrigido no Prisma) e `core/
+module-settings.ts` (passou a receber `db: Database` já aberto em vez
+de abrir a própria transação com `userId` — mesmo padrão de
+`withDb(fn)` usado em todo o resto do core desde a migração de RLS;
+`app/(app)/layout.tsx` ajustado pra abrir a transação com
+`runWithUserContext` antes de chamar).
+
+**Arquivo que faltava**: `core/admin/components/organization-name-
+form.tsx` — dono da plataforma corrige o nome de uma oficina depois de
+criada (não editável em nenhum outro lugar). Portado do BaseERP junto
+da action `updateOrganizationName` (`core/admin/actions.ts`) e do
+schema `organizationNameSchema` (`core/admin/validation.ts`), e
+plugado na página de detalhe da organização em `/admin`.
+
+**Descartado de propósito**: `components/stale-service-worker-
+cleanup.tsx` (desregistra QUALQUER service worker + limpa cache) NÃO
+foi portado — o BaseERP/Prisma não têm service worker próprio nenhum
+(o componente existe lá só pra limpar um SW ÓRFÃO de outro projeto que
+rodou na mesma porta em dev), mas o mecano-erp TEM um de verdade
+(`public/sw.js`, modo offline) — rodar esse componente aqui
+desregistraria a própria feature offline a cada carregamento. `app/
+layout.tsx` só diverge por causa do import/uso desse componente; o
+resto (metadata via `core/brand.ts`) já foi alinhado.
+
+**Comentários/nomes só desatualizados** (sem mudança de comportamento):
+vários arquivos comentavam citando o nome do OUTRO projeto ("diferença
+do mecano-erp: usa bypassrls" no BaseERP, "oficina" em vez de
+"organização" em comentários — não em texto de UI — no mecano-erp) —
+generalizados nos dois lados. `version-badge.tsx` ficou byte-idêntico
+nos três projetos (a chave de `localStorage` nunca precisou variar por
+projeto — já era literalmente a mesma string "baseerp:..." tanto no
+BaseERP quanto no Prisma; a versão mais rica de UX que só existia aqui
+no mecano-erp — cabeçalho/rodapé fixos, `<details>` recolhível — foi
+propagada pros outros dois).
+
+**Mecanismo novo**: `scripts/foundation-paths.sh` (BaseERP) ganhou
+`VERTICAL_PATH_EXCLUDES`, uma exceção POR VERTICAL pra arquivos que
+estão na lista geral (servem BaseERP/Prisma normalmente) mas têm
+divergência REAL de comportamento só no mecano-erp — além do caso do
+service worker acima, também `db/schema/tenancy.ts` (o BaseERP tem
+`businessType`, preset informativo de ramo de negócio que o mecano-erp
+nunca adotou), `core/admin/validation.ts`/`core/profile/actions.ts`
+(pequenas divergências reais, não só cosméticas) e as páginas `admin/
+organizacoes/[id]` e `app/(app)/layout.tsx` (o mecano-erp tem
+contadores de cliente/veículo e o `SyncProvider` do modo offline que o
+BaseERP não tem). `sync-to-vertical.sh`/`sync-to-base.sh` passaram a
+consultar essa lista tanto pra pular o arquivo inteiro quanto (via
+`rsync_excludes_for`) pra excluir um arquivo específico de dentro de
+uma entrada de DIRETÓRIO (ex.: `app/(app)/perfil/page.tsx` dentro da
+pasta `app/(app)/perfil`, que por outro lado tem outros arquivos
+compartilháveis).
+
+`mecano-erp` adicionado a `scripts/verticals.txt` (BaseERP) e o hook
+`post-commit` instalado nos dois sentidos via `install-sync-hook.sh`.
+`npm run check` 100% verde nos três projetos depois da reconciliação.

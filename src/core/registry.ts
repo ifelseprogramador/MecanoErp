@@ -2,19 +2,20 @@ import type { icons as LucideIcons } from "lucide-react";
 
 /**
  * Metadados que cada módulo declara em `modules/<modulo>/module.ts`. O
- * menu lateral (`app/(app)/layout.tsx`) e futuramente o controle de
- * permissões leem só daqui — nunca há uma lista de rotas hardcoded na UI.
+ * menu lateral (`components/layout/sidebar-nav.tsx`) e futuramente o
+ * controle de permissões leem só daqui — nunca há uma lista de rotas
+ * hardcoded na UI.
  *
  * Para remover uma funcionalidade: apague a pasta `modules/<modulo>/` e
- * tire a entrada de `MODULES` abaixo. Para desligar sem apagar (ex.: testar
- * em produção antes de remover de vez), marque `enabled: false`.
+ * tire a entrada de `load-modules.ts`. Para desligar sem apagar (ex.:
+ * testar em produção antes de remover de vez), marque `enabled: false`.
  */
 export interface ModuleDefinition {
   slug: string;
   label: string;
   /**
-   * Nome do ícone do lucide-react (ex.: "Users", "Car") — string, não o
-   * componente. `getEnabledModules()` é lido por Server Components e
+   * Nome do ícone do lucide-react (ex.: "Users", "Package") — string, não
+   * o componente. `getEnabledModules()` é lido por Server Components e
    * passado para componentes cliente (sidebar/drawer); React não permite
    * serializar uma função (o componente do ícone) nessa fronteira, então
    * o valor aqui precisa ser só dado. `core/resolve-icon.tsx` resolve o
@@ -27,17 +28,18 @@ export interface ModuleDefinition {
   order: number;
   enabled: boolean;
   /**
-   * Slugs de outros módulos dos quais este depende (ex.: `ordens` depende
-   * de `clientes` e `veiculos`). Puramente documental por enquanto — serve
-   * de aviso para quem for desligar um módulo do qual outro depende.
+   * Slugs de outros módulos dos quais este depende. Puramente documental
+   * por enquanto — serve de aviso para quem for desligar um módulo do
+   * qual outro depende.
    */
   dependsOn?: string[];
 }
 
-// Populado por cada `modules/<modulo>/module.ts` conforme os módulos são
-// criados (Fase 2 em diante). Mantido vazio aqui de propósito: este
-// arquivo é infraestrutura, não deve conhecer módulos individuais além de
-// importá-los.
+// Populado por cada `modules/<modulo>/module.ts` importado a partir de
+// `core/load-modules.ts`. Mantido vazio aqui de propósito: este arquivo é
+// infraestrutura, não deve conhecer módulos individuais além de
+// importá-los. Neste projeto (BaseERP) fica vazio o tempo todo — nenhum
+// módulo de negócio nasce aqui, só em um vertical.
 const MODULES: ModuleDefinition[] = [];
 
 export function getEnabledModules(): ModuleDefinition[] {
@@ -45,11 +47,36 @@ export function getEnabledModules(): ModuleDefinition[] {
 }
 
 /** Todos os módulos registrados, habilitados ou não — usado pela tela de
- * personalização por oficina em /admin (precisa listar até os desligados). */
+ * personalização por organização em /admin (precisa listar até os
+ * desligados). */
 export function getAllModules(): ModuleDefinition[] {
   return [...MODULES].sort((a, b) => a.order - b.order);
 }
 
+/**
+ * `upsert` por `slug`, não `push` puro: em dev, o Fast Refresh do
+ * Turbopack pode reavaliar `core/load-modules.ts` (por causa de um edit
+ * em qualquer arquivo que ele importa, direta ou transitivamente) sem
+ * reiniciar o processo Node — cada `modules/<modulo>/module.ts` roda de
+ * novo, e um `push` puro empilharia o mesmo módulo várias vezes no
+ * `MODULES` module-level (sintoma: "Encountered two children with the
+ * same key" no `sidebar-nav.tsx`, chave = `slug`). `push` puro é seguro
+ * num processo novo (produção), mas não sobrevive a HMR — por isso o
+ * upsert aqui, não só no consumidor. Achado e corrigido no Prisma
+ * (vertical nascido deste template), replicado aqui — ver
+ * docs/decisoes.md.
+ */
 export function registerModule(definition: ModuleDefinition) {
-  MODULES.push(definition);
+  const index = MODULES.findIndex((m) => m.slug === definition.slug);
+  if (index === -1) {
+    MODULES.push(definition);
+  } else {
+    MODULES[index] = definition;
+  }
+}
+
+/** Só para testes: limpa o registro entre casos (o array é module-level,
+ * sobreviveria entre `it()` diferentes sem isso). */
+export function __resetRegistryForTests() {
+  MODULES.length = 0;
 }

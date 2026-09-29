@@ -17,7 +17,11 @@ import {
   organizations,
   vehicles,
 } from "@/db/schema";
-import { parseBillingFormData, parseNewOrganizationFormData } from "./validation";
+import {
+  parseBillingFormData,
+  parseNewOrganizationFormData,
+  parseOrganizationNameFormData,
+} from "./validation";
 
 /**
  * Modo suporte: o admin passa a acessar `/` (o app) como se fosse o dono
@@ -176,6 +180,50 @@ export async function setOrganizationStatus(
   } catch (err) {
     log.error("admin.organizacao.status.falhou", { organizationId, err });
     return { ok: false, message: "Não foi possível atualizar o status. Tente novamente." };
+  }
+}
+
+/** O dono da plataforma corrige o nome de uma oficina depois de criada —
+ * não editável em nenhum outro lugar (o próprio dono da oficina não tem
+ * essa opção em `/perfil`, só branding). */
+export async function updateOrganizationName(
+  organizationId: string,
+  _prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  const { userId, log, withDb } = await requireAdmin();
+
+  const parsed = parseOrganizationNameFormData(formData);
+  if (!parsed.success) {
+    return { ok: false, errors: parsed.error.flatten().fieldErrors };
+  }
+
+  try {
+    const updated = await withDb((tx) =>
+      tx
+        .update(organizations)
+        .set({ name: parsed.data.name, updatedAt: new Date() })
+        .where(eq(organizations.id, organizationId))
+        .returning({ id: organizations.id }),
+    );
+
+    if (updated.length === 0) {
+      return { ok: false, message: "Organização não encontrada." };
+    }
+
+    log.info("admin.organizacao.renomear", { organizationId, name: parsed.data.name });
+    await recordAudit({
+      actorUserId: userId,
+      organizationId,
+      action: "organizacao.renomear",
+      metadata: { name: parsed.data.name },
+    });
+    revalidatePath(`/admin/organizacoes/${organizationId}`);
+    revalidatePath("/admin");
+    return { ok: true };
+  } catch (err) {
+    log.error("admin.organizacao.renomear.falhou", { organizationId, err });
+    return { ok: false, message: "Não foi possível salvar. Tente novamente." };
   }
 }
 

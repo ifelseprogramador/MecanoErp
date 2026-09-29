@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/components/theme-provider";
+import { BRAND } from "@/core/brand";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -15,9 +16,24 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Nome/slogan vêm de `core/brand.ts` — é o que aparece ao compartilhar
+// um link (WhatsApp, Slack, etc., via `openGraph`/`twitter` abaixo e
+// `opengraph-image.tsx`), então esta declaração de metadata fica
+// idêntica entre o BaseERP e cada vertical.
 export const metadata: Metadata = {
-  title: "MecanoErp",
-  description: "Gestão de clientes, veículos e ordens de serviço para oficinas mecânicas.",
+  title: BRAND.name,
+  description: BRAND.tagline,
+  openGraph: {
+    title: BRAND.name,
+    description: BRAND.tagline,
+    type: "website",
+    locale: "pt_BR",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: BRAND.name,
+    description: BRAND.tagline,
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

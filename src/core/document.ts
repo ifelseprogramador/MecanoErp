@@ -1,5 +1,6 @@
-/** Validação e formatação de CPF/CNPJ — usado pelo módulo `clientes` e por
- * qualquer módulo futuro que precise de documento de pessoa física/jurídica. */
+/** Validação e formatação de CPF/CNPJ — infraestrutura genérica para
+ * qualquer módulo futuro que precise de documento de pessoa física/jurídica
+ * (ex.: cadastro de clientes/fornecedores num vertical). */
 
 function onlyDigits(value: string): string {
   return value.replace(/\D/g, "");

@@ -4,8 +4,7 @@ import { organizations } from "./tenancy";
 /**
  * Uma linha por organização — se não existir linha, o padrão é backup
  * automático LIGADO (`getAutoBackupEnabled()` em `core/backup.ts` trata
- * "sem linha" como `true`; só grava linha quando alguém desliga, pra não
- * precisar popular esta tabela pra cada oficina existente numa migration).
+ * "sem linha" como `true`; só grava linha quando alguém desliga).
  */
 export const organizationBackupSettings = pgTable("organization_backup_settings", {
   organizationId: uuid("organization_id")
@@ -16,12 +15,10 @@ export const organizationBackupSettings = pgTable("organization_backup_settings"
 });
 
 /**
- * Snapshots diários gerados pelo cron (`api/cron/backup/route.ts`) —
- * mesmo formato JSON de `GET /backup/exportar` (ver `core/backup.ts`),
- * só que guardado no próprio Postgres em vez de baixado na hora: não
- * depende de a pessoa lembrar de gerar backup manual. Podado pra manter
- * só os últimos N por organização (ver `pruneOldBackups` em
- * `core/backup.ts`) — não cresce sem limite.
+ * Snapshots diários gerados pelo cron (`api/cron/backup/route.ts`) — mesmo
+ * formato JSON de `GET /backup/exportar` (ver `core/backup.ts`), guardado
+ * no próprio Postgres. Podado para manter só os últimos N por organização
+ * (`AUTO_BACKUP_RETENTION` em `core/backup.ts`).
  */
 export const organizationBackups = pgTable(
   "organization_backups",

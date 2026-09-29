@@ -10,10 +10,10 @@ import { runWithUserContext } from "@/core/db";
  * circular entre os dois.
  *
  * Chama a função SQL `is_current_user_platform_admin()` (SECURITY
- * DEFINER — ver migrations-custom/0010_rls_ativa.sql) dentro de uma
- * transação com `app.current_user_id` já definido como `userId`, em vez
- * de fazer `select ... from platform_admins` direto: com RLS ativa (ver
- * docs/decisoes.md), uma leitura direta da tabela só enxergaria a linha
+ * DEFINER — ver migrations-custom/0002_platform_admin_rls.sql) dentro de
+ * uma transação com `app.current_user_id` já definido como `userId`, em
+ * vez de fazer `select ... from platform_admins` direto: com RLS ativa
+ * (docs/decisoes.md), uma leitura direta da tabela só enxergaria a linha
  * se o próprio usuário já fosse admin — exatamente a pergunta que ainda
  * não sabemos responder.
  */

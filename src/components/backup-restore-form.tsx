@@ -15,7 +15,6 @@ const TABLE_LABELS: Record<string, string> = {
   catalog_items: "Itens de catálogo",
   work_order_counters: "Contador de numeração de OS",
   work_orders: "Ordens de serviço",
-  work_order_items: "Itens de ordens de serviço",
 };
 
 export function BackupRestoreForm() {

@@ -49,7 +49,7 @@ export async function login(_prevState: LoginState, formData: FormData): Promise
   log.info("auth.login.sucesso", { userId: data.user?.id });
 
   // Dono da plataforma cai direto no painel administrativo, não no app
-  // da oficina — ele pode não ter (ou não usar) nenhuma organização.
+  // da organização — ele pode não ter (ou não usar) nenhuma organização.
   if (data.user && (await isPlatformAdmin(data.user.id))) {
     redirect("/admin");
   }

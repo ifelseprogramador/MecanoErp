@@ -20,14 +20,11 @@ export type CsvImportState =
   | { status: "done"; summary: CsvImportSummary };
 
 /**
- * Motor genérico de importação CSV, reaproveitado por toda
- * `actions.ts` de módulo que aceita importar (`importCustomersCsv`,
- * `importVehiclesCsv`, `importCatalogItemsCsv`). Processa
- * SEQUENCIALMENTE (nunca em paralelo) — mesma cautela do motor de
- * sincronização offline (`core/offline/sync-engine.ts`): evita
- * sobrecarregar o pool de conexões com um CSV grande, e cada linha erra
- * de forma isolada sem travar as outras (tudo-ou-nada seria péssima UX
- * pra corrigir um erro de digitação numa linha só).
+ * Motor genérico de importação CSV, reaproveitado por toda `actions.ts`
+ * de módulo que aceita importar. Processa SEQUENCIALMENTE (nunca em
+ * paralelo): evita sobrecarregar o pool de conexões com um CSV grande, e
+ * cada linha erra de forma isolada sem travar as outras (tudo-ou-nada
+ * seria péssima UX pra corrigir um erro de digitação numa linha só).
  */
 type ParsedRow<T> = { success: true; data: T } | { success: false; error: string };
 
