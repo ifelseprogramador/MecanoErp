@@ -1582,13 +1582,88 @@ commitadas. Ainda não testado contra banco real (isso é a Frente 4).
    (Project Settings → Environment Variables) e disparar um redeploy
    (a troca de env var sozinha não reflete sem um novo deploy). Os
    valores já estão prontos no seu `.env.local` — só copiar de lá.
-5. ⏳ Smoke test manual em produção (oficina comum + admin + modo
-   suporte) — depois do redeploy com as novas variáveis.
-6. ⏳ Só depois de tudo validado: adicionar mecano-erp em
-   `base-erp/scripts/verticals.txt` e rodar `install-sync-hook.sh`.
+5. ✅ Usuário trocou `DATABASE_URL` na Vercel (só essa variável existia
+   lá — `DATABASE_MIGRATION_URL` não chegou a ser criada em produção,
+   mas não é necessária lá: `db:migrate`/`db:generate` só rodam local)
+   e disparou o redeploy em 2026-09-29.
+6. ⏳ Ainda pendente: adicionar mecano-erp em
+   `base-erp/scripts/verticals.txt` e rodar `install-sync-hook.sh` —
+   fica pra quando o usuário confirmar que quer essa automação também
+   pro mecano-erp (RLS ativa já é pré-requisito satisfeito).
 
-**Se esta sessão for interrompida antes do passo 4**: a conexão
-`DATABASE_URL` de produção CONTINUA sendo o papel `postgres` com
-`bypassrls` — nada muda no comportamento do app. Seguro deixar parado
-aqui entre sessões; o papel `mecano_erp_app` já existe e já foi validado
-de ponta a ponta, só falta a troca de env var em si.
+**Migração pra RLS ativa considerada CONCLUÍDA em produção** a partir
+do redeploy do passo 5.
+
+## 2026-09-29 (cont.) — Paridade de Perfil/marca com o Prisma (pedido explícito, pós-migração RLS)
+
+Depois do redeploy da RLS ativa, o usuário reportou que o mecano-erp
+ainda tinha comportamentos antigos que já tinham sido corrigidos no
+Prisma nesta sessão — esperava que a automação de sync tivesse trazido
+isso, mas o mecano-erp nunca foi adicionado a
+`base-erp/scripts/verticals.txt` (passo 6 acima, deliberadamente
+adiado), então nada deveria ter sincronizado ainda. Pedido explícito:
+trazer essas melhorias na mão, mesma configuração do Prisma, sem mudar
+a logo/cor PADRÃO do mecano-erp (mantido: nome "MecanoErp", ícone
+"wrench", cor `#f54900` — a mesma do tema atual, só extraída pra
+`core/brand.ts`).
+
+Trazido (arquivos copiados ou adaptados do Prisma):
+
+- `core/brand.ts` (novo, dados próprios do mecano-erp — nunca copiado)
+  - `components/brand-icon.tsx` (genérico, copiado) — mesmo padrão do
+    BaseERP/Prisma. `primaryHex: "#f54900"` calculado a partir do
+    `oklch(0.646 0.222 41.116)` já existente em `globals.css` (fórmula de
+    referência OKLCH→sRGB, mesmo método já usado pro Prisma).
+- `app/icon.tsx`/`apple-icon.tsx`/`opengraph-image.tsx` (copiados,
+  genéricos) — favicon antigo (`app/favicon.ico`) removido.
+- `app/(auth)/login/page.tsx` — ícone + nome + slogan da marca antes do
+  formulário (sem o link de "Aviso de privacidade": mecano-erp não tem
+  módulo de LGPD, `BRAND.privacyPolicyHref` fica `undefined`).
+- `app/(auth)/login/login-form.tsx` — campos controlados (bug real do
+  React 19: `<form action={fn}>` limpa campo não controlado ao
+  processar a action, mesmo em erro — já corrigido no Prisma nesta
+  sessão) + `PasswordInput` (mostrar/esconder senha). Sem o link
+  "Esqueci minha senha" do Prisma — mecano-erp não tem esse fluxo de
+  autoatendimento, só reset pelo admin.
+- `components/ui/password-input.tsx` (novo, copiado) — usado também em
+  `core/profile/components/change-password-form.tsx` (copiado).
+- `core/auth.ts` — `sidebarColor` estava faltando nos 3 pontos de
+  select/retorno de `getActiveOrg()` (a coluna já existia no schema
+  desde uma migration anterior desta sessão, mas nunca foi lida/gravada
+  de verdade) — mesmo gap já encontrado e corrigido no BaseERP mais
+  cedo nesta sessão.
+- `components/org-branding-style.tsx` (copiado) — dois controles
+  independentes (`--primary`/`--color-primary` e
+  `--sidebar`/`--sidebar-foreground`, com contraste de texto calculado
+  por brilho — fórmula YIQ) em vez de só um.
+- `core/profile/actions.ts` — `brandingSchema` ganhou `sidebarColor`;
+  novas actions `resetSidebarColor`/`resetOrganizationLogo` (a lógica
+  de reset de cor virou uma função compartilhada
+  `resetBrandingColorColumn`, mesmo padrão do Prisma).
+- `core/profile/components/branding-form.tsx` (copiado) — dois
+  `ColorPickerField` (destaque + lateral), cada um lendo a cor padrão
+  de verdade via `getComputedStyle` quando não há override salvo (nunca
+  um azul fixo), com botão "Restaurar padrão" próprio; preview do logo
+  com `object-contain`/`self-start` (não distorce) + botão "Remover
+  logo".
+- `app/(app)/layout.tsx` — cabeçalho corrigido: lado esquerdo mostra
+  `displayName` (nome de exibição, cai pro nome da oficina se não
+  definido — antes mostrava sempre `org.organizationName`, nunca
+  atualizava); menu do canto direito mostra `org.userEmail` (antes
+  mostrava `displayName`, invertido). `DropdownMenuTrigger` também
+  tinha o mesmo padrão invertido de `render` (children dentro do
+  `render` em vez de fora) que causou o erro React #441 no Prisma —
+  corrigido por prevenção aqui, nunca confirmado se chegou a
+  manifestar no mecano-erp. Sidebar: ícone/nome fixos ("Wrench" +
+  "MecanoErp" hardcoded) viraram `BrandIcon`/`BRAND.name`; marca some
+  do topo e reaparece pequena perto da versão quando a organização tem
+  logo próprio (mesmo comportamento do Prisma).
+- `app/(app)/page.tsx` — "Painel" ganhou o nome de exibição embaixo
+  (antes mostrava `org.organizationName`, igual ao cabeçalho, mesmo
+  bug).
+
+`npm run check` 100% verde (65/65 testes) depois de cada rodada.
+Subi `npm run dev` local e confirmei `/login`, `/icon`, `/apple-icon`,
+`/opengraph-image` respondendo 200 antes de considerar pronto pra
+commitar. Versão `0.11.0` (`src/core/changelog.ts`/`package.json`) —
+várias features novas, minor bump.

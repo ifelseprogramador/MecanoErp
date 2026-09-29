@@ -112,6 +112,7 @@ export async function getActiveOrg() {
           name: organizations.name,
           status: organizations.status,
           primaryColor: organizations.primaryColor,
+          sidebarColor: organizations.sidebarColor,
           logoUrl: organizations.logoUrl,
         })
         .from(organizations)
@@ -128,6 +129,7 @@ export async function getActiveOrg() {
           impersonating: true,
           organizationStatus: org.status,
           primaryColor: org.primaryColor,
+          sidebarColor: org.sidebarColor,
           logoUrl: org.logoUrl,
         };
       }
@@ -143,6 +145,7 @@ export async function getActiveOrg() {
         organizationName: organizations.name,
         organizationStatus: organizations.status,
         primaryColor: organizations.primaryColor,
+        sidebarColor: organizations.sidebarColor,
         logoUrl: organizations.logoUrl,
       })
       .from(memberships)
@@ -167,6 +170,7 @@ export async function getActiveOrg() {
       impersonating: false as const,
       organizationStatus: "active" as const, // já teria lançado acima se bloqueada
       primaryColor: membership.primaryColor,
+      sidebarColor: membership.sidebarColor,
       logoUrl: membership.logoUrl,
     };
   });

@@ -24,6 +24,32 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.11.0",
+    date: "2026-09-29",
+    changes: [
+      {
+        type: "novo",
+        text: 'Em Perfil, a cor de destaque (botões) e a cor do menu lateral agora são dois controles separados, com botão "Restaurar padrão" pra cada uma e botão pra remover o logo enviado.',
+      },
+      {
+        type: "novo",
+        text: "Botão para mostrar/esconder a senha digitada, tanto no login quanto ao trocar a senha.",
+      },
+      {
+        type: "novo",
+        text: "O ícone na aba do navegador e a imagem que aparece ao compartilhar o link (ex.: no WhatsApp) agora mostram a marca do sistema.",
+      },
+      {
+        type: "correcao",
+        text: "Corrigido: ao mudar o nome de exibição em Perfil, o cabeçalho e o painel não atualizavam — mostravam sempre o nome da oficina, nunca o novo nome.",
+      },
+      {
+        type: "correcao",
+        text: "Corrigido: o menu do canto superior direito mostrava o nome de exibição em vez do e-mail — agora sempre mostra o e-mail, e o nome de exibição aparece do lado esquerdo do cabeçalho.",
+      },
+    ],
+  },
+  {
     version: "0.10.2",
     date: "2026-09-28",
     changes: [

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Hint } from "@/components/hint";
 import { formatCents } from "@/core/money";
 import { formatPlate } from "@/core/format";
-import { getActiveOrg } from "@/core/auth";
+import { getActiveOrg, getSession } from "@/core/auth";
 import { getCustomerDashboardSummary } from "@/modules/clientes";
 import { getVehicleDashboardSummary } from "@/modules/veiculos";
 import {
@@ -26,12 +26,16 @@ const STATUS_BAR_COLORS: Record<WorkOrderStatusFilter, string> = {
 };
 
 export default async function DashboardPage() {
-  const [org, customerSummary, vehicleSummary, orderSummary] = await Promise.all([
+  const [org, user, customerSummary, vehicleSummary, orderSummary] = await Promise.all([
     getActiveOrg(),
+    getSession(),
     getCustomerDashboardSummary(),
     getVehicleDashboardSummary(),
     getWorkOrderDashboardSummary(),
   ]);
+
+  const displayName =
+    (user?.user_metadata?.display_name as string | undefined) ?? org.organizationName;
 
   const maxStatusCount = Math.max(1, ...Object.values(orderSummary.byStatus));
 
@@ -40,7 +44,7 @@ export default async function DashboardPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Painel</h1>
-          <p className="text-muted-foreground text-sm">{org.organizationName}</p>
+          <p className="text-muted-foreground text-sm">{displayName}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button
