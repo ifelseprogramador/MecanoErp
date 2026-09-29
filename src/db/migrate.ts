@@ -1,7 +1,14 @@
 /**
  * Aplica as migrations do Drizzle (src/db/migrations/) e, em seguida, as
- * migrations SQL custom (src/db/migrations-custom/ — RLS, FKs para
- * auth.users, funções). Roda com `npm run db:migrate`.
+ * migrations SQL custom (src/db/migrations-custom/ — papel de app, RLS,
+ * FKs para auth.users, funções). Roda com `npm run db:migrate`.
+ *
+ * Usa `DATABASE_MIGRATION_URL` quando definida (papel privilegiado, dono
+ * das tabelas — necessário pra criar o papel `mecano_erp_app` e as
+ * funções SECURITY DEFINER, ver migrations-custom/0010_rls_ativa.sql e
+ * 0011_app_role.sql), e cai pra `DATABASE_URL` quando não (situação
+ * atual, antes de `DATABASE_URL` de produção trocar pro papel restrito —
+ * ver docs/decisoes.md, "Migração pra RLS ativa").
  *
  * As migrations custom são registradas numa tabela própria
  * (`custom_migrations`) para o script ser idempotente: rodar de novo não
@@ -47,7 +54,7 @@ async function applyCustomMigrations(sql: postgres.Sql) {
 }
 
 async function main() {
-  const connectionString = requireEnv("DATABASE_URL");
+  const connectionString = process.env.DATABASE_MIGRATION_URL ?? requireEnv("DATABASE_URL");
   const sql = postgres(connectionString, { max: 1, prepare: false });
   const db = drizzle(sql);
 
