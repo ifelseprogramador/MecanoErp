@@ -3,7 +3,7 @@ import { headers, cookies } from "next/headers";
 import { eq } from "drizzle-orm";
 import type { User } from "@supabase/supabase-js";
 import { createSupabaseServerClient } from "@/core/supabase/server";
-import { db } from "@/core/db";
+import { runWithUserContext, type Database } from "@/core/db";
 import { memberships, organizations } from "@/db/schema";
 import { logger, type Logger } from "@/core/logger";
 import { isPlatformAdmin } from "@/core/platform-admin";
@@ -91,6 +91,10 @@ async function getImpersonatedOrgId(userId: string): Promise<string | null> {
  *
  * Exceção: um platform admin em modo suporte (ver `core/impersonation.ts`)
  * "vira" o dono da organização que está acessando, mesmo sem membership.
+ *
+ * Todas as leituras aqui passam por `runWithUserContext(user.id, ...)`
+ * (RLS ativa — ver docs/decisoes.md): sem isso, a policy de `organizations`/
+ * `memberships` não libera nenhuma linha.
  */
 export async function getActiveOrg() {
   const user = await getSession();
@@ -99,70 +103,73 @@ export async function getActiveOrg() {
   }
 
   const impersonatedOrgId = await getImpersonatedOrgId(user.id);
-  if (impersonatedOrgId) {
-    const [org] = await db
+
+  return runWithUserContext(user.id, async (tx) => {
+    if (impersonatedOrgId) {
+      const [org] = await tx
+        .select({
+          id: organizations.id,
+          name: organizations.name,
+          status: organizations.status,
+          primaryColor: organizations.primaryColor,
+          logoUrl: organizations.logoUrl,
+        })
+        .from(organizations)
+        .where(eq(organizations.id, impersonatedOrgId))
+        .limit(1);
+
+      if (org) {
+        return {
+          userId: user.id,
+          userEmail: user.email,
+          organizationId: org.id,
+          organizationName: org.name,
+          role: "owner" as const,
+          impersonating: true,
+          organizationStatus: org.status,
+          primaryColor: org.primaryColor,
+          logoUrl: org.logoUrl,
+        };
+      }
+      // Organização foi apagada durante o modo suporte — cai para o
+      // fluxo normal abaixo (provavelmente vira NoActiveOrganizationError).
+    }
+
+    const [membership] = await tx
       .select({
-        id: organizations.id,
-        name: organizations.name,
-        status: organizations.status,
+        organizationId: memberships.organizationId,
+        role: memberships.role,
+        membershipActive: memberships.active,
+        organizationName: organizations.name,
+        organizationStatus: organizations.status,
         primaryColor: organizations.primaryColor,
         logoUrl: organizations.logoUrl,
       })
-      .from(organizations)
-      .where(eq(organizations.id, impersonatedOrgId))
+      .from(memberships)
+      .innerJoin(organizations, eq(organizations.id, memberships.organizationId))
+      .where(eq(memberships.userId, user.id))
       .limit(1);
 
-    if (org) {
-      return {
-        userId: user.id,
-        userEmail: user.email,
-        organizationId: org.id,
-        organizationName: org.name,
-        role: "owner" as const,
-        impersonating: true,
-        organizationStatus: org.status,
-        primaryColor: org.primaryColor,
-        logoUrl: org.logoUrl,
-      };
+    if (!membership) {
+      throw new NoActiveOrganizationError();
     }
-    // Organização foi apagada durante o modo suporte — cai para o fluxo
-    // normal abaixo (provavelmente vira NoActiveOrganizationError).
-  }
 
-  const [membership] = await db
-    .select({
-      organizationId: memberships.organizationId,
-      role: memberships.role,
-      membershipActive: memberships.active,
-      organizationName: organizations.name,
-      organizationStatus: organizations.status,
-      primaryColor: organizations.primaryColor,
-      logoUrl: organizations.logoUrl,
-    })
-    .from(memberships)
-    .innerJoin(organizations, eq(organizations.id, memberships.organizationId))
-    .where(eq(memberships.userId, user.id))
-    .limit(1);
+    if (membership.organizationStatus === "blocked" || !membership.membershipActive) {
+      throw new OrganizationBlockedError();
+    }
 
-  if (!membership) {
-    throw new NoActiveOrganizationError();
-  }
-
-  if (membership.organizationStatus === "blocked" || !membership.membershipActive) {
-    throw new OrganizationBlockedError();
-  }
-
-  return {
-    userId: user.id,
-    userEmail: user.email,
-    organizationId: membership.organizationId,
-    organizationName: membership.organizationName,
-    role: membership.role,
-    impersonating: false as const,
-    organizationStatus: "active" as const, // já teria lançado acima se bloqueada
-    primaryColor: membership.primaryColor,
-    logoUrl: membership.logoUrl,
-  };
+    return {
+      userId: user.id,
+      userEmail: user.email,
+      organizationId: membership.organizationId,
+      organizationName: membership.organizationName,
+      role: membership.role,
+      impersonating: false as const,
+      organizationStatus: "active" as const, // já teria lançado acima se bloqueada
+      primaryColor: membership.primaryColor,
+      logoUrl: membership.logoUrl,
+    };
+  });
 }
 
 async function getRequestId(): Promise<string | undefined> {
@@ -176,12 +183,19 @@ async function getRequestId(): Promise<string | undefined> {
 }
 
 export interface OrgContext {
-  db: typeof db;
   userId: string;
   organizationId: string;
   role: "owner" | "staff";
   impersonating: boolean;
   log: Logger;
+  /**
+   * Único jeito sancionado de consultar/gravar dado de organização: roda
+   * `fn` dentro de uma transação com a RLS já liberando as linhas deste
+   * usuário (ver `core/db.ts#runWithUserContext`). Nunca importe
+   * `core/db.ts#db` direto de dentro de um módulo — sem isso, a RLS
+   * bloqueia tudo.
+   */
+  withDb: <T>(fn: (tx: Database) => Promise<T>) => Promise<T>;
 }
 
 /**
@@ -192,9 +206,11 @@ export interface OrgContext {
  * quando não há sessão ou organização válida.
  *
  * Uso:
- *   const { db, organizationId, log } = await withOrg();
+ *   const { withDb, organizationId, log } = await withOrg();
  *   log.info("clientes.listar");
- *   return db.query.customers.findMany({ where: eq(customers.organizationId, organizationId) });
+ *   return withDb((tx) =>
+ *     tx.query.customers.findMany({ where: eq(customers.organizationId, organizationId) }),
+ *   );
  */
 export async function withOrg(): Promise<OrgContext> {
   const requestId = await getRequestId();
@@ -207,7 +223,6 @@ export async function withOrg(): Promise<OrgContext> {
   });
 
   return {
-    db,
     userId: context.userId,
     organizationId: context.organizationId,
     role: context.role,
@@ -218,5 +233,6 @@ export async function withOrg(): Promise<OrgContext> {
       organizationId: context.organizationId,
       ...(context.impersonating && { impersonating: true }),
     }),
+    withDb: (fn) => runWithUserContext(context.userId, fn),
   };
 }

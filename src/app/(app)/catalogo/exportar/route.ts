@@ -9,12 +9,11 @@ const HEADERS = ["type", "name", "unit", "defaultPrice"];
  * que a pessoa digita no formulário, pra editar numa planilha sem
  * precisar converter na cabeça. */
 export async function GET() {
-  const { db, organizationId } = await withOrg();
+  const { withDb, organizationId } = await withOrg();
 
-  const rows = await db
-    .select()
-    .from(catalogItems)
-    .where(eq(catalogItems.organizationId, organizationId));
+  const rows = await withDb((tx) =>
+    tx.select().from(catalogItems).where(eq(catalogItems.organizationId, organizationId)),
+  );
 
   const csv = toCsv(
     rows.map((item) => ({

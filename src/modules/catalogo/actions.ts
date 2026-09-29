@@ -27,13 +27,15 @@ export async function createCatalogItemRecord(
   data: CatalogItemInput,
   id?: string,
 ): Promise<InsertResult> {
-  const { db, organizationId, log } = await withOrg();
+  const { withDb, organizationId, log } = await withOrg();
   log.info("catalogo.criar", { offline: Boolean(id) });
 
-  const [item] = await db
-    .insert(catalogItems)
-    .values({ ...data, organizationId, ...(id && { id }) })
-    .returning({ id: catalogItems.id });
+  const [item] = await withDb((tx) =>
+    tx
+      .insert(catalogItems)
+      .values({ ...data, organizationId, ...(id && { id }) })
+      .returning({ id: catalogItems.id }),
+  );
   log.info("catalogo.criar.sucesso", { itemId: item.id });
 
   revalidatePath("/catalogo");
@@ -67,7 +69,7 @@ export async function updateCatalogItem(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const { db, organizationId, log } = await withOrg();
+  const { withDb, organizationId, log } = await withOrg();
   log.info("catalogo.atualizar", { itemId });
 
   const parsed = parseCatalogItemFormData(formData);
@@ -79,11 +81,13 @@ export async function updateCatalogItem(
     return { ok: false, errors: parsed.error.flatten().fieldErrors };
   }
 
-  const result = await db
-    .update(catalogItems)
-    .set({ ...parsed.data, updatedAt: new Date() })
-    .where(and(eq(catalogItems.id, itemId), eq(catalogItems.organizationId, organizationId)))
-    .returning({ id: catalogItems.id });
+  const result = await withDb((tx) =>
+    tx
+      .update(catalogItems)
+      .set({ ...parsed.data, updatedAt: new Date() })
+      .where(and(eq(catalogItems.id, itemId), eq(catalogItems.organizationId, organizationId)))
+      .returning({ id: catalogItems.id }),
+  );
 
   if (result.length === 0) {
     log.warn("catalogo.atualizar.nao_encontrado", { itemId });
@@ -130,14 +134,16 @@ export async function importCatalogItemsCsv(
 }
 
 export async function deleteCatalogItem(itemId: string): Promise<ActionResult> {
-  const { db, organizationId, log } = await withOrg();
+  const { withDb, organizationId, log } = await withOrg();
   log.info("catalogo.remover", { itemId });
 
   try {
-    const result = await db
-      .delete(catalogItems)
-      .where(and(eq(catalogItems.id, itemId), eq(catalogItems.organizationId, organizationId)))
-      .returning({ id: catalogItems.id });
+    const result = await withDb((tx) =>
+      tx
+        .delete(catalogItems)
+        .where(and(eq(catalogItems.id, itemId), eq(catalogItems.organizationId, organizationId)))
+        .returning({ id: catalogItems.id }),
+    );
 
     if (result.length === 0) {
       log.warn("catalogo.remover.nao_encontrado", { itemId });

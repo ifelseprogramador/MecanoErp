@@ -26,13 +26,15 @@ import { parseBillingFormData, parseNewOrganizationFormData } from "./validation
  * mais é necessário).
  */
 export async function startImpersonation(organizationId: string) {
-  const { db, userId, log } = await requireAdmin();
+  const { withDb, userId, log } = await requireAdmin();
 
-  const [org] = await db
-    .select({ id: organizations.id })
-    .from(organizations)
-    .where(eq(organizations.id, organizationId))
-    .limit(1);
+  const [org] = await withDb((tx) =>
+    tx
+      .select({ id: organizations.id })
+      .from(organizations)
+      .where(eq(organizations.id, organizationId))
+      .limit(1),
+  );
 
   if (!org) {
     return { ok: false, message: "Organização não encontrada." } satisfies ActionResult;
@@ -74,7 +76,7 @@ export async function createOrganization(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const { db, userId, log } = await requireAdmin();
+  const { withDb, userId, log } = await requireAdmin();
 
   const parsed = parseNewOrganizationFormData(formData);
   if (!parsed.success) {
@@ -112,15 +114,18 @@ export async function createOrganization(
 
   let organizationId: string;
   try {
-    const [org] = await db.insert(organizations).values({ name: organizationName }).returning({
-      id: organizations.id,
-    });
-    organizationId = org.id;
+    organizationId = await withDb(async (tx) => {
+      const [org] = await tx.insert(organizations).values({ name: organizationName }).returning({
+        id: organizations.id,
+      });
 
-    await db
-      .insert(memberships)
-      .values({ userId: ownerId, organizationId, role: "owner" })
-      .onConflictDoNothing();
+      await tx
+        .insert(memberships)
+        .values({ userId: ownerId, organizationId: org.id, role: "owner" })
+        .onConflictDoNothing();
+
+      return org.id;
+    });
 
     log.info("admin.organizacao.criar.sucesso", { organizationId, ownerId });
     await recordAudit({
@@ -144,15 +149,17 @@ export async function setOrganizationStatus(
   organizationId: string,
   status: "active" | "blocked",
 ): Promise<ActionResult> {
-  const { db, userId, log } = await requireAdmin();
+  const { withDb, userId, log } = await requireAdmin();
   log.info("admin.organizacao.status", { organizationId, status });
 
   try {
-    const result = await db
-      .update(organizations)
-      .set({ status, updatedAt: new Date() })
-      .where(eq(organizations.id, organizationId))
-      .returning({ id: organizations.id });
+    const result = await withDb((tx) =>
+      tx
+        .update(organizations)
+        .set({ status, updatedAt: new Date() })
+        .where(eq(organizations.id, organizationId))
+        .returning({ id: organizations.id }),
+    );
 
     if (result.length === 0) {
       return { ok: false, message: "Organização não encontrada." };
@@ -177,7 +184,7 @@ export async function updateBilling(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const { db, userId, log } = await requireAdmin();
+  const { withDb, userId, log } = await requireAdmin();
   log.info("admin.organizacao.cobranca", { organizationId });
 
   const parsed = parseBillingFormData(formData);
@@ -186,10 +193,12 @@ export async function updateBilling(
   }
 
   try {
-    await db
-      .update(organizations)
-      .set({ ...parsed.data, updatedAt: new Date() })
-      .where(eq(organizations.id, organizationId));
+    await withDb((tx) =>
+      tx
+        .update(organizations)
+        .set({ ...parsed.data, updatedAt: new Date() })
+        .where(eq(organizations.id, organizationId)),
+    );
 
     log.info("admin.organizacao.cobranca.sucesso", { organizationId });
     await recordAudit({
@@ -213,17 +222,22 @@ export async function setModuleEnabledForOrg(
   moduleSlug: string,
   enabled: boolean,
 ): Promise<ActionResult> {
-  const { db, userId, log } = await requireAdmin();
+  const { withDb, userId, log } = await requireAdmin();
   log.info("admin.organizacao.modulo", { organizationId, moduleSlug, enabled });
 
   try {
-    await db
-      .insert(organizationModuleSettings)
-      .values({ organizationId, moduleSlug, enabled })
-      .onConflictDoUpdate({
-        target: [organizationModuleSettings.organizationId, organizationModuleSettings.moduleSlug],
-        set: { enabled, updatedAt: new Date() },
-      });
+    await withDb((tx) =>
+      tx
+        .insert(organizationModuleSettings)
+        .values({ organizationId, moduleSlug, enabled })
+        .onConflictDoUpdate({
+          target: [
+            organizationModuleSettings.organizationId,
+            organizationModuleSettings.moduleSlug,
+          ],
+          set: { enabled, updatedAt: new Date() },
+        }),
+    );
 
     await recordAudit({
       actorUserId: userId,
@@ -249,14 +263,16 @@ export async function hardDeleteOrganization(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const { db, userId, log } = await requireAdmin();
+  const { withDb, userId, log } = await requireAdmin();
   log.info("admin.organizacao.apagar_tudo", { organizationId });
 
-  const [org] = await db
-    .select({ name: organizations.name })
-    .from(organizations)
-    .where(eq(organizations.id, organizationId))
-    .limit(1);
+  const [org] = await withDb((tx) =>
+    tx
+      .select({ name: organizations.name })
+      .from(organizations)
+      .where(eq(organizations.id, organizationId))
+      .limit(1),
+  );
 
   if (!org) {
     return { ok: false, message: "Organização não encontrada." };
@@ -272,10 +288,12 @@ export async function hardDeleteOrganization(
   }
 
   try {
-    await db.transaction(async (tx) => {
+    await withDb(async (tx) => {
       // Ordem de dependência das FKs (todas ON DELETE RESTRICT, de
       // propósito — só este fluxo, com confirmação explícita, apaga em
-      // cascata na mão).
+      // cascata na mão). `withDb` já roda dentro de uma transação
+      // (`runWithUserContext`), não precisa de outro `db.transaction`
+      // aninhado.
       await tx.delete(vehicles).where(eq(vehicles.organizationId, organizationId));
       await tx.delete(customers).where(eq(customers.organizationId, organizationId));
       await tx
@@ -308,10 +326,10 @@ export async function deleteAuditLogEntry(
   entryId: string,
   organizationId: string,
 ): Promise<ActionResult> {
-  const { db, log } = await requireAdmin();
+  const { withDb, log } = await requireAdmin();
 
   try {
-    await db.delete(auditLog).where(eq(auditLog.id, entryId));
+    await withDb((tx) => tx.delete(auditLog).where(eq(auditLog.id, entryId)));
     log.info("admin.auditoria.apagar_entrada", { entryId, organizationId });
     revalidatePath(`/admin/organizacoes/${organizationId}`);
     return { ok: true };
@@ -323,10 +341,10 @@ export async function deleteAuditLogEntry(
 
 /** Apaga todo o histórico de auditoria de uma oficina. */
 export async function clearAuditLogForOrg(organizationId: string): Promise<ActionResult> {
-  const { db, log } = await requireAdmin();
+  const { withDb, log } = await requireAdmin();
 
   try {
-    await db.delete(auditLog).where(eq(auditLog.organizationId, organizationId));
+    await withDb((tx) => tx.delete(auditLog).where(eq(auditLog.organizationId, organizationId)));
     log.info("admin.auditoria.limpar", { organizationId });
     revalidatePath(`/admin/organizacoes/${organizationId}`);
     return { ok: true };

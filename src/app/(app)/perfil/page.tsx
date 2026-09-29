@@ -9,13 +9,15 @@ import { ThemeToggle } from "@/core/profile/components/theme-toggle";
 import { BrandingForm } from "@/core/profile/components/branding-form";
 
 export default async function ProfilePage() {
-  const [user, { db, role, organizationId }] = await Promise.all([getSession(), withOrg()]);
+  const [user, { withDb, role, organizationId }] = await Promise.all([getSession(), withOrg()]);
 
-  const [org] = await db
-    .select({ primaryColor: organizations.primaryColor, logoUrl: organizations.logoUrl })
-    .from(organizations)
-    .where(eq(organizations.id, organizationId))
-    .limit(1);
+  const [org] = await withDb((tx) =>
+    tx
+      .select({ primaryColor: organizations.primaryColor, logoUrl: organizations.logoUrl })
+      .from(organizations)
+      .where(eq(organizations.id, organizationId))
+      .limit(1),
+  );
 
   const displayName =
     (user?.user_metadata?.display_name as string | undefined) ?? user?.email ?? "";

@@ -1,6 +1,6 @@
 import "server-only";
 import { and, desc, eq, getTableColumns, inArray, type Table } from "drizzle-orm";
-import { db } from "./db";
+import type { Database } from "./db";
 import { customers } from "@/modules/clientes/schema";
 import { vehicles } from "@/modules/veiculos/schema";
 import { catalogItems } from "@/modules/catalogo/schema";
@@ -95,6 +95,7 @@ function reviveDates(row: Record<string, unknown>, table: string): Record<string
  * o que É DELE, não a conta em si.
  */
 export async function buildOrgBackup(
+  db: Database,
   organizationId: string,
   organizationName: string,
 ): Promise<BackupFile> {
@@ -147,6 +148,7 @@ export async function buildOrgBackup(
  * da OS).
  */
 export async function restoreOrgBackup(
+  db: Database,
   organizationId: string,
   backup: BackupFile,
 ): Promise<RestoreSummary[]> {
@@ -202,12 +204,12 @@ export interface SystemBackupFile {
  * `buildOrgBackup`) — é a via seguro pra recuperar uma oficina
  * específica a partir de um backup de sistema.
  */
-export async function buildSystemBackup(): Promise<SystemBackupFile> {
+export async function buildSystemBackup(db: Database): Promise<SystemBackupFile> {
   const orgs = await db
     .select({ id: organizations.id, name: organizations.name })
     .from(organizations);
 
-  const perOrg = await Promise.all(orgs.map((org) => buildOrgBackup(org.id, org.name)));
+  const perOrg = await Promise.all(orgs.map((org) => buildOrgBackup(db, org.id, org.name)));
 
   return {
     version: BACKUP_VERSION,
@@ -219,7 +221,7 @@ export async function buildSystemBackup(): Promise<SystemBackupFile> {
 
 /** "Sem linha" = ligado — o padrão é fazer backup automático, não
  * precisa a pessoa opt-in (ela pode DESLIGAR, gravando `false`). */
-export async function getAutoBackupEnabled(organizationId: string): Promise<boolean> {
+export async function getAutoBackupEnabled(db: Database, organizationId: string): Promise<boolean> {
   const [row] = await db
     .select({ autoBackupEnabled: organizationBackupSettings.autoBackupEnabled })
     .from(organizationBackupSettings)
@@ -229,7 +231,7 @@ export async function getAutoBackupEnabled(organizationId: string): Promise<bool
   return row?.autoBackupEnabled ?? true;
 }
 
-export async function setAutoBackupEnabled(organizationId: string, enabled: boolean) {
+export async function setAutoBackupEnabled(db: Database, organizationId: string, enabled: boolean) {
   await db
     .insert(organizationBackupSettings)
     .values({ organizationId, autoBackupEnabled: enabled })
@@ -241,8 +243,11 @@ export async function setAutoBackupEnabled(organizationId: string, enabled: bool
 
 /** Todas as organizações com backup automático ligado (inclui as sem
  * linha em `organization_backup_settings` — padrão ligado). Usado pelo
- * cron diário. */
-export async function listOrgsWithAutoBackupEnabled(): Promise<{ id: string; name: string }[]> {
+ * cron diário — `db` vem de `runWithSystemContext` lá (sem sessão de
+ * usuário nenhuma, protegido por `CRON_SECRET` na camada HTTP). */
+export async function listOrgsWithAutoBackupEnabled(
+  db: Database,
+): Promise<{ id: string; name: string }[]> {
   const rows = await db
     .select({
       id: organizations.id,
@@ -260,7 +265,11 @@ export async function listOrgsWithAutoBackupEnabled(): Promise<{ id: string; nam
 
 /** Grava um snapshot automático e apaga os mais antigos além de
  * `AUTO_BACKUP_RETENTION` — chamado pelo cron, uma vez por organização. */
-export async function saveAutomaticBackup(organizationId: string, backup: BackupFile) {
+export async function saveAutomaticBackup(
+  db: Database,
+  organizationId: string,
+  backup: BackupFile,
+) {
   await db.insert(organizationBackups).values({ organizationId, data: backup });
 
   const keep = await db
@@ -289,7 +298,10 @@ export interface OrgBackupSummary {
 
 /** Lista os backups automáticos guardados de uma organização, mais
  * recente primeiro — pra listar na página `/backup`. */
-export async function listAutomaticBackups(organizationId: string): Promise<OrgBackupSummary[]> {
+export async function listAutomaticBackups(
+  db: Database,
+  organizationId: string,
+): Promise<OrgBackupSummary[]> {
   return db
     .select({ id: organizationBackups.id, createdAt: organizationBackups.createdAt })
     .from(organizationBackups)
@@ -300,6 +312,7 @@ export async function listAutomaticBackups(organizationId: string): Promise<OrgB
 /** Um backup automático específico, já checando que é da organização
  * certa (nunca confia só no id vindo da URL). */
 export async function getAutomaticBackup(
+  db: Database,
   organizationId: string,
   backupId: string,
 ): Promise<BackupFile | null> {

@@ -11,12 +11,14 @@ import { listNotificationsForCurrentUser } from "./queries";
  * porque `(notificationId, userId)` é único: clicar duas vezes (ou dois
  * componentes tentando marcar ao mesmo tempo) não é erro. */
 export async function markNotificationRead(notificationId: string): Promise<ActionResult> {
-  const { db, organizationId, userId, log } = await withOrg();
+  const { withDb, organizationId, userId, log } = await withOrg();
 
-  await db
-    .insert(notificationReads)
-    .values({ notificationId, userId, organizationId })
-    .onConflictDoNothing();
+  await withDb((tx) =>
+    tx
+      .insert(notificationReads)
+      .values({ notificationId, userId, organizationId })
+      .onConflictDoNothing(),
+  );
 
   log.info("notificacoes.marcar_lida", { notificationId });
   revalidatePath("/", "layout");
@@ -33,7 +35,7 @@ export async function markNotificationRead(notificationId: string): Promise<Acti
 export async function dismissNotifications(
   notificationIds: string[] | "all",
 ): Promise<ActionResult> {
-  const { db, organizationId, userId, log } = await withOrg();
+  const { withDb, organizationId, userId, log } = await withOrg();
 
   const visibleIds = (await listNotificationsForCurrentUser()).map((n) => n.id);
   const ids =
@@ -43,15 +45,22 @@ export async function dismissNotifications(
   if (ids.length === 0) return { ok: true };
 
   const now = new Date();
-  await db
-    .insert(notificationReads)
-    .values(
-      ids.map((notificationId) => ({ notificationId, userId, organizationId, dismissedAt: now })),
-    )
-    .onConflictDoUpdate({
-      target: [notificationReads.notificationId, notificationReads.userId],
-      set: { dismissedAt: now },
-    });
+  await withDb((tx) =>
+    tx
+      .insert(notificationReads)
+      .values(
+        ids.map((notificationId) => ({
+          notificationId,
+          userId,
+          organizationId,
+          dismissedAt: now,
+        })),
+      )
+      .onConflictDoUpdate({
+        target: [notificationReads.notificationId, notificationReads.userId],
+        set: { dismissedAt: now },
+      }),
+  );
 
   log.info("notificacoes.apagar_do_sino", { count: ids.length, todas: notificationIds === "all" });
   revalidatePath("/", "layout");

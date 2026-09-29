@@ -141,7 +141,7 @@ export async function updateOrganizationBranding(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const { db, organizationId, role, log } = await withOrg();
+  const { withDb, organizationId, role, log } = await withOrg();
 
   if (role !== "owner") {
     return { ok: false, message: "Só o dono da organização pode alterar a aparência do sistema." };
@@ -185,21 +185,22 @@ export async function updateOrganizationBranding(
     logoUrl = `${publicUrl.publicUrl}?v=${Date.now()}`;
   }
 
-  const updated = await db
-    .update(organizations)
-    .set({
-      primaryColor: parsed.data.primaryColor ?? null,
-      ...(logoUrl && { logoUrl }),
-      updatedAt: new Date(),
-    })
-    .where(eq(organizations.id, organizationId))
-    .returning({ id: organizations.id });
+  const updated = await withDb((tx) =>
+    tx
+      .update(organizations)
+      .set({
+        primaryColor: parsed.data.primaryColor ?? null,
+        ...(logoUrl && { logoUrl }),
+        updatedAt: new Date(),
+      })
+      .where(eq(organizations.id, organizationId))
+      .returning({ id: organizations.id }),
+  );
 
-  // Aqui a conexão do app tem bypassrls (RLS é só defesa em profundidade,
-  // não a proteção ativa — ver docs/decisoes.md), então isto nunca deveria
-  // dar 0 linhas na prática; mantido por paridade com base-erp/prisma
-  // (onde RLS ativa pode bloquear silenciosamente) e como rede de
-  // segurança caso o modelo de conexão mude no futuro.
+  // Rede de segurança: com RLS ativa (ver docs/decisoes.md), a policy de
+  // `organizations` bloqueia silenciosamente (0 linhas, sem erro) se por
+  // algum motivo `role !== "owner"` não tivesse barrado acima — nunca
+  // esconder um bloqueio de RLS como se fosse sucesso.
   if (updated.length === 0) {
     log.error("perfil.branding.sem_permissao", { organizationId });
     return {
@@ -219,17 +220,19 @@ export async function updateOrganizationBranding(
  * logo não é afetado, só a cor). Mesma checagem de permissão de
  * `updateOrganizationBranding`. */
 export async function resetOrganizationColor(): Promise<ActionResult> {
-  const { db, organizationId, role, log } = await withOrg();
+  const { withDb, organizationId, role, log } = await withOrg();
 
   if (role !== "owner") {
     return { ok: false, message: "Só o dono da organização pode alterar a aparência do sistema." };
   }
 
-  const updated = await db
-    .update(organizations)
-    .set({ primaryColor: null, updatedAt: new Date() })
-    .where(eq(organizations.id, organizationId))
-    .returning({ id: organizations.id });
+  const updated = await withDb((tx) =>
+    tx
+      .update(organizations)
+      .set({ primaryColor: null, updatedAt: new Date() })
+      .where(eq(organizations.id, organizationId))
+      .returning({ id: organizations.id }),
+  );
 
   if (updated.length === 0) {
     log.error("perfil.branding.sem_permissao", { organizationId });

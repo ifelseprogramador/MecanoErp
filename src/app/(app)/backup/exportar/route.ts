@@ -9,10 +9,10 @@ import { buildOrgBackup } from "@/core/backup";
  * e `POST /backup/restaurar` pra reimportar este mesmo arquivo.
  */
 export async function GET() {
-  const [{ log }, org] = await Promise.all([withOrg(), getActiveOrg()]);
+  const [{ withDb, log }, org] = await Promise.all([withOrg(), getActiveOrg()]);
   log.info("backup.exportar");
 
-  const backup = await buildOrgBackup(org.organizationId, org.organizationName);
+  const backup = await withDb((tx) => buildOrgBackup(tx, org.organizationId, org.organizationName));
   const filename = `mecanoerp-backup-${org.organizationName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${new Date().toISOString().slice(0, 10)}.json`;
 
   return new Response(JSON.stringify(backup, null, 2), {

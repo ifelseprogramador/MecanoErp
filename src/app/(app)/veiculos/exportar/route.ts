@@ -24,24 +24,26 @@ const HEADERS = [
  * `modules/clientes/queries.ts#findCustomerByDocumentOrName`.
  */
 export async function GET() {
-  const { db, organizationId } = await withOrg();
+  const { withDb, organizationId } = await withOrg();
 
-  const rows = await db
-    .select({
-      plate: vehicles.plate,
-      brand: vehicles.brand,
-      model: vehicles.model,
-      year: vehicles.year,
-      color: vehicles.color,
-      fuel: vehicles.fuel,
-      chassis: vehicles.chassis,
-      currentKm: vehicles.currentKm,
-      customerDocument: customers.document,
-      customerName: customers.name,
-    })
-    .from(vehicles)
-    .innerJoin(customers, eq(customers.id, vehicles.customerId))
-    .where(and(eq(vehicles.organizationId, organizationId)));
+  const rows = await withDb((tx) =>
+    tx
+      .select({
+        plate: vehicles.plate,
+        brand: vehicles.brand,
+        model: vehicles.model,
+        year: vehicles.year,
+        color: vehicles.color,
+        fuel: vehicles.fuel,
+        chassis: vehicles.chassis,
+        currentKm: vehicles.currentKm,
+        customerDocument: customers.document,
+        customerName: customers.name,
+      })
+      .from(vehicles)
+      .innerJoin(customers, eq(customers.id, vehicles.customerId))
+      .where(and(eq(vehicles.organizationId, organizationId))),
+  );
 
   const csv = toCsv(
     rows.map((v) => ({

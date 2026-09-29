@@ -40,23 +40,25 @@ export async function createNotification(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const { db, userId, log } = await requireAdmin();
+  const { withDb, userId, log } = await requireAdmin();
 
   const parsed = parseNotificationFormData(formData);
   if (!parsed.success) {
     return { ok: false, errors: parsed.error.flatten().fieldErrors };
   }
 
-  const [notification] = await db
-    .insert(notifications)
-    .values({
-      title: parsed.data.title,
-      body: parsed.data.body,
-      category: parsed.data.category,
-      organizationId: parsed.data.organizationId ?? null,
-      createdBy: userId,
-    })
-    .returning({ id: notifications.id });
+  const [notification] = await withDb((tx) =>
+    tx
+      .insert(notifications)
+      .values({
+        title: parsed.data.title,
+        body: parsed.data.body,
+        category: parsed.data.category,
+        organizationId: parsed.data.organizationId ?? null,
+        createdBy: userId,
+      })
+      .returning({ id: notifications.id }),
+  );
 
   log.info("notificacoes.criar", {
     notificationId: notification.id,
@@ -72,30 +74,34 @@ export async function updateNotification(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const { db, log } = await requireAdmin();
+  const { withDb, log } = await requireAdmin();
 
   const parsed = parseNotificationFormData(formData);
   if (!parsed.success) {
     return { ok: false, errors: parsed.error.flatten().fieldErrors };
   }
 
-  const [previous] = await db
-    .select({ organizationId: notifications.organizationId })
-    .from(notifications)
-    .where(eq(notifications.id, notificationId))
-    .limit(1);
+  const { previous, result } = await withDb(async (tx) => {
+    const [previous] = await tx
+      .select({ organizationId: notifications.organizationId })
+      .from(notifications)
+      .where(eq(notifications.id, notificationId))
+      .limit(1);
 
-  const result = await db
-    .update(notifications)
-    .set({
-      title: parsed.data.title,
-      body: parsed.data.body,
-      category: parsed.data.category,
-      organizationId: parsed.data.organizationId ?? null,
-      updatedAt: new Date(),
-    })
-    .where(eq(notifications.id, notificationId))
-    .returning({ id: notifications.id });
+    const result = await tx
+      .update(notifications)
+      .set({
+        title: parsed.data.title,
+        body: parsed.data.body,
+        category: parsed.data.category,
+        organizationId: parsed.data.organizationId ?? null,
+        updatedAt: new Date(),
+      })
+      .where(eq(notifications.id, notificationId))
+      .returning({ id: notifications.id });
+
+    return { previous, result };
+  });
 
   if (result.length === 0) {
     return { ok: false, message: "Notificação não encontrada." };
@@ -113,12 +119,14 @@ export async function updateNotification(
 }
 
 export async function deleteNotification(notificationId: string): Promise<ActionResult> {
-  const { db, log } = await requireAdmin();
+  const { withDb, log } = await requireAdmin();
 
-  const deleted = await db
-    .delete(notifications)
-    .where(eq(notifications.id, notificationId))
-    .returning({ organizationId: notifications.organizationId });
+  const deleted = await withDb((tx) =>
+    tx
+      .delete(notifications)
+      .where(eq(notifications.id, notificationId))
+      .returning({ organizationId: notifications.organizationId }),
+  );
 
   log.info("notificacoes.remover", { notificationId });
   if (deleted.length > 0) await broadcastChanged([deleted[0].organizationId], log);
@@ -127,9 +135,9 @@ export async function deleteNotification(notificationId: string): Promise<Action
 }
 
 export async function deleteAllNotifications(): Promise<ActionResult> {
-  const { db, log } = await requireAdmin();
+  const { withDb, log } = await requireAdmin();
 
-  await db.delete(notifications);
+  await withDb((tx) => tx.delete(notifications));
 
   log.info("notificacoes.remover_todas");
   // O canal "todas" basta: todo sino escuta ele além do da própria oficina.

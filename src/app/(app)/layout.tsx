@@ -60,7 +60,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const displayName = (user?.user_metadata?.display_name as string | undefined) ?? org.userEmail;
 
-  const modules = await getEnabledModulesForOrg(org.organizationId);
+  const modules = await getEnabledModulesForOrg(org.userId, org.organizationId);
   const stopImpersonationWithId = stopImpersonation.bind(null, org.organizationId);
 
   // Nunca durante modo suporte: quem está "usando" a oficina ali é o

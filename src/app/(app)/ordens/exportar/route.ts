@@ -17,21 +17,23 @@ const HEADERS = ["number", "status", "customerName", "vehiclePlate", "totalCents
  * CSV seria arriscada demais pra fazer bem (ver docs/decisoes.md).
  */
 export async function GET() {
-  const { db, organizationId } = await withOrg();
+  const { withDb, organizationId } = await withOrg();
 
-  const rows = await db
-    .select({
-      number: workOrders.number,
-      status: workOrders.status,
-      totalCents: workOrders.totalCents,
-      createdAt: workOrders.createdAt,
-      customerName: customers.name,
-      vehiclePlate: vehicles.plate,
-    })
-    .from(workOrders)
-    .innerJoin(customers, eq(customers.id, workOrders.customerId))
-    .innerJoin(vehicles, eq(vehicles.id, workOrders.vehicleId))
-    .where(eq(workOrders.organizationId, organizationId));
+  const rows = await withDb((tx) =>
+    tx
+      .select({
+        number: workOrders.number,
+        status: workOrders.status,
+        totalCents: workOrders.totalCents,
+        createdAt: workOrders.createdAt,
+        customerName: customers.name,
+        vehiclePlate: vehicles.plate,
+      })
+      .from(workOrders)
+      .innerJoin(customers, eq(customers.id, workOrders.customerId))
+      .innerJoin(vehicles, eq(vehicles.id, workOrders.vehicleId))
+      .where(eq(workOrders.organizationId, organizationId)),
+  );
 
   const csv = toCsv(
     rows.map((o) => ({

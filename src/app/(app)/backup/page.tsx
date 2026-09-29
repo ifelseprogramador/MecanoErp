@@ -6,14 +6,17 @@ import { BackupRestoreForm } from "@/components/backup-restore-form";
 import { AutoBackupToggle } from "@/components/auto-backup-toggle";
 import { getAutoBackupEnabled, listAutomaticBackups } from "@/core/backup";
 import { getActiveOrg } from "@/core/auth";
+import { runWithUserContext } from "@/core/db";
 import { formatDate } from "@/core/format";
 
 export default async function BackupPage() {
   const org = await getActiveOrg();
-  const [autoBackupEnabled, automaticBackups] = await Promise.all([
-    getAutoBackupEnabled(org.organizationId),
-    listAutomaticBackups(org.organizationId),
-  ]);
+  const [autoBackupEnabled, automaticBackups] = await runWithUserContext(org.userId, (tx) =>
+    Promise.all([
+      getAutoBackupEnabled(tx, org.organizationId),
+      listAutomaticBackups(tx, org.organizationId),
+    ]),
+  );
 
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-6">

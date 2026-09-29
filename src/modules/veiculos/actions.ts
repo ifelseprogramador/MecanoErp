@@ -33,14 +33,16 @@ function isForeignKeyViolation(err: unknown): boolean {
  * sozinha assim que o cliente sincronizar primeiro.
  */
 export async function createVehicleRecord(data: VehicleInput, id?: string): Promise<InsertResult> {
-  const { db, organizationId, log } = await withOrg();
+  const { withDb, organizationId, log } = await withOrg();
   log.info("veiculos.criar", { offline: Boolean(id) });
 
   try {
-    const [vehicle] = await db
-      .insert(vehicles)
-      .values({ ...data, organizationId, ...(id && { id }) })
-      .returning({ id: vehicles.id });
+    const [vehicle] = await withDb((tx) =>
+      tx
+        .insert(vehicles)
+        .values({ ...data, organizationId, ...(id && { id }) })
+        .returning({ id: vehicles.id }),
+    );
     log.info("veiculos.criar.sucesso", { vehicleId: vehicle.id });
     revalidatePath("/veiculos");
     revalidatePath(`/clientes/${data.customerId}`);
@@ -83,7 +85,7 @@ export async function updateVehicle(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const { db, organizationId, log } = await withOrg();
+  const { withDb, organizationId, log } = await withOrg();
   log.info("veiculos.atualizar", { vehicleId });
 
   const parsed = parseVehicleFormData(formData);
@@ -96,11 +98,13 @@ export async function updateVehicle(
   }
 
   try {
-    const result = await db
-      .update(vehicles)
-      .set({ ...parsed.data, updatedAt: new Date() })
-      .where(and(eq(vehicles.id, vehicleId), eq(vehicles.organizationId, organizationId)))
-      .returning({ id: vehicles.id });
+    const result = await withDb((tx) =>
+      tx
+        .update(vehicles)
+        .set({ ...parsed.data, updatedAt: new Date() })
+        .where(and(eq(vehicles.id, vehicleId), eq(vehicles.organizationId, organizationId)))
+        .returning({ id: vehicles.id }),
+    );
 
     if (result.length === 0) {
       log.warn("veiculos.atualizar.nao_encontrado", { vehicleId });
@@ -168,14 +172,16 @@ export async function importVehiclesCsv(
 }
 
 export async function deleteVehicle(vehicleId: string): Promise<ActionResult> {
-  const { db, organizationId, log } = await withOrg();
+  const { withDb, organizationId, log } = await withOrg();
   log.info("veiculos.remover", { vehicleId });
 
   try {
-    const result = await db
-      .delete(vehicles)
-      .where(and(eq(vehicles.id, vehicleId), eq(vehicles.organizationId, organizationId)))
-      .returning({ id: vehicles.id });
+    const result = await withDb((tx) =>
+      tx
+        .delete(vehicles)
+        .where(and(eq(vehicles.id, vehicleId), eq(vehicles.organizationId, organizationId)))
+        .returning({ id: vehicles.id }),
+    );
 
     if (result.length === 0) {
       log.warn("veiculos.remover.nao_encontrado", { vehicleId });

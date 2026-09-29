@@ -28,43 +28,45 @@ export type WorkOrderStatusFilter = (typeof workOrderStatusEnum.enumValues)[numb
  * "faturamento" aqui é o valor de serviço já finalizado) e as OS mais
  * recentes pra lista de atalho. */
 export async function getWorkOrderDashboardSummary() {
-  const { db, organizationId } = await withOrg();
+  const { withDb, organizationId } = await withOrg();
 
-  const [statusCounts, [revenue], recent] = await Promise.all([
-    db
-      .select({ status: workOrders.status, count: sql<number>`count(*)::int` })
-      .from(workOrders)
-      .where(eq(workOrders.organizationId, organizationId))
-      .groupBy(workOrders.status),
-    db
-      .select({
-        totalCents: sql<number>`coalesce(sum(${workOrders.totalCents}), 0)::int`,
-        count: sql<number>`count(*)::int`,
-      })
-      .from(workOrders)
-      .where(
-        and(
-          eq(workOrders.organizationId, organizationId),
-          sql`${workOrders.completedAt} >= date_trunc('month', now())`,
+  const [statusCounts, [revenue], recent] = await withDb((tx) =>
+    Promise.all([
+      tx
+        .select({ status: workOrders.status, count: sql<number>`count(*)::int` })
+        .from(workOrders)
+        .where(eq(workOrders.organizationId, organizationId))
+        .groupBy(workOrders.status),
+      tx
+        .select({
+          totalCents: sql<number>`coalesce(sum(${workOrders.totalCents}), 0)::int`,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(workOrders)
+        .where(
+          and(
+            eq(workOrders.organizationId, organizationId),
+            sql`${workOrders.completedAt} >= date_trunc('month', now())`,
+          ),
         ),
-      ),
-    db
-      .select({
-        id: workOrders.id,
-        number: workOrders.number,
-        status: workOrders.status,
-        totalCents: workOrders.totalCents,
-        createdAt: workOrders.createdAt,
-        customerName: customers.name,
-        vehiclePlate: vehicles.plate,
-      })
-      .from(workOrders)
-      .innerJoin(customers, eq(customers.id, workOrders.customerId))
-      .innerJoin(vehicles, eq(vehicles.id, workOrders.vehicleId))
-      .where(eq(workOrders.organizationId, organizationId))
-      .orderBy(desc(workOrders.number))
-      .limit(6),
-  ]);
+      tx
+        .select({
+          id: workOrders.id,
+          number: workOrders.number,
+          status: workOrders.status,
+          totalCents: workOrders.totalCents,
+          createdAt: workOrders.createdAt,
+          customerName: customers.name,
+          vehiclePlate: vehicles.plate,
+        })
+        .from(workOrders)
+        .innerJoin(customers, eq(customers.id, workOrders.customerId))
+        .innerJoin(vehicles, eq(vehicles.id, workOrders.vehicleId))
+        .where(eq(workOrders.organizationId, organizationId))
+        .orderBy(desc(workOrders.number))
+        .limit(6),
+    ]),
+  );
 
   const byStatus = Object.fromEntries(
     workOrderStatusEnum.enumValues.map((status) => [
@@ -89,7 +91,7 @@ export async function listWorkOrders(options?: {
   status?: WorkOrderStatusFilter;
   sort?: WorkOrderSort;
 }) {
-  const { db, organizationId } = await withOrg();
+  const { withDb, organizationId } = await withOrg();
 
   const term = options?.search?.trim();
   const conditions = [eq(workOrders.organizationId, organizationId)];
@@ -107,86 +109,92 @@ export async function listWorkOrders(options?: {
     conditions.push(eq(workOrders.status, options.status));
   }
 
-  return db
-    .select({
-      id: workOrders.id,
-      number: workOrders.number,
-      status: workOrders.status,
-      totalCents: workOrders.totalCents,
-      createdAt: workOrders.createdAt,
-      customerName: customers.name,
-      vehiclePlate: vehicles.plate,
-    })
-    .from(workOrders)
-    .innerJoin(customers, eq(customers.id, workOrders.customerId))
-    .innerJoin(vehicles, eq(vehicles.id, workOrders.vehicleId))
-    .where(and(...conditions))
-    .orderBy(WORK_ORDER_ORDER_BY[options?.sort ?? "number_desc"]);
+  return withDb((tx) =>
+    tx
+      .select({
+        id: workOrders.id,
+        number: workOrders.number,
+        status: workOrders.status,
+        totalCents: workOrders.totalCents,
+        createdAt: workOrders.createdAt,
+        customerName: customers.name,
+        vehiclePlate: vehicles.plate,
+      })
+      .from(workOrders)
+      .innerJoin(customers, eq(customers.id, workOrders.customerId))
+      .innerJoin(vehicles, eq(vehicles.id, workOrders.vehicleId))
+      .where(and(...conditions))
+      .orderBy(WORK_ORDER_ORDER_BY[options?.sort ?? "number_desc"]),
+  );
 }
 
 export async function getWorkOrderById(id: string) {
-  const { db, organizationId } = await withOrg();
+  const { withDb, organizationId } = await withOrg();
 
-  const [order] = await db
-    .select({
-      id: workOrders.id,
-      organizationId: workOrders.organizationId,
-      number: workOrders.number,
-      customerId: workOrders.customerId,
-      vehicleId: workOrders.vehicleId,
-      status: workOrders.status,
-      kmEntrada: workOrders.kmEntrada,
-      relatoCliente: workOrders.relatoCliente,
-      diagnostico: workOrders.diagnostico,
-      discountCents: workOrders.discountCents,
-      totalCents: workOrders.totalCents,
-      approvedAt: workOrders.approvedAt,
-      startedAt: workOrders.startedAt,
-      completedAt: workOrders.completedAt,
-      deliveredAt: workOrders.deliveredAt,
-      cancelledAt: workOrders.cancelledAt,
-      createdAt: workOrders.createdAt,
-      updatedAt: workOrders.updatedAt,
-      customerName: customers.name,
-      customerPhone: customers.phone,
-      vehiclePlate: vehicles.plate,
-      vehicleBrand: vehicles.brand,
-      vehicleModel: vehicles.model,
-    })
-    .from(workOrders)
-    .innerJoin(customers, eq(customers.id, workOrders.customerId))
-    .innerJoin(vehicles, eq(vehicles.id, workOrders.vehicleId))
-    .where(and(eq(workOrders.id, id), eq(workOrders.organizationId, organizationId)))
-    .limit(1);
+  const [order] = await withDb((tx) =>
+    tx
+      .select({
+        id: workOrders.id,
+        organizationId: workOrders.organizationId,
+        number: workOrders.number,
+        customerId: workOrders.customerId,
+        vehicleId: workOrders.vehicleId,
+        status: workOrders.status,
+        kmEntrada: workOrders.kmEntrada,
+        relatoCliente: workOrders.relatoCliente,
+        diagnostico: workOrders.diagnostico,
+        discountCents: workOrders.discountCents,
+        totalCents: workOrders.totalCents,
+        approvedAt: workOrders.approvedAt,
+        startedAt: workOrders.startedAt,
+        completedAt: workOrders.completedAt,
+        deliveredAt: workOrders.deliveredAt,
+        cancelledAt: workOrders.cancelledAt,
+        createdAt: workOrders.createdAt,
+        updatedAt: workOrders.updatedAt,
+        customerName: customers.name,
+        customerPhone: customers.phone,
+        vehiclePlate: vehicles.plate,
+        vehicleBrand: vehicles.brand,
+        vehicleModel: vehicles.model,
+      })
+      .from(workOrders)
+      .innerJoin(customers, eq(customers.id, workOrders.customerId))
+      .innerJoin(vehicles, eq(vehicles.id, workOrders.vehicleId))
+      .where(and(eq(workOrders.id, id), eq(workOrders.organizationId, organizationId)))
+      .limit(1),
+  );
 
   return order ?? null;
 }
 
 export async function listWorkOrderItems(workOrderId: string) {
-  const { db, organizationId } = await withOrg();
+  const { withDb, organizationId } = await withOrg();
 
   // `work_order_items` não tem `organization_id` próprio — o join com
   // `work_orders` garante o isolamento por tenant mesmo se este método
   // for chamado direto (sem passar primeiro por `getWorkOrderById`, que
   // já filtra por org).
-  return db
-    .select({
-      id: workOrderItems.id,
-      workOrderId: workOrderItems.workOrderId,
-      type: workOrderItems.type,
-      description: workOrderItems.description,
-      quantity: workOrderItems.quantity,
-      unitPriceCents: workOrderItems.unitPriceCents,
-      totalCents: workOrderItems.totalCents,
-      createdAt: workOrderItems.createdAt,
-    })
-    .from(workOrderItems)
-    .innerJoin(workOrders, eq(workOrders.id, workOrderItems.workOrderId))
-    .where(
-      and(
-        eq(workOrderItems.workOrderId, workOrderId),
-        eq(workOrders.organizationId, organizationId),
-      ),
-    )
-    .orderBy(asc(workOrderItems.createdAt));
+  return withDb((tx) =>
+    tx
+      .select({
+        id: workOrderItems.id,
+        workOrderId: workOrderItems.workOrderId,
+        type: workOrderItems.type,
+        description: workOrderItems.description,
+        quantity: workOrderItems.quantity,
+        unitPriceCents: workOrderItems.unitPriceCents,
+        totalCents: workOrderItems.totalCents,
+        createdAt: workOrderItems.createdAt,
+      })
+      .from(workOrderItems)
+      .innerJoin(workOrders, eq(workOrders.id, workOrderItems.workOrderId))
+      .where(
+        and(
+          eq(workOrderItems.workOrderId, workOrderId),
+          eq(workOrders.organizationId, organizationId),
+        ),
+      )
+      .orderBy(asc(workOrderItems.createdAt)),
+  );
 }

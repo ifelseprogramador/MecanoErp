@@ -27,14 +27,16 @@ export async function createCustomerRecord(
   data: CustomerInput,
   id?: string,
 ): Promise<InsertResult> {
-  const { db, organizationId, log } = await withOrg();
+  const { withDb, organizationId, log } = await withOrg();
   log.info("clientes.criar", { offline: Boolean(id) });
 
   try {
-    const [customer] = await db
-      .insert(customers)
-      .values({ ...data, organizationId, ...(id && { id }) })
-      .returning({ id: customers.id });
+    const [customer] = await withDb((tx) =>
+      tx
+        .insert(customers)
+        .values({ ...data, organizationId, ...(id && { id }) })
+        .returning({ id: customers.id }),
+    );
     log.info("clientes.criar.sucesso", { customerId: customer.id });
     revalidatePath("/clientes");
     return { ok: true, id: customer.id };
@@ -77,7 +79,7 @@ export async function updateCustomer(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const { db, organizationId, log } = await withOrg();
+  const { withDb, organizationId, log } = await withOrg();
   log.info("clientes.atualizar", { customerId });
 
   const parsed = parseCustomerFormData(formData);
@@ -90,11 +92,13 @@ export async function updateCustomer(
   }
 
   try {
-    const result = await db
-      .update(customers)
-      .set({ ...parsed.data, updatedAt: new Date() })
-      .where(and(eq(customers.id, customerId), eq(customers.organizationId, organizationId)))
-      .returning({ id: customers.id });
+    const result = await withDb((tx) =>
+      tx
+        .update(customers)
+        .set({ ...parsed.data, updatedAt: new Date() })
+        .where(and(eq(customers.id, customerId), eq(customers.organizationId, organizationId)))
+        .returning({ id: customers.id }),
+    );
 
     if (result.length === 0) {
       log.warn("clientes.atualizar.nao_encontrado", { customerId });
@@ -139,14 +143,16 @@ export async function importCustomersCsv(
 }
 
 export async function deleteCustomer(customerId: string): Promise<ActionResult> {
-  const { db, organizationId, log } = await withOrg();
+  const { withDb, organizationId, log } = await withOrg();
   log.info("clientes.remover", { customerId });
 
   try {
-    const result = await db
-      .delete(customers)
-      .where(and(eq(customers.id, customerId), eq(customers.organizationId, organizationId)))
-      .returning({ id: customers.id });
+    const result = await withDb((tx) =>
+      tx
+        .delete(customers)
+        .where(and(eq(customers.id, customerId), eq(customers.organizationId, organizationId)))
+        .returning({ id: customers.id }),
+    );
 
     if (result.length === 0) {
       log.warn("clientes.remover.nao_encontrado", { customerId });

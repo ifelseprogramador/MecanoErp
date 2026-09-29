@@ -38,7 +38,7 @@ export async function restoreBackup(
   _prevState: BackupRestoreState,
   formData: FormData,
 ): Promise<BackupRestoreState> {
-  const { organizationId, log } = await withOrg();
+  const { withDb, organizationId, log } = await withOrg();
 
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
@@ -60,7 +60,7 @@ export async function restoreBackup(
   }
 
   log.info("backup.restaurar", { sourceOrganizationId: parsed.organizationId });
-  const summary = await restoreOrgBackup(organizationId, parsed);
+  const summary = await withDb((tx) => restoreOrgBackup(tx, organizationId, parsed));
   log.info("backup.restaurar.sucesso", {
     totals: Object.fromEntries(summary.map((s) => [s.table, s.inserted])),
   });
@@ -69,8 +69,8 @@ export async function restoreBackup(
 }
 
 export async function toggleAutoBackup(enabled: boolean): Promise<ActionResult> {
-  const { organizationId, log } = await withOrg();
-  await setAutoBackupEnabled(organizationId, enabled);
+  const { withDb, organizationId, log } = await withOrg();
+  await withDb((tx) => setAutoBackupEnabled(tx, organizationId, enabled));
   log.info("backup.automatico.alternar", { enabled });
   revalidatePath("/backup");
   return { ok: true };

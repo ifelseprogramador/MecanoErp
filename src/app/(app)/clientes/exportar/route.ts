@@ -12,12 +12,11 @@ const HEADERS = ["name", "type", "document", "phone", "email", "address", "notes
  * planilha) sem precisar remapear coluna nenhuma.
  */
 export async function GET() {
-  const { db, organizationId } = await withOrg();
+  const { withDb, organizationId } = await withOrg();
 
-  const rows = await db
-    .select()
-    .from(customers)
-    .where(eq(customers.organizationId, organizationId));
+  const rows = await withDb((tx) =>
+    tx.select().from(customers).where(eq(customers.organizationId, organizationId)),
+  );
 
   const csv = toCsv(
     rows.map((c) => ({

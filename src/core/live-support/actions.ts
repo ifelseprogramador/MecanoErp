@@ -5,8 +5,8 @@ import { and, eq, inArray } from "drizzle-orm";
 import { withOrg, getSession, getActiveOrg } from "@/core/auth";
 import { requireAdmin } from "@/core/admin-auth";
 import { isPlatformAdmin } from "@/core/platform-admin";
-import { db } from "@/core/db";
-import { liveSessions, memberships, organizations } from "@/db/schema";
+import { runWithUserContext } from "@/core/db";
+import { liveSessions, memberships } from "@/db/schema";
 import { recordAudit } from "@/core/admin/audit";
 import { sendBroadcast as broadcast } from "@/core/supabase/realtime-sender";
 import type { ActionResult } from "@/core/action-result";
@@ -24,26 +24,31 @@ interface SessionActionResult extends ActionResult {
 
 /** Admin pede acesso à tela de uma oficina. Ver core/admin/components/live-support-card.tsx. */
 export async function requestSupportAccess(organizationId: string): Promise<SessionActionResult> {
-  const { userId, log } = await requireAdmin();
+  const { userId, withDb, log } = await requireAdmin();
 
-  const [existing] = await db
-    .select({ id: liveSessions.id })
-    .from(liveSessions)
-    .where(
-      and(
-        eq(liveSessions.organizationId, organizationId),
-        inArray(liveSessions.status, OPEN_STATUSES),
-      ),
-    )
-    .limit(1);
+  const existing = await withDb(async (tx) => {
+    const [existing] = await tx
+      .select({ id: liveSessions.id })
+      .from(liveSessions)
+      .where(
+        and(
+          eq(liveSessions.organizationId, organizationId),
+          inArray(liveSessions.status, OPEN_STATUSES),
+        ),
+      )
+      .limit(1);
+    return existing;
+  });
   if (existing) {
     return { ok: false, message: "Já existe uma sessão de suporte em aberto para esta oficina." };
   }
 
-  const [session] = await db
-    .insert(liveSessions)
-    .values({ organizationId, initiatedBy: "admin", adminUserId: userId, status: "pending" })
-    .returning({ id: liveSessions.id });
+  const [session] = await withDb((tx) =>
+    tx
+      .insert(liveSessions)
+      .values({ organizationId, initiatedBy: "admin", adminUserId: userId, status: "pending" })
+      .returning({ id: liveSessions.id }),
+  );
 
   log.warn("live_support.solicitar", { organizationId, sessionId: session.id });
   await recordAudit({ actorUserId: userId, organizationId, action: "live_support.solicitar" });
@@ -55,27 +60,32 @@ export async function requestSupportAccess(organizationId: string): Promise<Sess
 
 /** Usuário da oficina chama o suporte. Botão em (app), ver live-support-widget.tsx. */
 export async function callForSupport(): Promise<SessionActionResult> {
-  const { userId, organizationId, log } = await withOrg();
+  const { userId, organizationId, withDb, log } = await withOrg();
   const { organizationName } = await getActiveOrg();
 
-  const [existing] = await db
-    .select({ id: liveSessions.id })
-    .from(liveSessions)
-    .where(
-      and(
-        eq(liveSessions.organizationId, organizationId),
-        inArray(liveSessions.status, OPEN_STATUSES),
-      ),
-    )
-    .limit(1);
+  const existing = await withDb(async (tx) => {
+    const [existing] = await tx
+      .select({ id: liveSessions.id })
+      .from(liveSessions)
+      .where(
+        and(
+          eq(liveSessions.organizationId, organizationId),
+          inArray(liveSessions.status, OPEN_STATUSES),
+        ),
+      )
+      .limit(1);
+    return existing;
+  });
   if (existing) {
     return { ok: true, sessionId: existing.id }; // já tem uma pendente/ativa, só devolve
   }
 
-  const [session] = await db
-    .insert(liveSessions)
-    .values({ organizationId, initiatedBy: "user", requestedByUserId: userId, status: "pending" })
-    .returning({ id: liveSessions.id });
+  const [session] = await withDb((tx) =>
+    tx
+      .insert(liveSessions)
+      .values({ organizationId, initiatedBy: "user", requestedByUserId: userId, status: "pending" })
+      .returning({ id: liveSessions.id }),
+  );
 
   log.info("live_support.chamar", { sessionId: session.id });
   await recordAudit({ actorUserId: userId, organizationId, action: "live_support.chamar" });
@@ -90,21 +100,27 @@ export async function callForSupport(): Promise<SessionActionResult> {
 
 /** Usuário aceita um pedido que o admin abriu (startImpersonation-like, mas só a visão). */
 export async function approveSupportSession(sessionId: string): Promise<ActionResult> {
-  const { userId, organizationId, log } = await withOrg();
+  const { userId, organizationId, withDb, log } = await withOrg();
 
-  const [session] = await db
-    .select()
-    .from(liveSessions)
-    .where(eq(liveSessions.id, sessionId))
-    .limit(1);
-  if (!session || session.organizationId !== organizationId || session.status !== "pending") {
+  const notFound = await withDb(async (tx) => {
+    const [session] = await tx
+      .select()
+      .from(liveSessions)
+      .where(eq(liveSessions.id, sessionId))
+      .limit(1);
+    if (!session || session.organizationId !== organizationId || session.status !== "pending") {
+      return true;
+    }
+
+    await tx
+      .update(liveSessions)
+      .set({ status: "active", startedAt: new Date() })
+      .where(eq(liveSessions.id, sessionId));
+    return false;
+  });
+  if (notFound) {
     return { ok: false, message: "Solicitação não encontrada ou já respondida." };
   }
-
-  await db
-    .update(liveSessions)
-    .set({ status: "active", startedAt: new Date() })
-    .where(eq(liveSessions.id, sessionId));
 
   log.info("live_support.aprovar", { sessionId });
   await recordAudit({ actorUserId: userId, organizationId, action: "live_support.aprovar" });
@@ -115,18 +131,24 @@ export async function approveSupportSession(sessionId: string): Promise<ActionRe
 
 /** Usuário recusa um pedido que o admin abriu. */
 export async function declineSupportSession(sessionId: string): Promise<ActionResult> {
-  const { userId, organizationId, log } = await withOrg();
+  const { userId, organizationId, withDb, log } = await withOrg();
 
-  const [session] = await db
-    .select()
-    .from(liveSessions)
-    .where(eq(liveSessions.id, sessionId))
-    .limit(1);
-  if (!session || session.organizationId !== organizationId || session.status !== "pending") {
+  const notFound = await withDb(async (tx) => {
+    const [session] = await tx
+      .select()
+      .from(liveSessions)
+      .where(eq(liveSessions.id, sessionId))
+      .limit(1);
+    if (!session || session.organizationId !== organizationId || session.status !== "pending") {
+      return true;
+    }
+
+    await tx.update(liveSessions).set({ status: "declined" }).where(eq(liveSessions.id, sessionId));
+    return false;
+  });
+  if (notFound) {
     return { ok: false, message: "Solicitação não encontrada ou já respondida." };
   }
-
-  await db.update(liveSessions).set({ status: "declined" }).where(eq(liveSessions.id, sessionId));
 
   log.info("live_support.recusar", { sessionId });
   await recordAudit({ actorUserId: userId, organizationId, action: "live_support.recusar" });
@@ -137,31 +159,37 @@ export async function declineSupportSession(sessionId: string): Promise<ActionRe
 
 /** Admin aceita um pedido que o usuário abriu ("Chamar suporte"). */
 export async function acceptSupportRequest(sessionId: string): Promise<ActionResult> {
-  const { userId, log } = await requireAdmin();
+  const { userId, withDb, log } = await requireAdmin();
 
-  const [session] = await db
-    .select()
-    .from(liveSessions)
-    .where(eq(liveSessions.id, sessionId))
-    .limit(1);
-  if (!session || session.status !== "pending") {
+  const result = await withDb(async (tx) => {
+    const [session] = await tx
+      .select()
+      .from(liveSessions)
+      .where(eq(liveSessions.id, sessionId))
+      .limit(1);
+    if (!session || session.status !== "pending") return null;
+
+    await tx
+      .update(liveSessions)
+      .set({ adminUserId: userId, status: "active", startedAt: new Date() })
+      .where(eq(liveSessions.id, sessionId));
+
+    return session;
+  });
+
+  if (!result) {
     return { ok: false, message: "Solicitação não encontrada ou já respondida." };
   }
 
-  await db
-    .update(liveSessions)
-    .set({ adminUserId: userId, status: "active", startedAt: new Date() })
-    .where(eq(liveSessions.id, sessionId));
-
-  log.warn("live_support.aceitar", { sessionId, organizationId: session.organizationId });
+  log.warn("live_support.aceitar", { sessionId, organizationId: result.organizationId });
   await recordAudit({
     actorUserId: userId,
-    organizationId: session.organizationId,
+    organizationId: result.organizationId,
     action: "live_support.aceitar",
   });
   await broadcast(liveSessionChannelName(sessionId), "status", { status: "active" });
 
-  revalidatePath(`/admin/organizacoes/${session.organizationId}`);
+  revalidatePath(`/admin/organizacoes/${result.organizationId}`);
   revalidatePath("/admin");
   return { ok: true };
 }
@@ -172,21 +200,27 @@ export async function setControlGranted(
   sessionId: string,
   granted: boolean,
 ): Promise<ActionResult> {
-  const { userId, organizationId, log } = await withOrg();
+  const { userId, organizationId, withDb, log } = await withOrg();
 
-  const [session] = await db
-    .select()
-    .from(liveSessions)
-    .where(eq(liveSessions.id, sessionId))
-    .limit(1);
-  if (!session || session.organizationId !== organizationId || session.status !== "active") {
+  const notFound = await withDb(async (tx) => {
+    const [session] = await tx
+      .select()
+      .from(liveSessions)
+      .where(eq(liveSessions.id, sessionId))
+      .limit(1);
+    if (!session || session.organizationId !== organizationId || session.status !== "active") {
+      return true;
+    }
+
+    await tx
+      .update(liveSessions)
+      .set({ controlGranted: granted })
+      .where(eq(liveSessions.id, sessionId));
+    return false;
+  });
+  if (notFound) {
     return { ok: false, message: "Sessão não encontrada ou não está ativa." };
   }
-
-  await db
-    .update(liveSessions)
-    .set({ controlGranted: granted })
-    .where(eq(liveSessions.id, sessionId));
 
   log.info(granted ? "live_support.conceder_controle" : "live_support.revogar_controle", {
     sessionId,
@@ -215,27 +249,31 @@ export async function saveFullSnapshot(
   sessionId: string,
   snapshot: unknown,
 ): Promise<ActionResult> {
-  const { organizationId } = await withOrg();
+  const { withDb, organizationId } = await withOrg();
 
-  const [session] = await db
-    .select({ id: liveSessions.id })
-    .from(liveSessions)
-    .where(
-      and(
-        eq(liveSessions.id, sessionId),
-        eq(liveSessions.organizationId, organizationId),
-        inArray(liveSessions.status, OPEN_STATUSES),
-      ),
-    )
-    .limit(1);
-  if (!session) {
+  const notFound = await withDb(async (tx) => {
+    const [session] = await tx
+      .select({ id: liveSessions.id })
+      .from(liveSessions)
+      .where(
+        and(
+          eq(liveSessions.id, sessionId),
+          eq(liveSessions.organizationId, organizationId),
+          inArray(liveSessions.status, OPEN_STATUSES),
+        ),
+      )
+      .limit(1);
+    if (!session) return true;
+
+    await tx
+      .update(liveSessions)
+      .set({ lastFullSnapshot: snapshot })
+      .where(eq(liveSessions.id, sessionId));
+    return false;
+  });
+  if (notFound) {
     return { ok: false, message: "Sessão não encontrada ou não está ativa." };
   }
-
-  await db
-    .update(liveSessions)
-    .set({ lastFullSnapshot: snapshot })
-    .where(eq(liveSessions.id, sessionId));
 
   return { ok: true };
 }
@@ -246,13 +284,16 @@ interface SnapshotResult extends ActionResult {
 
 /** Busca o instantâneo completo mais recente — chamado pelo LiveSessionViewer do admin ao montar/reconectar. */
 export async function getFullSnapshot(sessionId: string): Promise<SnapshotResult> {
-  await requireAdmin();
+  const { withDb } = await requireAdmin();
 
-  const [session] = await db
-    .select({ lastFullSnapshot: liveSessions.lastFullSnapshot })
-    .from(liveSessions)
-    .where(eq(liveSessions.id, sessionId))
-    .limit(1);
+  const session = await withDb(async (tx) => {
+    const [session] = await tx
+      .select({ lastFullSnapshot: liveSessions.lastFullSnapshot })
+      .from(liveSessions)
+      .where(eq(liveSessions.id, sessionId))
+      .limit(1);
+    return session;
+  });
   if (!session) {
     return { ok: false, message: "Sessão não encontrada." };
   }
@@ -269,52 +310,70 @@ export async function endLiveSession(sessionId: string): Promise<ActionResult> {
   const user = await getSession();
   if (!user) return { ok: false, message: "Não autenticado." };
 
-  const [session] = await db
-    .select()
-    .from(liveSessions)
-    .where(eq(liveSessions.id, sessionId))
-    .limit(1);
-  if (!session) return { ok: false, message: "Sessão não encontrada." };
-  if (session.status === "ended") return { ok: true };
+  // Sem `withOrg()`/`requireAdmin()` de propósito — quem pode encerrar é
+  // um de quatro papéis diferentes (quem pediu, o admin da sessão,
+  // qualquer membro da oficina, ou qualquer platform admin como rede de
+  // segurança), então roda direto com o contexto do próprio usuário
+  // (`runWithUserContext`). Com RLS ativa, a policy de `live_sessions`
+  // (organização própria OU platform admin) já cobre exatamente os
+  // mesmos quatro casos — o `select` abaixo simplesmente não acha a
+  // linha se a pessoa não se enquadrar em nenhum deles.
+  const result = await runWithUserContext(user.id, async (tx) => {
+    const [session] = await tx
+      .select()
+      .from(liveSessions)
+      .where(eq(liveSessions.id, sessionId))
+      .limit(1);
+    if (!session) return { kind: "not_found" as const };
+    if (session.status === "ended") return { kind: "already_ended" as const };
 
-  const [membership] = await db
-    .select({ id: memberships.id })
-    .from(memberships)
-    .where(
-      and(eq(memberships.userId, user.id), eq(memberships.organizationId, session.organizationId)),
-    )
-    .limit(1);
+    const [membership] = await tx
+      .select({ id: memberships.id })
+      .from(memberships)
+      .where(
+        and(
+          eq(memberships.userId, user.id),
+          eq(memberships.organizationId, session.organizationId),
+        ),
+      )
+      .limit(1);
 
-  const allowed =
-    user.id === session.requestedByUserId ||
-    user.id === session.adminUserId ||
-    Boolean(membership) ||
-    (await isPlatformAdmin(user.id));
+    const allowed =
+      user.id === session.requestedByUserId ||
+      user.id === session.adminUserId ||
+      Boolean(membership) ||
+      (await isPlatformAdmin(user.id));
 
-  if (!allowed) {
+    if (!allowed) {
+      return { kind: "forbidden" as const };
+    }
+
+    await tx
+      .update(liveSessions)
+      .set({ status: "ended", endedAt: new Date(), controlGranted: false })
+      .where(eq(liveSessions.id, sessionId));
+
+    return { kind: "ok" as const, organizationId: session.organizationId };
+  });
+
+  if (result.kind === "not_found") {
+    return { ok: false, message: "Sessão não encontrada." };
+  }
+  if (result.kind === "already_ended") {
+    return { ok: true };
+  }
+  if (result.kind === "forbidden") {
     return { ok: false, message: "Sem permissão para encerrar esta sessão." };
   }
 
-  await db
-    .update(liveSessions)
-    .set({ status: "ended", endedAt: new Date(), controlGranted: false })
-    .where(eq(liveSessions.id, sessionId));
-
   await recordAudit({
     actorUserId: user.id,
-    organizationId: session.organizationId,
+    organizationId: result.organizationId,
     action: "live_support.encerrar",
   });
   await broadcast(liveSessionChannelName(sessionId), "status", { status: "ended" });
 
-  const [org] = await db
-    .select({ id: organizations.id })
-    .from(organizations)
-    .where(eq(organizations.id, session.organizationId))
-    .limit(1);
-  if (org) {
-    revalidatePath(`/admin/organizacoes/${org.id}`);
-  }
+  revalidatePath(`/admin/organizacoes/${result.organizationId}`);
   revalidatePath("/admin");
 
   return { ok: true };

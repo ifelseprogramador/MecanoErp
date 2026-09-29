@@ -1,4 +1,5 @@
 import { getActiveOrg } from "@/core/auth";
+import { runWithUserContext } from "@/core/db";
 import { getAutomaticBackup } from "@/core/backup";
 
 /** Baixa um backup automático específico (gerado pelo cron diário) —
@@ -8,7 +9,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   const { id } = await params;
   const org = await getActiveOrg();
 
-  const backup = await getAutomaticBackup(org.organizationId, id);
+  const backup = await runWithUserContext(org.userId, (tx) =>
+    getAutomaticBackup(tx, org.organizationId, id),
+  );
   if (!backup) {
     return new Response("Backup não encontrado.", { status: 404 });
   }

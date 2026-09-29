@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { requireEnv } from "@/core/env";
 import { logger } from "@/core/logger";
+import { runWithSystemContext } from "@/core/db";
 import { buildOrgBackup, listOrgsWithAutoBackupEnabled, saveAutomaticBackup } from "@/core/backup";
 
 /**
@@ -22,14 +23,16 @@ export async function GET(request: NextRequest) {
     return new Response("Não autorizado.", { status: 401 });
   }
 
-  const orgs = await listOrgsWithAutoBackupEnabled();
+  const orgs = await runWithSystemContext((tx) => listOrgsWithAutoBackupEnabled(tx));
   let succeeded = 0;
   let failed = 0;
 
   for (const org of orgs) {
     try {
-      const backup = await buildOrgBackup(org.id, org.name);
-      await saveAutomaticBackup(org.id, backup);
+      await runWithSystemContext(async (tx) => {
+        const backup = await buildOrgBackup(tx, org.id, org.name);
+        await saveAutomaticBackup(tx, org.id, backup);
+      });
       succeeded++;
     } catch (err) {
       failed++;

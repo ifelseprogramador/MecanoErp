@@ -1,7 +1,7 @@
 import "server-only";
 import { headers } from "next/headers";
 import { getSession } from "@/core/auth";
-import { db } from "@/core/db";
+import { runWithUserContext, type Database } from "@/core/db";
 import { isPlatformAdmin } from "@/core/platform-admin";
 import { logger, type Logger } from "@/core/logger";
 
@@ -21,18 +21,22 @@ async function getRequestId(): Promise<string | undefined> {
 }
 
 export interface AdminContext {
-  db: typeof db;
   userId: string;
   log: Logger;
+  /**
+   * Roda `fn` dentro de uma transação com `app.current_user_id` = este
+   * admin. Desde a migração pra RLS ativa (ver docs/decisoes.md), a
+   * visibilidade total de `/admin` vem da policy
+   * `is_current_user_platform_admin()` (ver
+   * migrations-custom/0010_rls_ativa.sql), não mais de a conexão ignorar
+   * RLS (`bypassrls`). A proteção real continua sendo esta checagem
+   * (`requireAdmin()`) acontecer antes de qualquer query — nunca pule
+   * esta chamada numa rota/action nova de `/admin`.
+   */
+  withDb: <T>(fn: (tx: Database) => Promise<T>) => Promise<T>;
 }
 
-/**
- * Ponto de entrada de toda query/action da área `/admin`. Diferente de
- * `withOrg()`, NÃO filtra por organização — a conexão do app já enxerga
- * tudo (ver docs/decisoes.md, "bypassrls"), então a única proteção real
- * de um dado de admin é esta checagem acontecer antes de qualquer query.
- * Nunca pule esta chamada numa rota/action nova de `/admin`.
- */
+/** Ponto de entrada de toda query/action da área `/admin`. */
 export async function requireAdmin(): Promise<AdminContext> {
   const requestId = await getRequestId();
   const user = await getSession();
@@ -48,8 +52,8 @@ export async function requireAdmin(): Promise<AdminContext> {
   }
 
   return {
-    db,
     userId: user.id,
     log: logger.withContext({ requestId, userId: user.id, module: "admin" }),
+    withDb: (fn) => runWithUserContext(user.id, fn),
   };
 }

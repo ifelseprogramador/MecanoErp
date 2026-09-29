@@ -23,7 +23,7 @@ export async function listCustomers(options?: {
   type?: "pf" | "pj";
   sort?: CustomerSort;
 }) {
-  const { db, organizationId } = await withOrg();
+  const { withDb, organizationId } = await withOrg();
 
   const term = options?.search?.trim();
   const conditions = [eq(customers.organizationId, organizationId)];
@@ -36,36 +36,42 @@ export async function listCustomers(options?: {
     conditions.push(eq(customers.type, options.type));
   }
 
-  return db
-    .select()
-    .from(customers)
-    .where(and(...conditions))
-    .orderBy(CUSTOMER_ORDER_BY[options?.sort ?? "created_desc"]);
+  return withDb((tx) =>
+    tx
+      .select()
+      .from(customers)
+      .where(and(...conditions))
+      .orderBy(CUSTOMER_ORDER_BY[options?.sort ?? "created_desc"]),
+  );
 }
 
 /** Lista enxuta para popular seletores (ex.: escolher o cliente de um veículo). */
 export async function listCustomersForSelect() {
-  const { db, organizationId } = await withOrg();
+  const { withDb, organizationId } = await withOrg();
 
-  return db
-    .select({ id: customers.id, name: customers.name })
-    .from(customers)
-    .where(eq(customers.organizationId, organizationId))
-    .orderBy(customers.name);
+  return withDb((tx) =>
+    tx
+      .select({ id: customers.id, name: customers.name })
+      .from(customers)
+      .where(eq(customers.organizationId, organizationId))
+      .orderBy(customers.name),
+  );
 }
 
 /** Total de clientes + quantos entraram nos últimos 30 dias — pro
  * card "Clientes" do painel (`(app)/page.tsx`). */
 export async function getCustomerDashboardSummary() {
-  const { db, organizationId } = await withOrg();
+  const { withDb, organizationId } = await withOrg();
 
-  const [row] = await db
-    .select({
-      total: sql<number>`count(*)::int`,
-      newLast30Days: sql<number>`count(*) filter (where ${customers.createdAt} >= now() - interval '30 days')::int`,
-    })
-    .from(customers)
-    .where(eq(customers.organizationId, organizationId));
+  const [row] = await withDb((tx) =>
+    tx
+      .select({
+        total: sql<number>`count(*)::int`,
+        newLast30Days: sql<number>`count(*) filter (where ${customers.createdAt} >= now() - interval '30 days')::int`,
+      })
+      .from(customers)
+      .where(eq(customers.organizationId, organizationId)),
+  );
 
   return row;
 }
@@ -79,25 +85,34 @@ export async function findCustomerByDocumentOrName(
   document: string | undefined,
   name: string | undefined,
 ) {
-  const { db, organizationId } = await withOrg();
+  const { withDb, organizationId } = await withOrg();
 
   if (document?.trim()) {
-    const [byDocument] = await db
-      .select({ id: customers.id, name: customers.name })
-      .from(customers)
-      .where(
-        and(eq(customers.organizationId, organizationId), eq(customers.document, document.trim())),
-      )
-      .limit(1);
+    const [byDocument] = await withDb((tx) =>
+      tx
+        .select({ id: customers.id, name: customers.name })
+        .from(customers)
+        .where(
+          and(
+            eq(customers.organizationId, organizationId),
+            eq(customers.document, document.trim()),
+          ),
+        )
+        .limit(1),
+    );
     if (byDocument) return byDocument;
   }
 
   if (name?.trim()) {
-    const [byName] = await db
-      .select({ id: customers.id, name: customers.name })
-      .from(customers)
-      .where(and(eq(customers.organizationId, organizationId), ilike(customers.name, name.trim())))
-      .limit(1);
+    const [byName] = await withDb((tx) =>
+      tx
+        .select({ id: customers.id, name: customers.name })
+        .from(customers)
+        .where(
+          and(eq(customers.organizationId, organizationId), ilike(customers.name, name.trim())),
+        )
+        .limit(1),
+    );
     if (byName) return byName;
   }
 
@@ -105,13 +120,15 @@ export async function findCustomerByDocumentOrName(
 }
 
 export async function getCustomerById(id: string) {
-  const { db, organizationId } = await withOrg();
+  const { withDb, organizationId } = await withOrg();
 
-  const [customer] = await db
-    .select()
-    .from(customers)
-    .where(and(eq(customers.id, id), eq(customers.organizationId, organizationId)))
-    .limit(1);
+  const [customer] = await withDb((tx) =>
+    tx
+      .select()
+      .from(customers)
+      .where(and(eq(customers.id, id), eq(customers.organizationId, organizationId)))
+      .limit(1),
+  );
 
   return customer ?? null;
 }

@@ -29,7 +29,7 @@ export async function GET() {
   }
   context.log.info("admin.backup.exportar");
 
-  const backup = await buildSystemBackup();
+  const backup = await context.withDb((tx) => buildSystemBackup(tx));
   const filename = `mecanoerp-backup-sistema-${new Date().toISOString().slice(0, 10)}.json`;
 
   return new Response(JSON.stringify(backup, null, 2), {

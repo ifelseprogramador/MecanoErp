@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { and, eq, sql } from "drizzle-orm";
 import { withOrg } from "@/core/auth";
+import type { Database } from "@/core/db";
 import type { ActionResult } from "@/core/action-result";
 import { calculateOrderTotal, isValidTransition, type WorkOrderStatus } from "./domain";
 import { workOrderCounters, workOrderItems, workOrders } from "./schema";
@@ -20,12 +21,8 @@ interface InsertResult extends ActionResult {
 /** Recalcula e grava o total da OS a partir dos itens atuais + desconto —
  * chamado depois de toda mutação de item ou de desconto, nunca calculado
  * só no cliente (o total gravado é sempre a fonte da verdade). */
-async function recalculateOrderTotal(
-  db: Awaited<ReturnType<typeof withOrg>>["db"],
-  workOrderId: string,
-  discountCents: number,
-) {
-  const items = await db
+async function recalculateOrderTotal(tx: Database, workOrderId: string, discountCents: number) {
+  const items = await tx
     .select({ quantity: workOrderItems.quantity, unitPriceCents: workOrderItems.unitPriceCents })
     .from(workOrderItems)
     .where(eq(workOrderItems.workOrderId, workOrderId));
@@ -35,7 +32,7 @@ async function recalculateOrderTotal(
     discountCents,
   );
 
-  await db
+  await tx
     .update(workOrders)
     .set({ totalCents, updatedAt: new Date() })
     .where(eq(workOrders.id, workOrderId));
@@ -61,25 +58,29 @@ export async function createWorkOrderRecord(
   data: WorkOrderHeaderInput,
   id?: string,
 ): Promise<InsertResult> {
-  const { db, organizationId, log } = await withOrg();
+  const { withDb, organizationId, log } = await withOrg();
   log.info("ordens.criar", { offline: Boolean(id) });
 
   // Upsert atômico: uma única instrução, sem corrida entre duas OSs
   // criadas ao mesmo tempo na mesma oficina (ver comentário em
   // schema.ts#workOrderCounters).
-  const [{ lastNumber }] = await db
-    .insert(workOrderCounters)
-    .values({ organizationId, lastNumber: 1 })
-    .onConflictDoUpdate({
-      target: workOrderCounters.organizationId,
-      set: { lastNumber: sql`${workOrderCounters.lastNumber} + 1` },
-    })
-    .returning({ lastNumber: workOrderCounters.lastNumber });
+  const { order, lastNumber } = await withDb(async (tx) => {
+    const [{ lastNumber }] = await tx
+      .insert(workOrderCounters)
+      .values({ organizationId, lastNumber: 1 })
+      .onConflictDoUpdate({
+        target: workOrderCounters.organizationId,
+        set: { lastNumber: sql`${workOrderCounters.lastNumber} + 1` },
+      })
+      .returning({ lastNumber: workOrderCounters.lastNumber });
 
-  const [order] = await db
-    .insert(workOrders)
-    .values({ ...data, organizationId, number: lastNumber, ...(id && { id }) })
-    .returning({ id: workOrders.id });
+    const [order] = await tx
+      .insert(workOrders)
+      .values({ ...data, organizationId, number: lastNumber, ...(id && { id }) })
+      .returning({ id: workOrders.id });
+
+    return { order, lastNumber };
+  });
   log.info("ordens.criar.sucesso", { orderId: order.id, number: lastNumber });
 
   revalidatePath("/ordens");
@@ -113,7 +114,7 @@ export async function updateWorkOrderHeader(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const { db, organizationId, log } = await withOrg();
+  const { withDb, organizationId, log } = await withOrg();
   log.info("ordens.atualizar", { orderId });
 
   const parsed = parseWorkOrderHeaderFormData(formData);
@@ -125,18 +126,24 @@ export async function updateWorkOrderHeader(
     return { ok: false, errors: parsed.error.flatten().fieldErrors };
   }
 
-  const result = await db
-    .update(workOrders)
-    .set({ ...parsed.data, updatedAt: new Date() })
-    .where(and(eq(workOrders.id, orderId), eq(workOrders.organizationId, organizationId)))
-    .returning({ id: workOrders.id });
+  const notFound = await withDb(async (tx) => {
+    const result = await tx
+      .update(workOrders)
+      .set({ ...parsed.data, updatedAt: new Date() })
+      .where(and(eq(workOrders.id, orderId), eq(workOrders.organizationId, organizationId)))
+      .returning({ id: workOrders.id });
 
-  if (result.length === 0) {
+    if (result.length === 0) return true;
+
+    await recalculateOrderTotal(tx, orderId, parsed.data.discountCents);
+    return false;
+  });
+
+  if (notFound) {
     log.warn("ordens.atualizar.nao_encontrada", { orderId });
     return { ok: false, message: "Ordem de serviço não encontrada." };
   }
 
-  await recalculateOrderTotal(db, orderId, parsed.data.discountCents);
   log.info("ordens.atualizar.sucesso", { orderId });
   revalidatePath(`/ordens/${orderId}`);
   return { ok: true };
@@ -147,7 +154,7 @@ export async function addWorkOrderItem(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const { db, organizationId, log } = await withOrg();
+  const { withDb, organizationId, log } = await withOrg();
   log.info("ordens.item.adicionar", { orderId });
 
   const parsed = parseWorkOrderItemFormData(formData);
@@ -159,49 +166,61 @@ export async function addWorkOrderItem(
     return { ok: false, errors: parsed.error.flatten().fieldErrors };
   }
 
-  const [order] = await db
-    .select({ id: workOrders.id, discountCents: workOrders.discountCents })
-    .from(workOrders)
-    .where(and(eq(workOrders.id, orderId), eq(workOrders.organizationId, organizationId)))
-    .limit(1);
-  if (!order) {
+  const orderFound = await withDb(async (tx) => {
+    const [order] = await tx
+      .select({ id: workOrders.id, discountCents: workOrders.discountCents })
+      .from(workOrders)
+      .where(and(eq(workOrders.id, orderId), eq(workOrders.organizationId, organizationId)))
+      .limit(1);
+    if (!order) return false;
+
+    await tx.insert(workOrderItems).values({
+      workOrderId: orderId,
+      type: parsed.data.type,
+      description: parsed.data.description,
+      quantity: String(parsed.data.quantity),
+      unitPriceCents: parsed.data.unitPriceCents,
+    });
+
+    await recalculateOrderTotal(tx, orderId, order.discountCents);
+    return true;
+  });
+
+  if (!orderFound) {
     log.warn("ordens.item.adicionar.ordem_nao_encontrada", { orderId });
     return { ok: false, message: "Ordem de serviço não encontrada." };
   }
 
-  await db.insert(workOrderItems).values({
-    workOrderId: orderId,
-    type: parsed.data.type,
-    description: parsed.data.description,
-    quantity: String(parsed.data.quantity),
-    unitPriceCents: parsed.data.unitPriceCents,
-  });
-
-  await recalculateOrderTotal(db, orderId, order.discountCents);
   log.info("ordens.item.adicionar.sucesso", { orderId });
   revalidatePath(`/ordens/${orderId}`);
   return { ok: true };
 }
 
 export async function removeWorkOrderItem(itemId: string, orderId: string): Promise<ActionResult> {
-  const { db, organizationId, log } = await withOrg();
+  const { withDb, organizationId, log } = await withOrg();
   log.info("ordens.item.remover", { itemId, orderId });
 
-  const [order] = await db
-    .select({ id: workOrders.id, discountCents: workOrders.discountCents })
-    .from(workOrders)
-    .where(and(eq(workOrders.id, orderId), eq(workOrders.organizationId, organizationId)))
-    .limit(1);
-  if (!order) {
+  const orderFound = await withDb(async (tx) => {
+    const [order] = await tx
+      .select({ id: workOrders.id, discountCents: workOrders.discountCents })
+      .from(workOrders)
+      .where(and(eq(workOrders.id, orderId), eq(workOrders.organizationId, organizationId)))
+      .limit(1);
+    if (!order) return false;
+
+    await tx
+      .delete(workOrderItems)
+      .where(and(eq(workOrderItems.id, itemId), eq(workOrderItems.workOrderId, orderId)));
+
+    await recalculateOrderTotal(tx, orderId, order.discountCents);
+    return true;
+  });
+
+  if (!orderFound) {
     log.warn("ordens.item.remover.ordem_nao_encontrada", { orderId });
     return { ok: false, message: "Ordem de serviço não encontrada." };
   }
 
-  await db
-    .delete(workOrderItems)
-    .where(and(eq(workOrderItems.id, itemId), eq(workOrderItems.workOrderId, orderId)));
-
-  await recalculateOrderTotal(db, orderId, order.discountCents);
   log.info("ordens.item.remover.sucesso", { itemId, orderId });
   revalidatePath(`/ordens/${orderId}`);
   return { ok: true };
@@ -232,37 +251,51 @@ export async function transitionWorkOrderStatus(
   orderId: string,
   nextStatus: WorkOrderStatus,
 ): Promise<ActionResult> {
-  const { db, organizationId, log } = await withOrg();
+  const { withDb, organizationId, log } = await withOrg();
   const actionName = STATUS_ACTION_LABEL[nextStatus] ?? "ordens.transicao";
   log.info(actionName, { orderId, nextStatus });
 
-  const [order] = await db
-    .select({ id: workOrders.id, status: workOrders.status })
-    .from(workOrders)
-    .where(and(eq(workOrders.id, orderId), eq(workOrders.organizationId, organizationId)))
-    .limit(1);
-  if (!order) {
+  const outcome = await withDb(async (tx) => {
+    const [order] = await tx
+      .select({ id: workOrders.id, status: workOrders.status })
+      .from(workOrders)
+      .where(and(eq(workOrders.id, orderId), eq(workOrders.organizationId, organizationId)))
+      .limit(1);
+    if (!order) return { kind: "not_found" as const };
+
+    if (!isValidTransition(order.status, nextStatus)) {
+      return { kind: "invalid_transition" as const, from: order.status };
+    }
+
+    const timestampField = STATUS_TIMESTAMP_FIELD[nextStatus];
+    await tx
+      .update(workOrders)
+      .set({
+        status: nextStatus,
+        updatedAt: new Date(),
+        ...(timestampField && { [timestampField]: new Date() }),
+      })
+      .where(eq(workOrders.id, orderId));
+
+    return { kind: "ok" as const };
+  });
+
+  if (outcome.kind === "not_found") {
     log.warn(`${actionName}.nao_encontrada`, { orderId });
     return { ok: false, message: "Ordem de serviço não encontrada." };
   }
 
-  if (!isValidTransition(order.status, nextStatus)) {
-    log.warn(`${actionName}.transicao_invalida`, { orderId, de: order.status, para: nextStatus });
+  if (outcome.kind === "invalid_transition") {
+    log.warn(`${actionName}.transicao_invalida`, {
+      orderId,
+      de: outcome.from,
+      para: nextStatus,
+    });
     return {
       ok: false,
-      message: `Não é possível mudar de "${order.status}" para "${nextStatus}".`,
+      message: `Não é possível mudar de "${outcome.from}" para "${nextStatus}".`,
     };
   }
-
-  const timestampField = STATUS_TIMESTAMP_FIELD[nextStatus];
-  await db
-    .update(workOrders)
-    .set({
-      status: nextStatus,
-      updatedAt: new Date(),
-      ...(timestampField && { [timestampField]: new Date() }),
-    })
-    .where(eq(workOrders.id, orderId));
 
   log.info(`${actionName}.sucesso`, { orderId });
   revalidatePath(`/ordens/${orderId}`);

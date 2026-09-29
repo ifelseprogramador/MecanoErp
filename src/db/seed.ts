@@ -27,7 +27,14 @@ async function main() {
   const adminEmail = process.env.SEED_ADMIN_EMAIL || ownerEmail;
   const adminPassword = process.env.SEED_ADMIN_PASSWORD || ownerPassword;
 
-  const sql = postgres(requireEnv("DATABASE_URL"), { max: 1, prepare: false });
+  // Com RLS ativa (ver docs/decisoes.md), `DATABASE_URL` aponta pro papel
+  // restrito da aplicação (`mecano_erp_app`, sem `bypassrls`) — inserir a
+  // primeira organização/membership aqui exigiria contexto de sessão que
+  // este script não tem. Usa `DATABASE_MIGRATION_URL` (papel privilegiado,
+  // dono das tabelas) quando disponível, senão cai pra `DATABASE_URL`
+  // (ambiente antigo/local sem a separação de papéis ainda configurada).
+  const connectionString = process.env.DATABASE_MIGRATION_URL ?? requireEnv("DATABASE_URL");
+  const sql = postgres(connectionString, { max: 1, prepare: false });
   const db = drizzle(sql, { schema });
 
   const supabaseAdmin = createClient(

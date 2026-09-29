@@ -1469,3 +1469,104 @@ outras peças da ronda sim):
   inferiu a união dos dois shapes e pegou o erro
   (`string | null | undefined` não é `string | null`) antes de ir pra
   produção.
+
+## 2026-09-28 (cont.) — Migração pra RLS ativa (padrão BaseERP/Prisma): EM ANDAMENTO
+
+Pedido do usuário: mudar a arquitetura de tenancy/RLS do mecano-erp pra
+ficar igual à do BaseERP/Prisma (RLS ATIVA, não só defesa em
+profundidade — ver entrada "RLS ativa desde o início" no BaseERP), pra
+poder entrar na automação de sincronização de fundação que já existe
+entre BaseERP↔Prisma. Plano completo salvo em
+`~/.claude/plans/zippy-chasing-valley.md`.
+
+**Achado central**: o mecano-erp já tinha TODAS as migrations de RLS
+escritas (`migrations-custom/0001` a `0009`) — só usavam `auth.uid()`,
+que nunca resolve numa conexão Postgres direta (postgres-js, sem
+PostgREST). Não foi preciso reescrever nenhuma query de negócio, só
+trocar a fonte da RLS pra `app.current_user_id` (mesmo padrão do
+BaseERP) e trocar o papel de conexão.
+
+**Feito até aqui** (Frentes 1–3 do plano, completas):
+
+1. `src/db/migrations-custom/0010_rls_ativa.sql` (nova) — reescreve
+   `current_org_ids()`/`apply_org_rls()` pra usar
+   `current_app_user_id()` (nunca `auth.uid()`), adiciona
+   `is_current_user_platform_admin()` (não existia), recria as policies
+   de toda tabela já coberta por `apply_org_rls()` com admin-OR, adiciona
+   policies novas onde não existia NENHUMA (`platform_admins`,
+   `organization_module_settings`, `audit_log`,
+   `organizations`/`memberships` escrita), corrige
+   `notification_reads_update` (também usava `auth.uid()` direto) e
+   adiciona duas peças que só foram percebidas ao revisar os bugs já
+   corrigidos no BaseERP/Prisma NESTA sessão (replicadas aqui ANTES de
+   acontecerem em produção, não depois):
+   - `organizations_owner_update_branding` + trigger
+     `restrict_organization_branding_update` — sem isso,
+     `core/profile/actions.ts#updateOrganizationBranding` bateria em 0
+     linhas silenciosamente (mesmo bug real já corrigido no
+     BaseERP/Prisma).
+   - `get_user_display_info(uuid[])` SECURITY DEFINER — `auth.users` tem
+     RLS própria do Supabase que bloquearia `core/user-lookup.ts` sem
+     essa função (mesmo bug real já corrigido no BaseERP/Prisma).
+2. `core/db.ts` — `runWithUserContext`/`runWithSystemContext` (copiado
+   do padrão BaseERP).
+3. `core/auth.ts`/`core/admin-auth.ts` — `withOrg()`/`requireAdmin()`
+   passam a devolver `withDb` em vez de `db` cru; `getActiveOrg()` roda
+   dentro de `runWithUserContext`.
+4. `core/platform-admin.ts` — `isPlatformAdmin()` agora chama a função
+   SQL `is_current_user_platform_admin()` via `runWithUserContext`, em
+   vez de `select ... from platform_admins` direto (que RLS bloquearia).
+5. Refatoração mecânica de ~30 call sites (`const { db } = await
+withOrg()` → `const { withDb } = ...` + `withDb((tx) => ...)`):
+   `modules/{clientes,veiculos,catalogo,ordens}/{actions,queries}.ts`,
+   rotas `app/(app)/*/exportar/route.ts`, `core/admin/{actions,queries}.ts`,
+   `core/live-support/{actions,queries}.ts`,
+   `core/notifications/{actions,admin-actions,queries}.ts`,
+   `core/profile/actions.ts`.
+6. Peças extras descobertas só ao seguir a cadeia de chamadas (não
+   estavam na lista original do plano, mas quebrariam sob RLS ativa sem
+   isso):
+   - `core/admin/audit.ts#recordAudit` passou a abrir a PRÓPRIA
+     transação (`runWithUserContext(input.actorUserId, ...)`) em vez de
+     usar `db` cru — evita precisar tocar as ~14 chamadas espalhadas
+     (nunca precisou de atomicidade com a ação principal, sempre foi
+     best-effort). `getAuditLogForOrg` passou a receber `db` explícito
+     (mesmo contrato do BaseERP).
+   - `core/module-settings.ts#getEnabledModulesForOrg` ganhou parâmetro
+     `userId` (chamado direto do layout, antes de qualquer withOrg).
+   - `core/backup.ts` inteiro (9 funções) passou a receber `db: Database`
+     explícito, mesmo contrato do BaseERP — e todos os call sites
+     (`backup-actions.ts`, `api/cron/backup/route.ts` via
+     `runWithSystemContext`, `admin/backup/route.ts`, `backup/page.tsx`,
+     `backup/exportar/route.ts`, `backup/automatico/[id]/route.ts`).
+   - `db/seed.ts` — passou a usar `DATABASE_MIGRATION_URL` (com fallback
+     pra `DATABASE_URL`) pra continuar funcionando depois que
+     `DATABASE_URL` apontar pro papel restrito.
+
+**`npm run check` validado (2026-09-29)**: format/lint/typecheck/test
+100% verdes — 65/65 testes passando. Frentes 1–3 completas e
+commitadas. Ainda não testado contra banco real (isso é a Frente 4).
+
+**NÃO FEITO — Frente 4 do plano, a parte que mexe em produção de verdade**:
+
+1. `src/db/migrations-custom/0011_app_role.sql` (criar o papel
+   `mecano_erp_app`, sem `bypassrls`) — arquivo ainda não escrito.
+2. Rodar `0010`+`0011` contra o Supabase real do mecano-erp.
+3. Teste de integração de isolamento (mesmo padrão de
+   `rls-isolation.integration.test.ts` do BaseERP/Prisma) rodando com o
+   papel novo, ANTES de qualquer coisa em produção depender dele.
+4. Trocar `DATABASE_URL` de produção (Vercel) pro papel novo +
+   introduzir `DATABASE_MIGRATION_URL` — **só com confirmação explícita
+   no momento**, é o único passo sem volta fácil.
+5. Smoke test manual em produção (oficina comum + admin + modo suporte).
+6. Só depois de tudo isso validado: adicionar mecano-erp em
+   `base-erp/scripts/verticals.txt` e rodar `install-sync-hook.sh`.
+
+**Se esta sessão for interrompida antes da Frente 4**: o código já
+commitado (se chegou a commitar) ou modificado localmente muda a
+INTERFACE (`withOrg()`/`requireAdmin()` devolvem `withDb`, não `db`) mas
+a conexão `DATABASE_URL` de produção CONTINUA sendo o papel `postgres`
+com `bypassrls` até a Frente 4 rodar — ou seja, **nada quebra em
+produção só por causa das Frentes 1–3**, RLS continua sendo defesa em
+profundidade até a troca explícita de papel/env var acontecer. Seguro
+deixar parado nesse ponto entre sessões.

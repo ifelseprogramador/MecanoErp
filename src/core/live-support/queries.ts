@@ -8,64 +8,68 @@ const OPEN_STATUSES = ["pending", "active"] as const;
 
 /** A sessão em aberto (pedida ou já ativa) da organização do usuário logado, se houver. */
 export async function getOpenSessionForMyOrg() {
-  const { db, organizationId } = await withOrg();
+  const { withDb, organizationId } = await withOrg();
 
-  const [session] = await db
-    .select()
-    .from(liveSessions)
-    .where(
-      and(
-        eq(liveSessions.organizationId, organizationId),
-        inArray(liveSessions.status, OPEN_STATUSES),
-      ),
-    )
-    .orderBy(desc(liveSessions.createdAt))
-    .limit(1);
+  const [session] = await withDb((tx) =>
+    tx
+      .select()
+      .from(liveSessions)
+      .where(
+        and(
+          eq(liveSessions.organizationId, organizationId),
+          inArray(liveSessions.status, OPEN_STATUSES),
+        ),
+      )
+      .orderBy(desc(liveSessions.createdAt))
+      .limit(1),
+  );
 
   return session ?? null;
 }
 
 /** Pedidos de suporte que uma oficina abriu e ainda esperam um admin aceitar — inbox do dashboard. */
 export async function listPendingUserRequestsForAdmin() {
-  const { db } = await requireAdmin();
+  const { withDb } = await requireAdmin();
 
-  return db
-    .select({
-      sessionId: liveSessions.id,
-      organizationId: liveSessions.organizationId,
-      organizationName: organizations.name,
-    })
-    .from(liveSessions)
-    .innerJoin(organizations, eq(organizations.id, liveSessions.organizationId))
-    .where(and(eq(liveSessions.status, "pending"), eq(liveSessions.initiatedBy, "user")))
-    .orderBy(desc(liveSessions.createdAt));
+  return withDb((tx) =>
+    tx
+      .select({
+        sessionId: liveSessions.id,
+        organizationId: liveSessions.organizationId,
+        organizationName: organizations.name,
+      })
+      .from(liveSessions)
+      .innerJoin(organizations, eq(organizations.id, liveSessions.organizationId))
+      .where(and(eq(liveSessions.status, "pending"), eq(liveSessions.initiatedBy, "user")))
+      .orderBy(desc(liveSessions.createdAt)),
+  );
 }
 
 export async function getSessionByIdForAdmin(sessionId: string) {
-  const { db } = await requireAdmin();
-  const [session] = await db
-    .select()
-    .from(liveSessions)
-    .where(eq(liveSessions.id, sessionId))
-    .limit(1);
+  const { withDb } = await requireAdmin();
+  const [session] = await withDb((tx) =>
+    tx.select().from(liveSessions).where(eq(liveSessions.id, sessionId)).limit(1),
+  );
   return session ?? null;
 }
 
 /** Sessão em aberto (se houver) de uma oficina específica — para a ficha em /admin. */
 export async function getOpenSessionForOrgAdmin(organizationId: string) {
-  const { db } = await requireAdmin();
+  const { withDb } = await requireAdmin();
 
-  const [session] = await db
-    .select()
-    .from(liveSessions)
-    .where(
-      and(
-        eq(liveSessions.organizationId, organizationId),
-        inArray(liveSessions.status, OPEN_STATUSES),
-      ),
-    )
-    .orderBy(desc(liveSessions.createdAt))
-    .limit(1);
+  const [session] = await withDb((tx) =>
+    tx
+      .select()
+      .from(liveSessions)
+      .where(
+        and(
+          eq(liveSessions.organizationId, organizationId),
+          inArray(liveSessions.status, OPEN_STATUSES),
+        ),
+      )
+      .orderBy(desc(liveSessions.createdAt))
+      .limit(1),
+  );
 
   return session ?? null;
 }
