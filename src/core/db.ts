@@ -18,15 +18,13 @@ if (!connectionString) {
 const client = postgres(connectionString, { prepare: false });
 
 /**
- * Conexão única da aplicação. Desde a migração pra RLS ativa (ver
- * docs/decisoes.md), o papel Postgres por trás de `DATABASE_URL` NÃO tem
- * `bypassrls` — `db.select()...` chamado direto, fora de
+ * Conexão única da aplicação. O papel Postgres por trás de
+ * `DATABASE_URL` NÃO tem `bypassrls` (ver docs/decisoes.md, "RLS ativa
+ * desde o início") — `db.select()...` chamado direto, fora de
  * `runWithUserContext`/`withOrg`/`requireAdmin`, sempre volta vazio para
  * qualquer tabela com `apply_org_rls()` aplicado — falha fechado por
  * padrão, nunca vaza dado de outra organização por esquecimento de um
- * filtro manual (que continua existindo, como defesa em profundidade
- * adicional — nunca remover o `eq(tabela.organizationId, ...)` das
- * queries por causa da RLS).
+ * filtro manual.
  */
 export const db = drizzle(client, { schema });
 
@@ -38,8 +36,8 @@ export type Database = typeof db;
  * sozinho ao fim da transação, não vaza para a próxima query que reusar a
  * mesma conexão física do pool). As funções SQL `current_org_ids()` e
  * `is_current_user_platform_admin()` (ver
- * src/db/migrations-custom/0010_rls_ativa.sql) leem essa variável para
- * decidir o que a RLS libera.
+ * src/db/migrations-custom/0001_rls_policies.sql e 0002_platform_admin_rls.sql)
+ * leem essa variável para decidir o que a RLS libera.
  *
  * Este é o ÚNICO jeito sancionado de consultar tabelas com RLS habilitada
  * — nunca chame `db.select()` direto para dado de organização. Ver
@@ -58,10 +56,12 @@ export async function runWithUserContext<T>(
 
 /**
  * Mesma ideia de `runWithUserContext`, mas para código de sistema sem
- * sessão de usuário nenhuma (nenhum caso hoje no mecano-erp, mantido pelo
- * mesmo motivo do BaseERP: um cron futuro sem sessão de usuário precisaria
- * do mesmo acesso "enxerga tudo" que um admin tem). NUNCA chame isto a
- * partir de código alcançável por uma requisição de usuário comum.
+ * sessão de usuário nenhuma — hoje só o cron de backup
+ * (`api/cron/backup/route.ts`), que já validou `CRON_SECRET` na camada
+ * HTTP antes de chegar aqui. NUNCA chame isto a partir de código
+ * alcançável por uma requisição de usuário comum — é equivalente a rodar
+ * como platform admin (ver `is_current_user_platform_admin()` em
+ * migrations-custom/0002_platform_admin_rls.sql).
  */
 export async function runWithSystemContext<T>(fn: (tx: Database) => Promise<T>): Promise<T> {
   return db.transaction(async (tx) => {

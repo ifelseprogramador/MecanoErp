@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { APP_VERSION, CHANGELOG, type ChangeType } from "@/core/changelog";
 
-const LAST_SEEN_KEY = "mecanoerp:last-seen-version";
+const LAST_SEEN_KEY = "baseerp:last-seen-version";
 
 const TYPE_META: Record<ChangeType, { label: string; className: string }> = {
   novo: {

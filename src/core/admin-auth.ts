@@ -25,11 +25,11 @@ export interface AdminContext {
   log: Logger;
   /**
    * Roda `fn` dentro de uma transação com `app.current_user_id` = este
-   * admin. Desde a migração pra RLS ativa (ver docs/decisoes.md), a
-   * visibilidade total de `/admin` vem da policy
+   * admin — a RLS é ativa mesmo para o admin (nunca ignorada por
+   * `bypassrls`), a visibilidade total de `/admin` vem da policy
    * `is_current_user_platform_admin()` (ver
-   * migrations-custom/0010_rls_ativa.sql), não mais de a conexão ignorar
-   * RLS (`bypassrls`). A proteção real continua sendo esta checagem
+   * migrations-custom/0002_platform_admin_rls.sql), não de a conexão
+   * ignorar RLS. A proteção real continua sendo esta checagem
    * (`requireAdmin()`) acontecer antes de qualquer query — nunca pule
    * esta chamada numa rota/action nova de `/admin`.
    */
