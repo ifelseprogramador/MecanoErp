@@ -1547,26 +1547,48 @@ withOrg()` → `const { withDb } = ...` + `withDb((tx) => ...)`):
 100% verdes — 65/65 testes passando. Frentes 1–3 completas e
 commitadas. Ainda não testado contra banco real (isso é a Frente 4).
 
-**NÃO FEITO — Frente 4 do plano, a parte que mexe em produção de verdade**:
+**Frente 4 — status em 2026-09-29**:
 
-1. `src/db/migrations-custom/0011_app_role.sql` (criar o papel
-   `mecano_erp_app`, sem `bypassrls`) — arquivo ainda não escrito.
-2. Rodar `0010`+`0011` contra o Supabase real do mecano-erp.
-3. Teste de integração de isolamento (mesmo padrão de
-   `rls-isolation.integration.test.ts` do BaseERP/Prisma) rodando com o
-   papel novo, ANTES de qualquer coisa em produção depender dele.
-4. Trocar `DATABASE_URL` de produção (Vercel) pro papel novo +
-   introduzir `DATABASE_MIGRATION_URL` — **só com confirmação explícita
-   no momento**, é o único passo sem volta fácil.
-5. Smoke test manual em produção (oficina comum + admin + modo suporte).
-6. Só depois de tudo isso validado: adicionar mecano-erp em
+1. ✅ `src/db/migrations-custom/0011_app_role.sql` — criado o papel
+   `mecano_erp_app` (sem `bypassrls`).
+2. ✅ `0010`+`0011` aplicadas contra o Supabase real do mecano-erp
+   (`npm run db:migrate`, com confirmação explícita do usuário antes de
+   rodar). Senha do papel definida via SQL direto (não versionada em
+   lugar nenhum).
+3. ✅ Teste de integração de isolamento
+   (`src/core/__tests__/rls-isolation.integration.test.ts`, novo — 4
+   casos: organizations, memberships, um cliente de negócio real via
+   `apply_org_rls()`, e "sem contexto = nada visível") rodado contra
+   produção usando o papel `mecano_erp_app` — **os 4 passaram**. Achado
+   e corrigido no processo: o `afterAll` não definia
+   `app.current_user_id` antes de limpar as fixtures — a RLS bloqueava
+   a própria limpeza silenciosamente, deixando 2 organizações + 1
+   cliente de teste órfãos em produção (já limpos manualmente). Mesmo
+   bug corrigido por prevenção em base-erp/prisma.
+4. ✅ (local) `.env.local` atualizado com a separação:
+   `DATABASE_URL` agora aponta pro papel restrito `mecano_erp_app`
+   (senha definida via SQL direto, não versionada em lugar nenhum) e
+   `DATABASE_MIGRATION_URL` guarda a conexão privilegiada antiga
+   (`postgres`) — `migrate.ts`/`seed.ts` já usam
+   `DATABASE_MIGRATION_URL` com fallback pra `DATABASE_URL`. Rodei
+   `npm run db:migrate` de novo (tudo "já aplicada, pulando", como
+   esperado) e subi `npm run dev` local com a `DATABASE_URL` nova:
+   `/api/health` respondeu `{"status":"ok","database":"ok"}`, `/login`
+   e `/` responderam 200 — nenhum erro na subida.
+   ⏳ **Pendente, precisa de você**: eu não tenho acesso à Vercel
+   deste ambiente (`vercel login` não autenticado aqui) — replicar as
+   MESMAS duas variáveis (`DATABASE_URL`/`DATABASE_MIGRATION_URL`) do
+   `.env.local` local pro ambiente de Produção no dashboard da Vercel
+   (Project Settings → Environment Variables) e disparar um redeploy
+   (a troca de env var sozinha não reflete sem um novo deploy). Os
+   valores já estão prontos no seu `.env.local` — só copiar de lá.
+5. ⏳ Smoke test manual em produção (oficina comum + admin + modo
+   suporte) — depois do redeploy com as novas variáveis.
+6. ⏳ Só depois de tudo validado: adicionar mecano-erp em
    `base-erp/scripts/verticals.txt` e rodar `install-sync-hook.sh`.
 
-**Se esta sessão for interrompida antes da Frente 4**: o código já
-commitado (se chegou a commitar) ou modificado localmente muda a
-INTERFACE (`withOrg()`/`requireAdmin()` devolvem `withDb`, não `db`) mas
-a conexão `DATABASE_URL` de produção CONTINUA sendo o papel `postgres`
-com `bypassrls` até a Frente 4 rodar — ou seja, **nada quebra em
-produção só por causa das Frentes 1–3**, RLS continua sendo defesa em
-profundidade até a troca explícita de papel/env var acontecer. Seguro
-deixar parado nesse ponto entre sessões.
+**Se esta sessão for interrompida antes do passo 4**: a conexão
+`DATABASE_URL` de produção CONTINUA sendo o papel `postgres` com
+`bypassrls` — nada muda no comportamento do app. Seguro deixar parado
+aqui entre sessões; o papel `mecano_erp_app` já existe e já foi validado
+de ponta a ponta, só falta a troca de env var em si.
