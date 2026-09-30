@@ -99,6 +99,13 @@
       "when": 1790794170390,
       "tag": "0013_hot_stingray",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790801034489,
+      "tag": "0014_wide_stingray",
+      "breakpoints": true
     }
   ]
 }

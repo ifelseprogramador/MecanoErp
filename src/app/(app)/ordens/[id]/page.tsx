@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Printer } from "lucide-react";
+import { ShareDocumentButton } from "@/components/share-document-button";
+import { compartilharOrdem } from "./share-actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Hint } from "@/components/hint";
@@ -76,6 +78,10 @@ export default async function WorkOrderDetailPage({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <ShareDocumentButton
+            action={compartilharOrdem.bind(null, order.id)}
+            label={order.status === "orcamento" ? "Enviar orçamento" : "Enviar ao cliente"}
+          />
           <Button
             variant="outline"
             size="sm"

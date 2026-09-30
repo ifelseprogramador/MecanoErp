@@ -1768,3 +1768,13 @@ checada na emissão (ainda não existe módulo fiscal aqui).
   `number`, `complement`, `district`, `city`, `state`, `ibgeCode`).
 - **Form**: campos controlados (erro de validação só marca o campo, nunca
   apaga o resto), seções recolhíveis, CEP → ViaCEP (`core/cep.ts`).
+
+## 2026-09-30 — Enviar orçamento/ordem de serviço ao cliente
+
+Usa a fundação `core/share` (ver `base-erp/docs/decisoes.md`, mesma data).
+`app/(app)/ordens/[id]/share-actions.ts` monta o snapshot da OS (orçamento
+quando `status = orcamento`) e o botão fica ao lado de "Imprimir". O link
+em Perfil para a configuração de e-mail foi adicionado à mão aqui, porque
+`(app)/perfil/page.tsx` é exceção de sync neste vertical. Migrations:
+`0014` (drizzle) + `0013_sharing_rls.sql`. Env novas: `SETTINGS_ENCRYPTION_KEY`
+(só para e-mail SMTP) e `NEXT_PUBLIC_SITE_URL` (opcional).

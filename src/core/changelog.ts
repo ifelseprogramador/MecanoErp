@@ -24,6 +24,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.13.0",
+    date: "2026-09-30",
+    changes: [
+      {
+        type: "novo",
+        text: 'Botão "Enviar orçamento" / "Enviar ao cliente" na ordem de serviço: gera um link seguro e um PDF e manda por WhatsApp, e-mail ou compartilhamento do celular, com o PDF anexado.',
+      },
+      {
+        type: "novo",
+        text: "Em Perfil, opção avançada para o sistema enviar e-mails da oficina com PDF anexo.",
+      },
+    ],
+  },
+  {
     version: "0.12.0",
     date: "2026-09-30",
     changes: [
