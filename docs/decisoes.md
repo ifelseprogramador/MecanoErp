@@ -1748,3 +1748,23 @@ compartilháveis).
 `mecano-erp` adicionado a `scripts/verticals.txt` (BaseERP) e o hook
 `post-commit` instalado nos dois sentidos via `install-sync-hook.sh`.
 `npm run check` 100% verde nos três projetos depois da reconciliação.
+
+## 2026-09-30 — Campos fiscais no cadastro de cliente
+
+Mesmo desenho do Prisma (ver `prisma/docs/decisoes.md`, mesma data):
+colunas `legal_name`, `trade_name`, `ie_indicator`, `ie`, `im` em
+`customers` e tabela `customer_addresses` (1:N, RLS em
+`migrations-custom/0012`; `customers.address` mantido só como fallback
+legado). Tudo opcional no cadastro; a exigência para emitir nota será
+checada na emissão (ainda não existe módulo fiscal aqui).
+
+- **Offline**: `CustomerInput` segue plano (campos de endereço no mesmo
+  objeto), então `createCustomerRecord(data, id)` e a fila offline
+  continuam iguais; o INSERT de cliente + endereço principal acontece na
+  mesma transação via `splitCustomerInput`. Registros offline antigos (sem
+  campos fiscais) continuam válidos.
+- **CSV**: import/export trocaram `address` pelas colunas estruturadas
+  (`legalName`, `tradeName`, `ieIndicator`, `ie`, `im`, `zip`, `street`,
+  `number`, `complement`, `district`, `city`, `state`, `ibgeCode`).
+- **Form**: campos controlados (erro de validação só marca o campo, nunca
+  apaga o resto), seções recolhíveis, CEP → ViaCEP (`core/cep.ts`).

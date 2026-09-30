@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { withOrg } from "@/core/auth";
-import { customers } from "./schema";
+import { customers, customerAddresses } from "./schema";
 
 export const CUSTOMER_SORT_OPTIONS = {
   created_desc: "Mais recentes primeiro",
@@ -122,13 +122,18 @@ export async function findCustomerByDocumentOrName(
 export async function getCustomerById(id: string) {
   const { withDb, organizationId } = await withOrg();
 
-  const [customer] = await withDb((tx) =>
-    tx
+  return withDb(async (tx) => {
+    const [customer] = await tx
       .select()
       .from(customers)
       .where(and(eq(customers.id, id), eq(customers.organizationId, organizationId)))
-      .limit(1),
-  );
-
-  return customer ?? null;
+      .limit(1);
+    if (!customer) return null;
+    const [endereco] = await tx
+      .select()
+      .from(customerAddresses)
+      .where(and(eq(customerAddresses.customerId, id), eq(customerAddresses.kind, "principal")))
+      .limit(1);
+    return { ...customer, endereco: endereco ?? null };
+  });
 }

@@ -1,3 +1,4 @@
+import { formatAddressLine } from "@/core/fiscal-fields";
 import { notFound } from "next/navigation";
 import { formatDocument } from "@/core/document";
 import { formatDate, formatPlate } from "@/core/format";
@@ -45,7 +46,12 @@ export default async function PrintCustomerPage({ params }: PageProps<"/clientes
         />
         <Field label="Telefone" value={customer.phone || "—"} />
         <Field label="E-mail" value={customer.email || "—"} />
-        <Field label="Endereço" value={customer.address || "—"} />
+        <Field
+          label="Endereço"
+          value={formatAddressLine(customer.endereco) || customer.address || "—"}
+        />
+        {customer.legalName && <Field label="Razão social" value={customer.legalName} />}
+        {customer.ie && <Field label="Inscrição Estadual" value={customer.ie} />}
       </div>
 
       {customer.notes && (

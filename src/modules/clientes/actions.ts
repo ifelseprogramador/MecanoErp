@@ -6,11 +6,23 @@ import { and, eq } from "drizzle-orm";
 import { withOrg } from "@/core/auth";
 import type { ActionResult } from "@/core/action-result";
 import { importCsvRows, type CsvImportState } from "@/core/csv-import";
-import { customers } from "./schema";
-import { customerSchema, parseCustomerFormData, type CustomerInput } from "./validation";
+import { lookupCep, type CepResult } from "@/core/cep";
+import { customers, customerAddresses } from "./schema";
+import {
+  customerSchema,
+  parseCustomerFormData,
+  splitCustomerInput,
+  type CustomerInput,
+} from "./validation";
 
 interface InsertResult extends ActionResult {
   id?: string;
+}
+
+/** Autocomplete de endereço por CEP (ViaCEP). Exige sessão; nunca lança. */
+export async function buscarCep(cep: string): Promise<CepResult | null> {
+  await withOrg();
+  return lookupCep(cep);
 }
 
 /**
@@ -31,12 +43,19 @@ export async function createCustomerRecord(
   log.info("clientes.criar", { offline: Boolean(id) });
 
   try {
-    const [customer] = await withDb((tx) =>
-      tx
+    const { customer: dados, address } = splitCustomerInput(data);
+    const [customer] = await withDb(async (tx) => {
+      const rows = await tx
         .insert(customers)
-        .values({ ...data, organizationId, ...(id && { id }) })
-        .returning({ id: customers.id }),
-    );
+        .values({ ...dados, organizationId, ...(id && { id }) })
+        .returning({ id: customers.id });
+      if (address) {
+        await tx
+          .insert(customerAddresses)
+          .values({ ...address, organizationId, customerId: rows[0].id, kind: "principal" });
+      }
+      return rows;
+    });
     log.info("clientes.criar.sucesso", { customerId: customer.id });
     revalidatePath("/clientes");
     return { ok: true, id: customer.id };
@@ -92,13 +111,36 @@ export async function updateCustomer(
   }
 
   try {
-    const result = await withDb((tx) =>
-      tx
+    const { customer: dados, address } = splitCustomerInput(parsed.data);
+    const result = await withDb(async (tx) => {
+      const rows = await tx
         .update(customers)
-        .set({ ...parsed.data, updatedAt: new Date() })
+        .set({ ...dados, updatedAt: new Date() })
         .where(and(eq(customers.id, customerId), eq(customers.organizationId, organizationId)))
-        .returning({ id: customers.id }),
-    );
+        .returning({ id: customers.id });
+      if (rows.length === 0) return rows;
+
+      if (!address) {
+        await tx
+          .delete(customerAddresses)
+          .where(
+            and(
+              eq(customerAddresses.customerId, customerId),
+              eq(customerAddresses.kind, "principal"),
+            ),
+          );
+      } else {
+        await tx
+          .insert(customerAddresses)
+          .values({ ...address, organizationId, customerId, kind: "principal" })
+          .onConflictDoUpdate({
+            target: customerAddresses.customerId,
+            targetWhere: eq(customerAddresses.kind, "principal"),
+            set: { ...address, updatedAt: new Date() },
+          });
+      }
+      return rows;
+    });
 
     if (result.length === 0) {
       log.warn("clientes.atualizar.nao_encontrado", { customerId });

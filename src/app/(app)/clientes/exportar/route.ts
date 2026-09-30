@@ -1,9 +1,29 @@
 import { withOrg } from "@/core/auth";
 import { toCsv } from "@/core/csv";
-import { customers } from "@/modules/clientes/schema";
-import { eq } from "drizzle-orm";
+import { customers, customerAddresses } from "@/modules/clientes/schema";
+import { and, eq } from "drizzle-orm";
 
-const HEADERS = ["name", "type", "document", "phone", "email", "address", "notes"];
+const HEADERS = [
+  "name",
+  "type",
+  "document",
+  "phone",
+  "email",
+  "legalName",
+  "tradeName",
+  "ieIndicator",
+  "ie",
+  "im",
+  "zip",
+  "street",
+  "number",
+  "complement",
+  "district",
+  "city",
+  "state",
+  "ibgeCode",
+  "notes",
+];
 
 /**
  * Exporta todos os clientes da organização em CSV — colunas com os
@@ -15,17 +35,39 @@ export async function GET() {
   const { withDb, organizationId } = await withOrg();
 
   const rows = await withDb((tx) =>
-    tx.select().from(customers).where(eq(customers.organizationId, organizationId)),
+    tx
+      .select({ c: customers, a: customerAddresses })
+      .from(customers)
+      .leftJoin(
+        customerAddresses,
+        and(
+          eq(customerAddresses.customerId, customers.id),
+          eq(customerAddresses.kind, "principal"),
+        ),
+      )
+      .where(eq(customers.organizationId, organizationId)),
   );
 
   const csv = toCsv(
-    rows.map((c) => ({
+    rows.map(({ c, a }) => ({
       name: c.name,
       type: c.type,
       document: c.document ?? "",
       phone: c.phone ?? "",
       email: c.email ?? "",
-      address: c.address ?? "",
+      legalName: c.legalName ?? "",
+      tradeName: c.tradeName ?? "",
+      ieIndicator: c.ieIndicator,
+      ie: c.ie ?? "",
+      im: c.im ?? "",
+      zip: a?.zip ?? "",
+      street: a?.street ?? "",
+      number: a?.number ?? "",
+      complement: a?.complement ?? "",
+      district: a?.district ?? "",
+      city: a?.city ?? "",
+      state: a?.state ?? "",
+      ibgeCode: a?.ibgeCode ?? "",
       notes: c.notes ?? "",
     })),
     HEADERS,

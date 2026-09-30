@@ -1,5 +1,6 @@
 "use client";
 
+import { formatAddressLine } from "@/core/fiscal-fields";
 import { useEffect, useState } from "react";
 import { ActionLink } from "@/components/action-link";
 import { ArrowRight, RefreshCw } from "lucide-react";
@@ -104,7 +105,7 @@ function PendingCustomerContent() {
           <Field label="CPF/CNPJ" value={data.document ? formatDocument(data.document) : "—"} />
           <Field label="Telefone" value={data.phone || "—"} />
           <Field label="E-mail" value={data.email || "—"} />
-          <Field label="Endereço" value={data.address || "—"} />
+          <Field label="Endereço" value={formatAddressLine(data) || "—"} />
           <Field label="Observações" value={data.notes || "—"} />
         </CardContent>
       </Card>

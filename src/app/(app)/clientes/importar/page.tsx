@@ -15,8 +15,12 @@ export default function ImportCustomersPage() {
         <CardContent className="flex flex-col gap-4">
           <p className="text-muted-foreground text-sm">
             Colunas esperadas: <code>name</code>, <code>type</code> (pf ou pj),{" "}
-            <code>document</code>, <code>phone</code>, <code>email</code>, <code>address</code>,{" "}
-            <code>notes</code>. Baixe{" "}
+            <code>document</code>, <code>phone</code>, <code>email</code>; dados fiscais opcionais:{" "}
+            <code>legalName</code>, <code>tradeName</code>, <code>ieIndicator</code>,{" "}
+            <code>ie</code>, <code>im</code>; endereço opcional: <code>zip</code>,{" "}
+            <code>street</code>, <code>number</code>, <code>complement</code>, <code>district</code>
+            , <code>city</code>, <code>state</code>, <code>ibgeCode</code>; e <code>notes</code>.
+            Baixe{" "}
             <ActionLink href="/clientes/exportar" icon={Download} inline>
               a lista atual em CSV
             </ActionLink>{" "}
