@@ -1778,3 +1778,10 @@ em Perfil para a configuração de e-mail foi adicionado à mão aqui, porque
 `(app)/perfil/page.tsx` é exceção de sync neste vertical. Migrations:
 `0014` (drizzle) + `0013_sharing_rls.sql`. Env novas: `SETTINGS_ENCRYPTION_KEY`
 (só para e-mail SMTP) e `NEXT_PUBLIC_SITE_URL` (opcional).
+
+## 2026-09-30 — Mensagem de envio editável (core/share)
+
+Sincronizado do BaseERP (ver `base-erp/docs/decisoes.md`, mesma data):
+modelo de mensagem com variáveis e prévia, modal com cores das marcas e
+correção do link relativo quando `NEXT_PUBLIC_SITE_URL` está vazio.
+Dependência nova: `simple-icons`.
