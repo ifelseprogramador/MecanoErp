@@ -8,8 +8,9 @@ import { CreatedBanner } from "@/components/created-banner";
 import { BackButton } from "@/components/back-button";
 import { Badge } from "@/components/ui/badge";
 import { EntityHeader } from "@/components/entity-header";
+import { EmailBadge, PhoneBadge } from "@/components/contact-badges";
 import { formatDocument } from "@/core/document";
-import { Building2, IdCard, Phone, Plus, Printer, User } from "lucide-react";
+import { Building2, IdCard, Plus, Printer, User } from "lucide-react";
 import { formatPlate } from "@/core/format";
 import { getCustomerById } from "@/modules/clientes/queries";
 import { deleteCustomer, updateCustomer } from "@/modules/clientes/actions";
@@ -45,9 +46,7 @@ export default async function CustomerDetailPage({
       )}
       <EntityHeader
         title={customer.name}
-        subtitle={
-          customer.type === "pj" ? (customer.tradeName ?? customer.legalName) : customer.email
-        }
+        subtitle={customer.type === "pj" ? (customer.tradeName ?? customer.legalName) : null}
         back={<BackButton />}
         actions={
           <>
@@ -84,12 +83,8 @@ export default async function CustomerDetailPage({
                 {formatDocument(customer.document)}
               </Badge>
             )}
-            {customer.phone && (
-              <Badge variant="outline">
-                <Phone data-icon="inline-start" />
-                {customer.phone}
-              </Badge>
-            )}
+            {customer.phone && <PhoneBadge phone={customer.phone} />}
+            {customer.email && <EmailBadge email={customer.email} />}
           </>
         }
       />
