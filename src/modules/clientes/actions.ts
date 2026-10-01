@@ -5,15 +5,9 @@ import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { withOrg } from "@/core/auth";
 import type { ActionResult } from "@/core/action-result";
-import { importCsvRows, type CsvImportState } from "@/core/csv-import";
 import { lookupCep, type CepResult } from "@/core/cep";
 import { customers, customerAddresses } from "./schema";
-import {
-  customerSchema,
-  parseCustomerFormData,
-  splitCustomerInput,
-  type CustomerInput,
-} from "./validation";
+import { parseCustomerFormData, splitCustomerInput, type CustomerInput } from "./validation";
 
 interface InsertResult extends ActionResult {
   id?: string;
@@ -155,33 +149,6 @@ export async function updateCustomer(
     log.error("clientes.atualizar.falhou", { customerId, err });
     return { ok: false, message: "Não foi possível salvar as alterações. Tente novamente." };
   }
-}
-
-export async function importCustomersCsv(
-  _prevState: CsvImportState,
-  formData: FormData,
-): Promise<CsvImportState> {
-  const { log } = await withOrg();
-  const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) {
-    return { status: "error", message: "Selecione um arquivo CSV." };
-  }
-
-  const text = await file.text();
-  const summary = await importCsvRows(
-    text,
-    (row) => {
-      const parsed = customerSchema.safeParse(row);
-      if (!parsed.success) {
-        return { success: false, error: parsed.error.issues.map((i) => i.message).join("; ") };
-      }
-      return { success: true, data: parsed.data };
-    },
-    (data: CustomerInput) => createCustomerRecord(data),
-  );
-
-  log.info("clientes.importar_csv", { totalRows: summary.totalRows, imported: summary.imported });
-  return { status: "done", summary };
 }
 
 export async function deleteCustomer(customerId: string): Promise<ActionResult> {

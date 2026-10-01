@@ -11,7 +11,7 @@ import { CustomerTable } from "@/modules/clientes/components/customer-table";
 import { PendingCustomers } from "@/modules/clientes/components/pending-customers";
 import { SearchBox } from "@/components/search-box";
 import { ListFilterBar } from "@/components/list-filter-bar";
-import { ImportExportButtons } from "@/components/import-export-buttons";
+import { SpreadsheetMenu } from "@/components/spreadsheet-menu";
 
 export default async function CustomersPage({ searchParams }: PageProps<"/clientes">) {
   const { q, type, sort } = await searchParams;
@@ -29,7 +29,7 @@ export default async function CustomersPage({ searchParams }: PageProps<"/client
           <h1 className="text-2xl font-semibold tracking-tight">Clientes</h1>
         </div>
         <div className="flex items-center gap-2">
-          <ImportExportButtons basePath="/clientes" />
+          <SpreadsheetMenu importHref="/clientes/importar" exportHref="/clientes/exportar" />
           <Button nativeButton={false} render={<Link href="/clientes/novo" />}>
             <Plus className="h-4 w-4" />
             Novo cliente
