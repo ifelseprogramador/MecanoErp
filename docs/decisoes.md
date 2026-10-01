@@ -1814,3 +1814,9 @@ exceção de sync neste vertical) e migration `0014` liberando
 `display_name`/`document`/`phone`/`address` ao dono da conta. O card em
 `(app)/perfil/page.tsx` também foi adicionado à mão (exceção de sync). As
 ordens compartilhadas usam `displayName || name`.
+
+## 2026-09-30 — Limpeza dos documentos compartilhados expirados
+
+Sincronizado do BaseERP (ver `base-erp/docs/decisoes.md`, mesma data): cron
+`/api/cron/purge-shared` (`30 6 * * *`, em `vercel.json`) apaga snapshots
+expirados/revogados há mais de 7 dias.
