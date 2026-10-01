@@ -35,6 +35,10 @@ export const CHANGELOG: ChangelogEntry[] = [
         type: "melhoria",
         text: "A logo da empresa no topo do menu lateral ficou maior e mais fácil de ver.",
       },
+      {
+        type: "correcao",
+        text: "Corrigido o erro ao salvar logo, cores e dados da oficina em Perfil.",
+      },
     ],
   },
   {

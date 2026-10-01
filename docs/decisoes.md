@@ -1820,3 +1820,14 @@ ordens compartilhadas usam `displayName || name`.
 Sincronizado do BaseERP (ver `base-erp/docs/decisoes.md`, mesma data): cron
 `/api/cron/purge-shared` (`30 6 * * *`, em `vercel.json`) apaga snapshots
 expirados/revogados há mais de 7 dias.
+
+## 2026-10-01 — Correção do gatilho de organizações (regressão da 0014)
+
+A migration `0014` copiou `restrict_organization_branding_update()` do BaseERP,
+que compara `new.business_type`. A tabela `organizations` do mecano-erp **não
+tem** `business_type` (diferença deliberada em relação ao BaseERP/Prisma), então
+todo UPDATE de não-admin falhava (inclusive logo e cores em Perfil). A `0015`
+recria a função sem essa coluna. **Regra**: ao copiar migration custom do
+BaseERP para um vertical, conferir as colunas citadas contra o schema do
+vertical (aqui, `db/schema/tenancy.ts` é exceção de sync justamente por
+divergir).
