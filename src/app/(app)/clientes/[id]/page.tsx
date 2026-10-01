@@ -6,7 +6,10 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { CreatedBanner } from "@/components/created-banner";
 import { BackButton } from "@/components/back-button";
-import { Plus, Printer } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { EntityHeader } from "@/components/entity-header";
+import { formatDocument } from "@/core/document";
+import { Building2, IdCard, Phone, Plus, Printer, User } from "lucide-react";
 import { formatPlate } from "@/core/format";
 import { getCustomerById } from "@/modules/clientes/queries";
 import { deleteCustomer, updateCustomer } from "@/modules/clientes/actions";
@@ -40,36 +43,57 @@ export default async function CustomerDetailPage({
           createAnotherLabel="Cadastrar outro"
         />
       )}
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex min-w-0 flex-1 basis-60 items-start gap-2">
-          <span className="shrink-0">
-            <BackButton />
-          </span>
-          <h1
-            title={customer.name}
-            className="min-w-0 text-xl font-semibold tracking-tight [overflow-wrap:anywhere] sm:text-2xl"
-          >
-            {customer.name}
-          </h1>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            nativeButton={false}
-            render={<Link href={`/clientes/${customer.id}/imprimir`} target="_blank" />}
-          >
-            <Printer className="h-4 w-4" />
-            Imprimir
-          </Button>
-          <ConfirmDeleteButton
-            title="Remover cliente"
-            description="Essa ação não pode ser desfeita. O cliente só pode ser removido se não tiver veículos ou ordens de serviço vinculados."
-            onConfirm={deleteCustomer.bind(null, customer.id)}
-            redirectTo="/clientes"
-          />
-        </div>
-      </div>
+      <EntityHeader
+        title={customer.name}
+        subtitle={
+          customer.type === "pj" ? (customer.tradeName ?? customer.legalName) : customer.email
+        }
+        back={<BackButton />}
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              nativeButton={false}
+              render={<Link href={`/clientes/${customer.id}/imprimir`} target="_blank" />}
+            >
+              <Printer className="h-4 w-4" />
+              Imprimir
+            </Button>
+            <ConfirmDeleteButton
+              title="Remover cliente"
+              description="Essa ação não pode ser desfeita. O cliente só pode ser removido se não tiver veículos ou ordens de serviço vinculados."
+              onConfirm={deleteCustomer.bind(null, customer.id)}
+              redirectTo="/clientes"
+            />
+          </>
+        }
+        badges={
+          <>
+            <Badge variant="secondary">
+              {customer.type === "pj" ? (
+                <Building2 data-icon="inline-start" />
+              ) : (
+                <User data-icon="inline-start" />
+              )}
+              {customer.type === "pj" ? "Pessoa jurídica" : "Pessoa física"}
+            </Badge>
+            {customer.document && (
+              <Badge variant="outline">
+                <IdCard data-icon="inline-start" />
+                {formatDocument(customer.document)}
+              </Badge>
+            )}
+            {customer.phone && (
+              <Badge variant="outline">
+                <Phone data-icon="inline-start" />
+                {customer.phone}
+              </Badge>
+            )}
+          </>
+        }
+      />
+
       <Card>
         <CardHeader>
           <CardTitle>Dados do cliente</CardTitle>
