@@ -28,6 +28,7 @@ export async function compartilharOrdem(orderId: string): Promise<ShareLinkResul
       db
         .select({
           name: organizations.name,
+          displayName: organizations.displayName,
           document: organizations.document,
           phone: organizations.phone,
           address: organizations.address,
@@ -52,7 +53,7 @@ export async function compartilharOrdem(orderId: string): Promise<ShareLinkResul
       ? "Orçamento de serviço"
       : `Ordem de serviço — ${WORK_ORDER_STATUS_LABELS[order.status]}`,
     number: String(order.number),
-    issuerName: org.name,
+    issuerName: org.displayName || org.name,
     issuerLines: [
       org.document ? formatDocument(org.document) : "",
       org.phone ?? "",

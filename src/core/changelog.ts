@@ -24,6 +24,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.15.0",
+    date: "2026-09-30",
+    changes: [
+      {
+        type: "novo",
+        text: 'Em Perfil › "Dados da oficina", o responsável pela conta edita o nome que aparece nos orçamentos e ordens de serviço enviados ao cliente, além de CNPJ/CPF, telefone e endereço.',
+      },
+    ],
+  },
+  {
     version: "0.14.0",
     date: "2026-09-30",
     changes: [

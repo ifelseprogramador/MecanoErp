@@ -1805,3 +1805,12 @@ Usa a fundação `core/spreadsheet` + `SpreadsheetImportWizard` (ver
   .xlsx), `/clientes/exportar` (`.xlsx`, ou `?formato=csv`). CSV continua
   aceito na importação (`,` ou `;`, UTF-8 ou Windows-1252).
 - O antigo `importCustomersCsv` foi removido (substituído pelo assistente).
+
+## 2026-09-30 — Dados da oficina editáveis (display_name)
+
+Mesmo desenho do BaseERP (ver `base-erp/docs/decisoes.md`, mesma data):
+`organizations.display_name` (edição manual em `db/schema/tenancy.ts`, que é
+exceção de sync neste vertical) e migration `0014` liberando
+`display_name`/`document`/`phone`/`address` ao dono da conta. O card em
+`(app)/perfil/page.tsx` também foi adicionado à mão (exceção de sync). As
+ordens compartilhadas usam `displayName || name`.
