@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { withOrg } from "@/core/auth";
+import { ModuleAccessDeniedError, requireModule } from "@/core/auth";
 import { toCsv } from "@/core/csv";
 import { customers } from "@/modules/clientes/schema";
 import { vehicles } from "@/modules/veiculos/schema";
@@ -24,7 +24,11 @@ const HEADERS = [
  * `modules/clientes/queries.ts#findCustomerByDocumentOrName`.
  */
 export async function GET() {
-  const { withDb, organizationId } = await withOrg();
+  const ctx = await requireModule("veiculos").catch((err) =>
+    err instanceof ModuleAccessDeniedError ? null : Promise.reject(err),
+  );
+  if (!ctx) return new Response("Acesso negado.", { status: 403 });
+  const { withDb, organizationId } = ctx;
 
   const rows = await withDb((tx) =>
     tx

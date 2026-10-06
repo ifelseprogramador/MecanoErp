@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
-import { withOrg } from "@/core/auth";
+import { requireModule } from "@/core/auth";
 import type { ActionResult } from "@/core/action-result";
 import { importCsvRows, type CsvImportState } from "@/core/csv-import";
 import { findCustomerByDocumentOrName } from "@/modules/clientes";
@@ -33,7 +33,7 @@ function isForeignKeyViolation(err: unknown): boolean {
  * sozinha assim que o cliente sincronizar primeiro.
  */
 export async function createVehicleRecord(data: VehicleInput, id?: string): Promise<InsertResult> {
-  const { withDb, organizationId, log } = await withOrg();
+  const { withDb, organizationId, log } = await requireModule("veiculos");
   log.info("veiculos.criar", { offline: Boolean(id) });
 
   try {
@@ -61,9 +61,9 @@ export async function createVehicle(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  // `withOrg()` aqui de propósito, antes até de validar o form — mesmo
+  // `requireModule("veiculos")` aqui de propósito, antes até de validar o form — mesmo
   // motivo documentado em modules/clientes/actions.ts#createCustomer.
-  const { log } = await withOrg();
+  const { log } = await requireModule("veiculos");
   const parsed = parseVehicleFormData(formData);
   if (!parsed.success) {
     log.warn("veiculos.criar.validacao_falhou", {
@@ -85,7 +85,7 @@ export async function updateVehicle(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const { withDb, organizationId, log } = await withOrg();
+  const { withDb, organizationId, log } = await requireModule("veiculos");
   log.info("veiculos.atualizar", { vehicleId });
 
   const parsed = parseVehicleFormData(formData);
@@ -130,7 +130,7 @@ export async function importVehiclesCsv(
   _prevState: CsvImportState,
   formData: FormData,
 ): Promise<CsvImportState> {
-  const { log } = await withOrg();
+  const { log } = await requireModule("veiculos");
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
     return { status: "error", message: "Selecione um arquivo CSV." };
@@ -172,7 +172,7 @@ export async function importVehiclesCsv(
 }
 
 export async function deleteVehicle(vehicleId: string): Promise<ActionResult> {
-  const { withDb, organizationId, log } = await withOrg();
+  const { withDb, organizationId, log } = await requireModule("veiculos");
   log.info("veiculos.remover", { vehicleId });
 
   try {

@@ -1,6 +1,6 @@
 import "server-only";
 import { and, asc, desc, eq, ilike, isNotNull, sql } from "drizzle-orm";
-import { withOrg } from "@/core/auth";
+import { requireModule } from "@/core/auth";
 import { customers } from "@/modules/clientes/schema";
 import { vehicles } from "./schema";
 
@@ -28,7 +28,7 @@ export async function listVehicles(options?: {
   year?: number;
   sort?: VehicleSort;
 }) {
-  const { withDb, organizationId } = await withOrg();
+  const { withDb, organizationId } = await requireModule("veiculos");
 
   const term = options?.search?.trim();
   const conditions = [eq(vehicles.organizationId, organizationId)];
@@ -61,7 +61,7 @@ export async function listVehicles(options?: {
  * listagem — construído dos dados reais em vez de uma faixa fixa de
  * anos que não bateria com a frota de verdade. */
 export async function listVehicleYears() {
-  const { withDb, organizationId } = await withOrg();
+  const { withDb, organizationId } = await requireModule("veiculos");
 
   const rows = await withDb((tx) =>
     tx
@@ -78,7 +78,7 @@ export async function listVehicleYears() {
  * (cliente -> veículo) do formulário de OS filtrar no cliente sem outra
  * viagem ao servidor a cada troca de cliente. */
 export async function listVehiclesForSelect() {
-  const { withDb, organizationId } = await withOrg();
+  const { withDb, organizationId } = await requireModule("veiculos");
 
   return withDb((tx) =>
     tx
@@ -96,7 +96,7 @@ export async function listVehiclesForSelect() {
 }
 
 export async function listVehiclesByCustomer(customerId: string) {
-  const { withDb, organizationId } = await withOrg();
+  const { withDb, organizationId } = await requireModule("veiculos");
 
   return withDb((tx) =>
     tx
@@ -109,7 +109,7 @@ export async function listVehiclesByCustomer(customerId: string) {
 
 /** Total de veículos — pro card "Veículos" do painel (`(app)/page.tsx`). */
 export async function getVehicleDashboardSummary() {
-  const { withDb, organizationId } = await withOrg();
+  const { withDb, organizationId } = await requireModule("veiculos");
 
   const [row] = await withDb((tx) =>
     tx
@@ -122,7 +122,7 @@ export async function getVehicleDashboardSummary() {
 }
 
 export async function getVehicleById(id: string) {
-  const { withDb, organizationId } = await withOrg();
+  const { withDb, organizationId } = await requireModule("veiculos");
 
   const [vehicle] = await withDb((tx) =>
     tx

@@ -1,4 +1,4 @@
-import { getActiveOrg, withOrg } from "@/core/auth";
+import { ModuleAccessDeniedError, getActiveOrg, requireOwner } from "@/core/auth";
 import { buildOrgBackup } from "@/core/backup";
 
 /**
@@ -9,7 +9,11 @@ import { buildOrgBackup } from "@/core/backup";
  * e `POST /backup/restaurar` pra reimportar este mesmo arquivo.
  */
 export async function GET() {
-  const [{ withDb, log }, org] = await Promise.all([withOrg(), getActiveOrg()]);
+  const access = await Promise.all([requireOwner(), getActiveOrg()]).catch((err) =>
+    err instanceof ModuleAccessDeniedError ? null : Promise.reject(err),
+  );
+  if (!access) return new Response("Acesso negado.", { status: 403 });
+  const [{ withDb, log }, org] = access;
   log.info("backup.exportar");
 
   const backup = await withDb((tx) => buildOrgBackup(tx, org.organizationId, org.organizationName));

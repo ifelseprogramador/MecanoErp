@@ -1,6 +1,6 @@
 import "server-only";
 import { and, asc, desc, eq, ilike } from "drizzle-orm";
-import { withOrg } from "@/core/auth";
+import { requireModule } from "@/core/auth";
 import { catalogItems } from "./schema";
 
 export const CATALOG_SORT_OPTIONS = {
@@ -23,7 +23,7 @@ export async function listCatalogItems(options?: {
   type?: "servico" | "peca";
   sort?: CatalogSort;
 }) {
-  const { withDb, organizationId } = await withOrg();
+  const { withDb, organizationId } = await requireModule("catalogo");
 
   const term = options?.search?.trim();
   const conditions = [eq(catalogItems.organizationId, organizationId)];
@@ -46,7 +46,7 @@ export async function listCatalogItems(options?: {
 /** Lista enxuta pro editor de itens da OS (select/autocomplete) — sem
  * paginação, assumindo o catálogo de uma oficina pequena/média. */
 export async function listCatalogItemsForSelect() {
-  const { withDb, organizationId } = await withOrg();
+  const { withDb, organizationId } = await requireModule("catalogo");
 
   return withDb((tx) =>
     tx
@@ -64,7 +64,7 @@ export async function listCatalogItemsForSelect() {
 }
 
 export async function getCatalogItemById(id: string) {
-  const { withDb, organizationId } = await withOrg();
+  const { withDb, organizationId } = await requireModule("catalogo");
 
   const [item] = await withDb((tx) =>
     tx
@@ -79,7 +79,7 @@ export async function getCatalogItemById(id: string) {
 
 /** Autocomplete de itens no editor da OS — nome + até 20 resultados. */
 export async function searchCatalogItems(search: string) {
-  const { withDb, organizationId } = await withOrg();
+  const { withDb, organizationId } = await requireModule("catalogo");
 
   const term = search.trim();
   if (!term) return [];

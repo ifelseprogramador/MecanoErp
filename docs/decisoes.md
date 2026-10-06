@@ -1831,3 +1831,21 @@ recria a função sem essa coluna. **Regra**: ao copiar migration custom do
 BaseERP para um vertical, conferir as colunas citadas contra o schema do
 vertical (aqui, `db/schema/tenancy.ts` é exceção de sync justamente por
 divergir).
+
+## 2026-10-06 — Multiusuário por organização (portado do BaseERP)
+
+Mesma decisão do BaseERP: `organizations.multi_user/seat_limit/extra_seat_price_cents`,
+`membership_modules`, tela `/equipe`, card "Usuários" em `/admin`, `requireModule()`
+nas actions/queries dos 4 módulos, rotas de exportação com 403, Painel por módulo,
+Backup só do responsável. Migrations: drizzle `0016_multiuser_team` e custom
+`0016_multiuser_team.sql` (igual ao `0009` do BaseERP, **sem** `business_type` no
+gatilho — esta tabela não tem a coluna, ver 0015). Validado rodando a cadeia
+completa de migrations num Postgres em memória e 21 cenários de RLS/triggers
+(papel `mecano_erp_app`).
+
+Específico do Mecano:
+
+- `recordAudit` não recebe `db` (abre a própria transação): as ações de equipe
+  chamam `recordAudit({...})`.
+- Fila offline (`core/offline`) ainda é um IndexedDB único por navegador — ver
+  seção de concorrência abaixo/depois (separar por usuário e organização).

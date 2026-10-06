@@ -1,6 +1,6 @@
 import "server-only";
 import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
-import { withOrg } from "@/core/auth";
+import { requireModule } from "@/core/auth";
 import { customers, customerAddresses } from "./schema";
 
 export const CUSTOMER_SORT_OPTIONS = {
@@ -23,7 +23,7 @@ export async function listCustomers(options?: {
   type?: "pf" | "pj";
   sort?: CustomerSort;
 }) {
-  const { withDb, organizationId } = await withOrg();
+  const { withDb, organizationId } = await requireModule("clientes");
 
   const term = options?.search?.trim();
   const conditions = [eq(customers.organizationId, organizationId)];
@@ -47,7 +47,7 @@ export async function listCustomers(options?: {
 
 /** Lista enxuta para popular seletores (ex.: escolher o cliente de um veículo). */
 export async function listCustomersForSelect() {
-  const { withDb, organizationId } = await withOrg();
+  const { withDb, organizationId } = await requireModule("clientes");
 
   return withDb((tx) =>
     tx
@@ -61,7 +61,7 @@ export async function listCustomersForSelect() {
 /** Total de clientes + quantos entraram nos últimos 30 dias — pro
  * card "Clientes" do painel (`(app)/page.tsx`). */
 export async function getCustomerDashboardSummary() {
-  const { withDb, organizationId } = await withOrg();
+  const { withDb, organizationId } = await requireModule("clientes");
 
   const [row] = await withDb((tx) =>
     tx
@@ -85,7 +85,7 @@ export async function findCustomerByDocumentOrName(
   document: string | undefined,
   name: string | undefined,
 ) {
-  const { withDb, organizationId } = await withOrg();
+  const { withDb, organizationId } = await requireModule("clientes");
 
   if (document?.trim()) {
     const [byDocument] = await withDb((tx) =>
@@ -120,7 +120,7 @@ export async function findCustomerByDocumentOrName(
 }
 
 export async function getCustomerById(id: string) {
-  const { withDb, organizationId } = await withOrg();
+  const { withDb, organizationId } = await requireModule("clientes");
 
   return withDb(async (tx) => {
     const [customer] = await tx

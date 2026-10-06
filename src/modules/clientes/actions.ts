@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
-import { withOrg } from "@/core/auth";
+import { requireModule } from "@/core/auth";
 import type { ActionResult } from "@/core/action-result";
 import { lookupCep, type CepResult } from "@/core/cep";
 import { customers, customerAddresses } from "./schema";
@@ -15,7 +15,7 @@ interface InsertResult extends ActionResult {
 
 /** Autocomplete de endereço por CEP (ViaCEP). Exige sessão; nunca lança. */
 export async function buscarCep(cep: string): Promise<CepResult | null> {
-  await withOrg();
+  await requireModule("clientes");
   return lookupCep(cep);
 }
 
@@ -33,7 +33,7 @@ export async function createCustomerRecord(
   data: CustomerInput,
   id?: string,
 ): Promise<InsertResult> {
-  const { withDb, organizationId, log } = await withOrg();
+  const { withDb, organizationId, log } = await requireModule("clientes");
   log.info("clientes.criar", { offline: Boolean(id) });
 
   try {
@@ -63,13 +63,13 @@ export async function createCustomer(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  // `withOrg()` aqui de propósito, antes até de validar o form: mantém a
+  // `requireModule("clientes")` aqui de propósito, antes até de validar o form: mantém a
   // checagem de sessão como a primeira coisa que acontece (não deixa uma
   // chamada sem sessão sondar erro de validação antes de ser barrada).
   // `createCustomerRecord` chama de novo por conta própria — é chamável
   // direto como Server Action pelo motor de sync offline, então precisa
   // do próprio gate de auth independente de quem chamou.
-  const { log } = await withOrg();
+  const { log } = await requireModule("clientes");
   const parsed = parseCustomerFormData(formData);
   if (!parsed.success) {
     log.warn("clientes.criar.validacao_falhou", {
@@ -92,7 +92,7 @@ export async function updateCustomer(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const { withDb, organizationId, log } = await withOrg();
+  const { withDb, organizationId, log } = await requireModule("clientes");
   log.info("clientes.atualizar", { customerId });
 
   const parsed = parseCustomerFormData(formData);
@@ -152,7 +152,7 @@ export async function updateCustomer(
 }
 
 export async function deleteCustomer(customerId: string): Promise<ActionResult> {
-  const { withDb, organizationId, log } = await withOrg();
+  const { withDb, organizationId, log } = await requireModule("clientes");
   log.info("clientes.remover", { customerId });
 
   try {

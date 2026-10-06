@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { and, eq, sql } from "drizzle-orm";
-import { withOrg } from "@/core/auth";
+import { requireModule } from "@/core/auth";
 import type { Database } from "@/core/db";
 import type { ActionResult } from "@/core/action-result";
 import { calculateOrderTotal, isValidTransition, type WorkOrderStatus } from "./domain";
@@ -58,7 +58,7 @@ export async function createWorkOrderRecord(
   data: WorkOrderHeaderInput,
   id?: string,
 ): Promise<InsertResult> {
-  const { withDb, organizationId, log } = await withOrg();
+  const { withDb, organizationId, log } = await requireModule("ordens");
   log.info("ordens.criar", { offline: Boolean(id) });
 
   // Upsert atômico: uma única instrução, sem corrida entre duas OSs
@@ -91,9 +91,9 @@ export async function createWorkOrder(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  // `withOrg()` aqui de propósito, antes até de validar o form — mesmo
+  // `requireModule("ordens")` aqui de propósito, antes até de validar o form — mesmo
   // motivo documentado em modules/clientes/actions.ts#createCustomer.
-  const { log } = await withOrg();
+  const { log } = await requireModule("ordens");
   const parsed = parseWorkOrderHeaderFormData(formData);
   if (!parsed.success) {
     log.warn("ordens.criar.validacao_falhou", {
@@ -114,7 +114,7 @@ export async function updateWorkOrderHeader(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const { withDb, organizationId, log } = await withOrg();
+  const { withDb, organizationId, log } = await requireModule("ordens");
   log.info("ordens.atualizar", { orderId });
 
   const parsed = parseWorkOrderHeaderFormData(formData);
@@ -154,7 +154,7 @@ export async function addWorkOrderItem(
   _prevState: ActionResult,
   formData: FormData,
 ): Promise<ActionResult> {
-  const { withDb, organizationId, log } = await withOrg();
+  const { withDb, organizationId, log } = await requireModule("ordens");
   log.info("ordens.item.adicionar", { orderId });
 
   const parsed = parseWorkOrderItemFormData(formData);
@@ -197,7 +197,7 @@ export async function addWorkOrderItem(
 }
 
 export async function removeWorkOrderItem(itemId: string, orderId: string): Promise<ActionResult> {
-  const { withDb, organizationId, log } = await withOrg();
+  const { withDb, organizationId, log } = await requireModule("ordens");
   log.info("ordens.item.remover", { itemId, orderId });
 
   const orderFound = await withDb(async (tx) => {
@@ -251,7 +251,7 @@ export async function transitionWorkOrderStatus(
   orderId: string,
   nextStatus: WorkOrderStatus,
 ): Promise<ActionResult> {
-  const { withDb, organizationId, log } = await withOrg();
+  const { withDb, organizationId, log } = await requireModule("ordens");
   const actionName = STATUS_ACTION_LABEL[nextStatus] ?? "ordens.transicao";
   log.info(actionName, { orderId, nextStatus });
 

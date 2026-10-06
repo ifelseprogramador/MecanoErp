@@ -1,6 +1,6 @@
 import "server-only";
 import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
-import { withOrg } from "@/core/auth";
+import { requireModule } from "@/core/auth";
 import { customers } from "@/modules/clientes/schema";
 import { vehicles } from "@/modules/veiculos/schema";
 import { workOrderItems, workOrders, workOrderStatusEnum } from "./schema";
@@ -28,7 +28,7 @@ export type WorkOrderStatusFilter = (typeof workOrderStatusEnum.enumValues)[numb
  * "faturamento" aqui é o valor de serviço já finalizado) e as OS mais
  * recentes pra lista de atalho. */
 export async function getWorkOrderDashboardSummary() {
-  const { withDb, organizationId } = await withOrg();
+  const { withDb, organizationId } = await requireModule("ordens");
 
   const [statusCounts, [revenue], recent] = await withDb((tx) =>
     Promise.all([
@@ -91,7 +91,7 @@ export async function listWorkOrders(options?: {
   status?: WorkOrderStatusFilter;
   sort?: WorkOrderSort;
 }) {
-  const { withDb, organizationId } = await withOrg();
+  const { withDb, organizationId } = await requireModule("ordens");
 
   const term = options?.search?.trim();
   const conditions = [eq(workOrders.organizationId, organizationId)];
@@ -129,7 +129,7 @@ export async function listWorkOrders(options?: {
 }
 
 export async function getWorkOrderById(id: string) {
-  const { withDb, organizationId } = await withOrg();
+  const { withDb, organizationId } = await requireModule("ordens");
 
   const [order] = await withDb((tx) =>
     tx
@@ -169,7 +169,7 @@ export async function getWorkOrderById(id: string) {
 }
 
 export async function listWorkOrderItems(workOrderId: string) {
-  const { withDb, organizationId } = await withOrg();
+  const { withDb, organizationId } = await requireModule("ordens");
 
   // `work_order_items` não tem `organization_id` próprio — o join com
   // `work_orders` garante o isolamento por tenant mesmo se este método

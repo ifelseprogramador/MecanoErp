@@ -104,6 +104,47 @@ padrão de toda Server Action e query — devolve `db`, `organizationId` e um
 módulo deve montar esse contexto na mão nem filtrar por organização "à
 mão" fora desse helper.
 
+## Multiusuário (`core/team/`, `core/module-access.ts`)
+
+Duas camadas de controle:
+
+1. **Dono da plataforma** (`/admin`, card "Usuários"): liga
+   `organizations.multiUser` e define `seatLimit` (pessoas ATIVAS,
+   contando o dono da conta) e `extraSeatPriceCents` (só lembrete, nenhuma
+   cobrança automática lê). Padrão: `multiUser = false`, `seatLimit = 1`
+   — empresa de uma pessoa só, sem tela de equipe.
+2. **Dono da conta** (`role = "owner"`, tela `/equipe`, 404 se
+   `multiUser = false`): convida `staff` (e-mail + setor + módulos),
+   desativa/reativa, edita setor/módulos, reseta senha provisória. Os
+   módulos concedíveis são só os habilitados para a organização
+   (`organization_module_settings`).
+
+Acesso por módulo: `membership_modules` (uma linha por módulo concedido).
+`owner` acessa tudo; `staff` só o que tem linha. `getActiveOrg()` devolve
+`moduleAccess`; **todo módulo de negócio deve chamar
+`requireModule("<slug>")` (`core/auth.ts`) no lugar de `withOrg()`** em
+toda Server Action, página e rota (áreas fora de módulo, como Backup, usam
+`requireOwner()`; o layout de cada módulo usa `<ModuleGuard slug>` só para UX) — o menu esconde o item
+(`filterModulesByAccess`), mas esconder não é proteção.
+
+No banco (`migrations-custom/0009_multiuser_team.sql`): `current_org_ids()`
+ignora membership desativado; o dono da conta só insere/atualiza `staff`
+da própria organização (trigger `restrict_membership_update` impede mudar
+papel/usuário/organização); trigger `enforce_membership_seat_limit` recusa
+convite acima do limite ou sem `multi_user` (trava a linha da organização
+para dois convites simultâneos não passarem pelo último assento);
+`multi_user`/`seat_limit`/`extra_seat_price_cents` só o dono da plataforma
+altera. `/equipe` recusa e-mail que já tem cadastro no Supabase Auth, para
+o dono da conta nunca "adotar" (e resetar a senha de) alguém de outra
+empresa.
+
+No MecanoErp: `dependsOn` já existe (ordens → clientes, veículos e catálogo;
+veículos → clientes), então liberar um módulo expande a lista. O Painel
+(`app/(app)/page.tsx`) busca e mostra só os blocos dos módulos liberados. Backup
+usa `requireOwner()`. Cada pasta de módulo em `app/(app)/` tem um `layout.tsx`
+com `<ModuleGuard slug>` (só UX). `recordAudit` aqui NÃO recebe `db`: abre a
+própria transação (ver `core/admin/audit.ts`).
+
 ## Troca de senha obrigatória e Perfil (`core/profile/`)
 
 `must_change_password` (`app_metadata` do usuário Supabase, só gravável

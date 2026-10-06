@@ -24,6 +24,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.16.0",
+    date: "2026-10-06",
+    changes: [
+      {
+        type: "novo",
+        text: 'Oficinas com o modo "vários usuários" liberado ganham a tela Equipe (menu da sua conta): o responsável adiciona pessoas, define o setor de cada uma (ex.: oficina, atendimento) e escolhe quais módulos ela pode abrir (Clientes, Veículos, Catálogo, Ordens de serviço).',
+      },
+      {
+        type: "melhoria",
+        text: "O Painel mostra só os blocos dos módulos que a pessoa pode abrir. Liberar Ordens de serviço também libera Clientes, Veículos e Catálogo, de que ela depende.",
+      },
+      {
+        type: "melhoria",
+        text: "O Backup passa a ser exclusivo do responsável pela conta. Quem é desativado na Equipe perde o acesso na hora.",
+      },
+    ],
+  },
+  {
     version: "0.15.1",
     date: "2026-10-01",
     changes: [

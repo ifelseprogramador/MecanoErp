@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { withOrg } from "@/core/auth";
+import { requireOwner } from "@/core/auth";
 import {
   restoreOrgBackup,
   setAutoBackupEnabled,
@@ -38,7 +38,7 @@ export async function restoreBackup(
   _prevState: BackupRestoreState,
   formData: FormData,
 ): Promise<BackupRestoreState> {
-  const { withDb, organizationId, log } = await withOrg();
+  const { withDb, organizationId, log } = await requireOwner();
 
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
@@ -69,7 +69,7 @@ export async function restoreBackup(
 }
 
 export async function toggleAutoBackup(enabled: boolean): Promise<ActionResult> {
-  const { withDb, organizationId, log } = await withOrg();
+  const { withDb, organizationId, log } = await requireOwner();
   await withDb((tx) => setAutoBackupEnabled(tx, organizationId, enabled));
   log.info("backup.automatico.alternar", { enabled });
   revalidatePath("/backup");

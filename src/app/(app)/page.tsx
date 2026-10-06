@@ -7,6 +7,7 @@ import { Hint } from "@/components/hint";
 import { formatCents } from "@/core/money";
 import { formatPlate } from "@/core/format";
 import { getActiveOrg, getSession } from "@/core/auth";
+import { canAccessModule } from "@/core/module-access";
 import { getCustomerDashboardSummary } from "@/modules/clientes";
 import { getVehicleDashboardSummary } from "@/modules/veiculos";
 import {
@@ -26,18 +27,25 @@ const STATUS_BAR_COLORS: Record<WorkOrderStatusFilter, string> = {
 };
 
 export default async function DashboardPage() {
-  const [org, user, customerSummary, vehicleSummary, orderSummary] = await Promise.all([
-    getActiveOrg(),
-    getSession(),
-    getCustomerDashboardSummary(),
-    getVehicleDashboardSummary(),
-    getWorkOrderDashboardSummary(),
+  const [org, user] = await Promise.all([getActiveOrg(), getSession()]);
+
+  // Oficina multiusuário: cada pessoa só vê os blocos dos módulos liberados
+  // pelo responsável da conta (ver `core/module-access.ts`). O que não tem
+  // acesso nem é consultado — `requireModule()` nas queries lançaria erro.
+  const temOrdens = canAccessModule(org.moduleAccess, "ordens");
+  const temClientes = canAccessModule(org.moduleAccess, "clientes");
+  const temVeiculos = canAccessModule(org.moduleAccess, "veiculos");
+
+  const [customerSummary, vehicleSummary, orderSummary] = await Promise.all([
+    temClientes ? getCustomerDashboardSummary() : null,
+    temVeiculos ? getVehicleDashboardSummary() : null,
+    temOrdens ? getWorkOrderDashboardSummary() : null,
   ]);
 
   const displayName =
     (user?.user_metadata?.display_name as string | undefined) ?? org.organizationName;
 
-  const maxStatusCount = Math.max(1, ...Object.values(orderSummary.byStatus));
+  const maxStatusCount = Math.max(1, ...Object.values(orderSummary?.byStatus ?? {}));
 
   return (
     <div className="flex flex-col gap-6">
@@ -47,143 +55,172 @@ export default async function DashboardPage() {
           <p className="text-muted-foreground text-sm">{displayName}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            nativeButton={false}
-            render={<Link href="/clientes/novo" />}
-          >
-            <Plus className="h-4 w-4" />
-            Cliente
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            nativeButton={false}
-            render={<Link href="/veiculos/novo" />}
-          >
-            <Plus className="h-4 w-4" />
-            Veículo
-          </Button>
-          <Button size="sm" nativeButton={false} render={<Link href="/ordens/novo" />}>
-            <Plus className="h-4 w-4" />
-            Orçamento
-          </Button>
+          {temClientes && (
+            <Button
+              variant="outline"
+              size="sm"
+              nativeButton={false}
+              render={<Link href="/clientes/novo" />}
+            >
+              <Plus className="h-4 w-4" />
+              Cliente
+            </Button>
+          )}
+          {temVeiculos && (
+            <Button
+              variant="outline"
+              size="sm"
+              nativeButton={false}
+              render={<Link href="/veiculos/novo" />}
+            >
+              <Plus className="h-4 w-4" />
+              Veículo
+            </Button>
+          )}
+          {temOrdens && (
+            <Button size="sm" nativeButton={false} render={<Link href="/ordens/novo" />}>
+              <Plus className="h-4 w-4" />
+              Orçamento
+            </Button>
+          )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard
-          icon={Wrench}
-          label="OS abertas"
-          value={String(orderSummary.openCount)}
-          hint={`${orderSummary.awaitingApprovalCount} aguardando aprovação`}
-        />
-        <KpiCard
-          icon={Clock}
-          label="Em andamento"
-          value={String(orderSummary.inProgressCount)}
-          hint="Serviços em execução agora"
-        />
-        <KpiCard
-          icon={TrendingUp}
-          label="Faturamento do mês"
-          value={formatCents(orderSummary.monthRevenueCents)}
-          hint={
-            orderSummary.monthCompletedCount === 1
-              ? "1 OS concluída"
-              : `${orderSummary.monthCompletedCount} OS concluídas`
-          }
-          tooltip="Soma do total das ordens de serviço concluídas neste mês. Ainda não existe um módulo financeiro separado — este é o valor de serviço já finalizado."
-        />
-        <KpiCard
-          icon={Users}
-          label="Clientes"
-          value={String(customerSummary.total)}
-          hint={`+${customerSummary.newLast30Days} nos últimos 30 dias`}
-        />
-      </div>
+      {!temOrdens && !temClientes && !temVeiculos && (
+        <p className="text-muted-foreground text-sm">
+          Nenhum módulo foi liberado para você ainda. Fale com o responsável pela conta.
+        </p>
+      )}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <ClipboardList className="text-primary h-4 w-4" />
-              Ordens por status
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            {(Object.keys(WORK_ORDER_STATUS_LABELS) as WorkOrderStatusFilter[]).map((status) => {
-              const count = orderSummary.byStatus[status];
-              return (
-                <div key={status} className="flex items-center gap-3 text-sm">
-                  <span className="text-muted-foreground w-28 shrink-0">
-                    {WORK_ORDER_STATUS_LABELS[status]}
-                  </span>
-                  <div className="bg-muted h-2 flex-1 overflow-hidden rounded-full">
-                    <div
-                      className={`h-full rounded-full ${STATUS_BAR_COLORS[status]}`}
-                      style={{ width: `${(count / maxStatusCount) * 100}%` }}
-                    />
-                  </div>
-                  <span className="w-6 shrink-0 text-right font-medium">{count}</span>
-                </div>
-              );
-            })}
-            <p className="text-muted-foreground pt-2 text-xs">
-              {vehicleSummary.total === 1
-                ? "1 veículo cadastrado ao todo."
-                : `${vehicleSummary.total} veículos cadastrados ao todo.`}
-            </p>
-          </CardContent>
-        </Card>
+      {(orderSummary || customerSummary) && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {orderSummary && (
+            <>
+              <KpiCard
+                icon={Wrench}
+                label="OS abertas"
+                value={String(orderSummary.openCount)}
+                hint={`${orderSummary.awaitingApprovalCount} aguardando aprovação`}
+              />
+              <KpiCard
+                icon={Clock}
+                label="Em andamento"
+                value={String(orderSummary.inProgressCount)}
+                hint="Serviços em execução agora"
+              />
+              <KpiCard
+                icon={TrendingUp}
+                label="Faturamento do mês"
+                value={formatCents(orderSummary.monthRevenueCents)}
+                hint={
+                  orderSummary.monthCompletedCount === 1
+                    ? "1 OS concluída"
+                    : `${orderSummary.monthCompletedCount} OS concluídas`
+                }
+                tooltip="Soma do total das ordens de serviço concluídas neste mês. Ainda não existe um módulo financeiro separado — este é o valor de serviço já finalizado."
+              />
+            </>
+          )}
+          {customerSummary && (
+            <KpiCard
+              icon={Users}
+              label="Clientes"
+              value={String(customerSummary.total)}
+              hint={`+${customerSummary.newLast30Days} nos últimos 30 dias`}
+            />
+          )}
+        </div>
+      )}
 
-        <Card className="lg:col-span-3">
-          <CardHeader className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <FileClock className="text-primary h-4 w-4" />
-              Ordens de serviço recentes
-            </CardTitle>
-            <Button variant="ghost" size="sm" nativeButton={false} render={<Link href="/ordens" />}>
-              Ver todas
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {orderSummary.recent.length === 0 ? (
-              <p className="text-muted-foreground py-6 text-center text-sm">
-                Nenhuma ordem de serviço ainda —{" "}
-                <ActionLink href="/ordens/novo" icon={Plus} inline>
-                  criar a primeira
-                </ActionLink>
-                .
-              </p>
-            ) : (
-              <ul className="flex flex-col divide-y">
-                {orderSummary.recent.map((order) => (
-                  <li key={order.id} className="flex items-center justify-between gap-3 py-2.5">
-                    <ActionLink href={`/ordens/${order.id}`} className="min-w-0">
-                      <span className="flex min-w-0 flex-col">
-                        <span className="truncate text-sm font-medium">
-                          #{order.number} — {order.customerName}
-                        </span>
-                        <span className="text-muted-foreground text-xs">
-                          {formatPlate(order.vehiclePlate)}
-                        </span>
-                      </span>
-                    </ActionLink>
-                    <div className="flex shrink-0 items-center gap-3">
-                      <WorkOrderStatusBadge status={order.status} />
-                      <span className="w-20 text-right text-sm font-medium">
-                        {formatCents(order.totalCents)}
-                      </span>
+      {orderSummary && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <ClipboardList className="text-primary h-4 w-4" />
+                Ordens por status
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              {(Object.keys(WORK_ORDER_STATUS_LABELS) as WorkOrderStatusFilter[]).map((status) => {
+                const count = orderSummary.byStatus[status];
+                return (
+                  <div key={status} className="flex items-center gap-3 text-sm">
+                    <span className="text-muted-foreground w-28 shrink-0">
+                      {WORK_ORDER_STATUS_LABELS[status]}
+                    </span>
+                    <div className="bg-muted h-2 flex-1 overflow-hidden rounded-full">
+                      <div
+                        className={`h-full rounded-full ${STATUS_BAR_COLORS[status]}`}
+                        style={{ width: `${(count / maxStatusCount) * 100}%` }}
+                      />
                     </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                    <span className="w-6 shrink-0 text-right font-medium">{count}</span>
+                  </div>
+                );
+              })}
+              {vehicleSummary && (
+                <p className="text-muted-foreground pt-2 text-xs">
+                  {vehicleSummary.total === 1
+                    ? "1 veículo cadastrado ao todo."
+                    : `${vehicleSummary.total} veículos cadastrados ao todo.`}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="lg:col-span-3">
+            <CardHeader className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <FileClock className="text-primary h-4 w-4" />
+                Ordens de serviço recentes
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                nativeButton={false}
+                render={<Link href="/ordens" />}
+              >
+                Ver todas
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {orderSummary.recent.length === 0 ? (
+                <p className="text-muted-foreground py-6 text-center text-sm">
+                  Nenhuma ordem de serviço ainda —{" "}
+                  <ActionLink href="/ordens/novo" icon={Plus} inline>
+                    criar a primeira
+                  </ActionLink>
+                  .
+                </p>
+              ) : (
+                <ul className="flex flex-col divide-y">
+                  {orderSummary.recent.map((order) => (
+                    <li key={order.id} className="flex items-center justify-between gap-3 py-2.5">
+                      <ActionLink href={`/ordens/${order.id}`} className="min-w-0">
+                        <span className="flex min-w-0 flex-col">
+                          <span className="truncate text-sm font-medium">
+                            #{order.number} — {order.customerName}
+                          </span>
+                          <span className="text-muted-foreground text-xs">
+                            {formatPlate(order.vehiclePlate)}
+                          </span>
+                        </span>
+                      </ActionLink>
+                      <div className="flex shrink-0 items-center gap-3">
+                        <WorkOrderStatusBadge status={order.status} />
+                        <span className="w-20 text-right text-sm font-medium">
+                          {formatCents(order.totalCents)}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

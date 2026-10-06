@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { withOrg } from "@/core/auth";
+import { ModuleAccessDeniedError, requireModule } from "@/core/auth";
 import { toCsv } from "@/core/csv";
 import { formatCents } from "@/core/money";
 import { formatDate } from "@/core/format";
@@ -17,7 +17,11 @@ const HEADERS = ["number", "status", "customerName", "vehiclePlate", "totalCents
  * CSV seria arriscada demais pra fazer bem (ver docs/decisoes.md).
  */
 export async function GET() {
-  const { withDb, organizationId } = await withOrg();
+  const ctx = await requireModule("ordens").catch((err) =>
+    err instanceof ModuleAccessDeniedError ? null : Promise.reject(err),
+  );
+  if (!ctx) return new Response("Acesso negado.", { status: 403 });
+  const { withDb, organizationId } = ctx;
 
   const rows = await withDb((tx) =>
     tx

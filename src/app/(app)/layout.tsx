@@ -1,7 +1,7 @@
 import "@/core/load-modules";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { LogOut, Headset, User } from "lucide-react";
+import { LogOut, Headset, User, Users } from "lucide-react";
 import {
   getActiveOrg,
   getSession,
@@ -12,6 +12,7 @@ import {
 } from "@/core/auth";
 import { runWithUserContext } from "@/core/db";
 import { getEnabledModulesForOrg } from "@/core/module-settings";
+import { filterModulesByAccess } from "@/core/module-access";
 import { stopImpersonation } from "@/core/admin/actions";
 import { getOpenSessionForMyOrg } from "@/core/live-support/queries";
 import { LiveSupportWidget } from "@/core/live-support/components/live-support-widget";
@@ -64,8 +65,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const displayName =
     (user?.user_metadata?.display_name as string | undefined) ?? org.organizationName;
 
-  const modules = await runWithUserContext(org.userId, (tx) =>
-    getEnabledModulesForOrg(tx, org.organizationId),
+  // Menu só com o que esta pessoa pode abrir (o dono da conta escolhe em
+  // /equipe). Esconder não é a proteção — cada módulo chama `requireModule`.
+  const modules = filterModulesByAccess(
+    await runWithUserContext(org.userId, (tx) => getEnabledModulesForOrg(tx, org.organizationId)),
+    org.moduleAccess,
   );
   const stopImpersonationWithId = stopImpersonation.bind(null, org.organizationId);
 
@@ -115,7 +119,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               </>
             )}
           </div>
-          <SidebarNav modules={modules} />
+          <SidebarNav modules={modules} isOwner={org.role === "owner"} />
           <div className="border-sidebar-border mt-auto flex flex-col gap-2 border-t px-2 py-2">
             {/* A marca do sistema (ícone + nome — mesma dupla do topo
                 antes de escolher um logo próprio, e o mesmo ícone da
@@ -135,7 +139,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="flex items-center justify-between border-b px-4 py-3 print:hidden">
             <div className="flex items-center gap-2">
-              <MobileNav modules={modules} />
+              <MobileNav modules={modules} isOwner={org.role === "owner"} />
               <span className="text-sm font-medium">{displayName}</span>
             </div>
             <div className="flex items-center gap-3">
@@ -152,6 +156,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
                     <User className="h-4 w-4" />
                     Perfil
                   </DropdownMenuItem>
+                  {org.role === "owner" && org.multiUser && (
+                    <DropdownMenuItem render={<Link href="/equipe" />}>
+                      <Users className="h-4 w-4" />
+                      Equipe
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
               <form action={logout}>

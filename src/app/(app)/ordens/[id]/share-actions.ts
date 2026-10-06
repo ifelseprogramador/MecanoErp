@@ -7,7 +7,7 @@
  * `ShareDocumentButton`. Vive em `app/` porque cruza módulos.
  */
 import { eq } from "drizzle-orm";
-import { withOrg } from "@/core/auth";
+import { requireModule } from "@/core/auth";
 import { formatCents } from "@/core/money";
 import { formatDate, formatPlate } from "@/core/format";
 import { formatAddressLine } from "@/core/fiscal-fields";
@@ -20,7 +20,7 @@ import { WORK_ORDER_STATUS_LABELS } from "@/modules/ordens";
 import { getCustomerById } from "@/modules/clientes/queries";
 
 export async function compartilharOrdem(orderId: string): Promise<ShareLinkResult> {
-  const { organizationId, withDb } = await withOrg();
+  const { organizationId, withDb } = await requireModule("ordens");
   const [order, items, [org]] = await Promise.all([
     getWorkOrderById(orderId),
     listWorkOrderItems(orderId),

@@ -5,13 +5,12 @@ import { BackupDownloadButton } from "@/components/backup-download-button";
 import { BackupRestoreForm } from "@/components/backup-restore-form";
 import { AutoBackupToggle } from "@/components/auto-backup-toggle";
 import { getAutoBackupEnabled, listAutomaticBackups } from "@/core/backup";
-import { getActiveOrg } from "@/core/auth";
-import { runWithUserContext } from "@/core/db";
+import { requireOwner } from "@/core/auth";
 import { formatDate } from "@/core/format";
 
 export default async function BackupPage() {
-  const org = await getActiveOrg();
-  const [autoBackupEnabled, automaticBackups] = await runWithUserContext(org.userId, (tx) =>
+  const org = await requireOwner();
+  const [autoBackupEnabled, automaticBackups] = await org.withDb((tx) =>
     Promise.all([
       getAutoBackupEnabled(tx, org.organizationId),
       listAutomaticBackups(tx, org.organizationId),
