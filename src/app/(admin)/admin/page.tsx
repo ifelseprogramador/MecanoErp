@@ -15,16 +15,22 @@ import {
 import { SearchBox } from "@/components/search-box";
 import { formatDate } from "@/core/format";
 import { listOrganizationsForAdmin } from "@/core/admin/queries";
-import { listPendingUserRequestsForAdmin } from "@/core/live-support/queries";
+import {
+  getSupportWaitSeconds,
+  listPendingUserRequestsForAdmin,
+} from "@/core/live-support/queries";
+import { isTelegramConfigured } from "@/core/telegram";
+import { SupportSettingsCard } from "@/core/admin/components/support-settings-card";
 import { NewOrganizationForm } from "@/core/admin/components/new-organization-form";
 import { SupportInbox } from "@/core/admin/components/support-inbox";
 
 export default async function AdminDashboardPage({ searchParams }: PageProps<"/admin">) {
   const { q } = await searchParams;
   const search = typeof q === "string" ? q : undefined;
-  const [organizations, pendingRequests] = await Promise.all([
+  const [organizations, pendingRequests, supportWaitSeconds] = await Promise.all([
     listOrganizationsForAdmin(search),
     listPendingUserRequestsForAdmin(),
+    getSupportWaitSeconds(),
   ]);
 
   return (
@@ -46,6 +52,11 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
       </div>
 
       <SupportInbox initialRequests={pendingRequests} />
+
+      <SupportSettingsCard
+        initialSeconds={supportWaitSeconds}
+        telegramConfigured={isTelegramConfigured()}
+      />
 
       <SearchBox placeholder="Buscar oficina..." />
 

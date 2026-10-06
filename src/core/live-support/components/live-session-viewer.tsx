@@ -15,7 +15,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { logger } from "@/core/logger";
 import { getRealtimeChannel, liveSessionChannelName } from "../realtime";
-import { endLiveSession, getFullSnapshot } from "../actions";
+import { endLiveSession, getFullSnapshot, type ChatMessageDto } from "../actions";
+import { dispatchChatMessage } from "../chat-events";
+import { SupportChat } from "./support-chat";
 
 // `target` de um evento "mouse-interaction" do Replayer vem do
 // `contentDocument` do iframe — outro realm de JS, com seu próprio
@@ -145,8 +147,8 @@ export function LiveSessionViewer({
       // o polling que desfoca o iframe (pra ele não roubar o teclado do
       // admin, ver useEffect mais abaixo) cancela esse foco junto. Em
       // vez de brigar com isso, desenha um contorno visível no campo
-      // focado à mão — dá pra ver ONDE a oficina está digitando, mesmo
-      // sem o cursor piscando nativo.
+      // focado à mão — dá pra ver ONDE a organização está digitando,
+      // mesmo sem o cursor piscando nativo.
       replayerRef.current.on(ReplayerEvents.MouseInteraction, (payload) => {
         const { type, target } = payload as { type: MouseInteractions; target: unknown };
         // `target` vem do `contentDocument` do iframe — outro realm de
@@ -209,10 +211,9 @@ export function LiveSessionViewer({
     // O instantâneo completo (o DOM inteiro da tela gravada) não passa
     // pelo Broadcast — é grande demais (200KB+), o Realtime aceita o
     // envio mas descarta silenciosamente acima do limite de tamanho de
-    // mensagem (era a causa real do "só aparece fundo cinza", ver
-    // docs/decisoes.md). Em vez disso, o admin busca sob demanda aqui.
-    // Precisa ser um polling, não uma tentativa única: existe uma corrida
-    // real entre a sessão virar "active" e o lado do usuário terminar de
+    // mensagem. Em vez disso, o admin busca sob demanda aqui. Precisa
+    // ser um polling, não uma tentativa única: existe uma corrida real
+    // entre a sessão virar "active" e o lado do usuário terminar de
     // iniciar a gravação e salvar o primeiro instantâneo (150-350ms na
     // prática) — uma busca isolada nesse meio-tempo não acha nada e,
     // sem repetir, o espelho nunca mais tenta de novo.
@@ -253,6 +254,9 @@ export function LiveSessionViewer({
       })
       .on("broadcast", { event: "control" }, ({ payload }) => {
         setControlGranted(Boolean(payload.granted));
+      })
+      .on("broadcast", { event: "message" }, ({ payload }) => {
+        dispatchChatMessage(sessionId, payload as ChatMessageDto);
       })
       .on("broadcast", { event: "rrweb" }, ({ payload }) => {
         const event = payload as eventWithTime;
@@ -424,7 +428,7 @@ export function LiveSessionViewer({
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2">
         <Badge variant={status === "active" ? "secondary" : "outline"}>
-          {status === "active" ? "Ao vivo" : "Aguardando aprovação da oficina..."}
+          {status === "active" ? "Ao vivo" : "Aguardando aprovação da pessoa..."}
         </Badge>
         {controlGranted && <Badge>Controle remoto concedido</Badge>}
         {connectionError && (
@@ -478,8 +482,7 @@ export function LiveSessionViewer({
           overflow-auto: o `Replayer` cru não escala a página pra caber —
           o zoom aqui é nosso, via CSS transform num wrapper dimensionado
           pro tamanho já escalado, então o scroll do container acompanha
-          corretamente o zoom aplicado. Container bem maior que antes
-          (era 480px fixo) pra caber mais tela sem precisar rolar tanto. */}
+          corretamente o zoom aplicado. */}
       {status === "active" && (
         <div
           ref={containerRef}
@@ -533,6 +536,7 @@ export function LiveSessionViewer({
           Passe o mouse sobre o espelho para usar o controle remoto (mouse e teclado).
         </p>
       )}
+      {status === "active" && <SupportChat sessionId={sessionId} side="admin" />}
     </div>
   );
 }

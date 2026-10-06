@@ -127,6 +127,13 @@
       "when": 1791313766089,
       "tag": "0017_audit_status_history",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791320264086,
+      "tag": "0018_live_support_per_user",
+      "breakpoints": true
     }
   ]
 }

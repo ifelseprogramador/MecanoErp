@@ -1877,3 +1877,18 @@ Concorrência em `modules/ordens/actions.ts`:
 - Fila offline (IndexedDB) por pessoa e oficina (`core/offline/db.ts`,
   `<div id="offline-scope">` do layout); pendentes do banco antigo migram para o
   primeiro usuário que abrir o app.
+
+## 2026-10-06 — Suporte ao vivo por pessoa, espera configurável e chat (portado do BaseERP)
+
+Mesma decisão do BaseERP (ver `docs/decisoes.md` de lá): sessão por PESSOA
+(`live_sessions.subject_user_id`, RLS só da pessoa e do admin), espera
+configurável (`platform_settings.support_wait_seconds`), pedido sem atendimento
+vira `missed` com aviso no Telegram (`TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID`),
+caixa de entrada no `/admin` para pedir acesso depois (a pessoa aprova), presença
+do admin por batida do painel e chat de texto. Migrations: drizzle
+`0018_live_support_per_user`, custom `0018_live_support_per_user`. Validado no
+Postgres em memória (28 cenários, papel `mecano_erp_app`).
+
+Específico do Mecano: `recordAudit` não recebe `db` (abre a própria transação),
+então `live-support/actions.ts` chama `recordAudit({...})`; textos dizem
+"oficina".
