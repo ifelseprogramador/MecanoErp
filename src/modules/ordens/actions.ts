@@ -170,7 +170,9 @@ export async function updateWorkOrderHeader(
 
   // Versão do cabeçalho que a pessoa estava vendo (campo oculto do
   // formulário). Sem ela não dá para detectar edição simultânea.
-  const expectedVersion = Number(formData.get("headerVersion"));
+  const rawVersion = formData.get("headerVersion");
+  const expectedVersion =
+    rawVersion === null || rawVersion === "" ? Number.NaN : Number(rawVersion);
   if (!Number.isInteger(expectedVersion) || expectedVersion < 0) {
     return { ok: false, message: "Não foi possível salvar. Atualize a página e tente de novo." };
   }
