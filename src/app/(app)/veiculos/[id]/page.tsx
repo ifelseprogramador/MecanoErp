@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { CreatedBanner } from "@/components/created-banner";
 import { BackButton } from "@/components/back-button";
+import { HistoryCard } from "@/components/history-card";
 import { formatPlate } from "@/core/format";
 import { getVehicleById } from "@/modules/veiculos/queries";
 import { deleteVehicle, updateVehicle } from "@/modules/veiculos/actions";
@@ -66,6 +67,12 @@ export default async function VehicleDetailPage({
           <VehicleForm vehicle={vehicle} customers={customers} action={updateVehicleWithId} />
         </CardContent>
       </Card>
+      <HistoryCard
+        createdBy={vehicle.createdBy}
+        createdAt={vehicle.createdAt}
+        updatedBy={vehicle.updatedBy}
+        updatedAt={vehicle.updatedAt}
+      />
     </div>
   );
 }

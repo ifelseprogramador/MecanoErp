@@ -6,7 +6,14 @@ import { and, eq, sql } from "drizzle-orm";
 import { requireModule } from "@/core/auth";
 import type { Database } from "@/core/db";
 import type { ActionResult } from "@/core/action-result";
-import { calculateOrderTotal, isValidTransition, type WorkOrderStatus } from "./domain";
+import { recordStatusChange } from "@/core/status-history";
+import {
+  areItemsEditable,
+  calculateOrderTotal,
+  isHeaderEditable,
+  isValidTransition,
+  type WorkOrderStatus,
+} from "./domain";
 import { workOrderCounters, workOrderItems, workOrders } from "./schema";
 import {
   parseWorkOrderHeaderFormData,
@@ -16,6 +23,32 @@ import {
 
 interface InsertResult extends ActionResult {
   id?: string;
+}
+
+const CONFLICT_MESSAGE =
+  "Esta ordem de serviço foi alterada por outra pessoa enquanto você editava. Atualize a página e tente de novo.";
+
+/**
+ * Trava a linha da OS (`SELECT ... FOR UPDATE`) até o fim da transação e
+ * devolve o estado atual. TODA mutação da OS (cabeçalho, item, status)
+ * começa por aqui: duas pessoas mexendo na mesma OS se enfileiram em vez de
+ * se atropelar — a segunda lê o estado já gravado pela primeira (cada
+ * instrução em READ COMMITTED enxerga o que foi confirmado), então o total
+ * recalculado nunca perde um item adicionado ao mesmo tempo.
+ */
+async function lockOrder(tx: Database, orderId: string, organizationId: string) {
+  const [order] = await tx
+    .select({
+      id: workOrders.id,
+      status: workOrders.status,
+      discountCents: workOrders.discountCents,
+      headerVersion: workOrders.headerVersion,
+    })
+    .from(workOrders)
+    .where(and(eq(workOrders.id, orderId), eq(workOrders.organizationId, organizationId)))
+    .limit(1)
+    .for("update");
+  return order ?? null;
 }
 
 /** Recalcula e grava o total da OS a partir dos itens atuais + desconto —
@@ -58,7 +91,7 @@ export async function createWorkOrderRecord(
   data: WorkOrderHeaderInput,
   id?: string,
 ): Promise<InsertResult> {
-  const { withDb, organizationId, log } = await requireModule("ordens");
+  const { withDb, organizationId, userId, log } = await requireModule("ordens");
   log.info("ordens.criar", { offline: Boolean(id) });
 
   // Upsert atômico: uma única instrução, sem corrida entre duas OSs
@@ -78,6 +111,15 @@ export async function createWorkOrderRecord(
       .insert(workOrders)
       .values({ ...data, organizationId, number: lastNumber, ...(id && { id }) })
       .returning({ id: workOrders.id });
+
+    await recordStatusChange(tx, {
+      organizationId,
+      userId,
+      entityTable: "work_orders",
+      entityId: order.id,
+      fromStatus: null,
+      toStatus: "orcamento",
+    });
 
     return { order, lastNumber };
   });
@@ -126,22 +168,46 @@ export async function updateWorkOrderHeader(
     return { ok: false, errors: parsed.error.flatten().fieldErrors };
   }
 
-  const notFound = await withDb(async (tx) => {
-    const result = await tx
-      .update(workOrders)
-      .set({ ...parsed.data, updatedAt: new Date() })
-      .where(and(eq(workOrders.id, orderId), eq(workOrders.organizationId, organizationId)))
-      .returning({ id: workOrders.id });
+  // Versão do cabeçalho que a pessoa estava vendo (campo oculto do
+  // formulário). Sem ela não dá para detectar edição simultânea.
+  const expectedVersion = Number(formData.get("headerVersion"));
+  if (!Number.isInteger(expectedVersion) || expectedVersion < 0) {
+    return { ok: false, message: "Não foi possível salvar. Atualize a página e tente de novo." };
+  }
 
-    if (result.length === 0) return true;
+  const outcome = await withDb(async (tx) => {
+    const order = await lockOrder(tx, orderId, organizationId);
+    if (!order) return "not_found" as const;
+    if (!isHeaderEditable(order.status)) return "locked" as const;
+    if (order.headerVersion !== expectedVersion) return "conflict" as const;
+
+    await tx
+      .update(workOrders)
+      .set({
+        ...parsed.data,
+        headerVersion: sql`${workOrders.headerVersion} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(workOrders.id, orderId));
 
     await recalculateOrderTotal(tx, orderId, parsed.data.discountCents);
-    return false;
+    return "ok" as const;
   });
 
-  if (notFound) {
+  if (outcome === "not_found") {
     log.warn("ordens.atualizar.nao_encontrada", { orderId });
     return { ok: false, message: "Ordem de serviço não encontrada." };
+  }
+  if (outcome === "locked") {
+    log.warn("ordens.atualizar.nao_editavel", { orderId });
+    return {
+      ok: false,
+      message: "Esta ordem de serviço não pode mais ser editada (status mudou). Atualize a página.",
+    };
+  }
+  if (outcome === "conflict") {
+    log.warn("ordens.atualizar.conflito", { orderId });
+    return { ok: false, message: CONFLICT_MESSAGE };
   }
 
   log.info("ordens.atualizar.sucesso", { orderId });
@@ -166,13 +232,10 @@ export async function addWorkOrderItem(
     return { ok: false, errors: parsed.error.flatten().fieldErrors };
   }
 
-  const orderFound = await withDb(async (tx) => {
-    const [order] = await tx
-      .select({ id: workOrders.id, discountCents: workOrders.discountCents })
-      .from(workOrders)
-      .where(and(eq(workOrders.id, orderId), eq(workOrders.organizationId, organizationId)))
-      .limit(1);
-    if (!order) return false;
+  const outcome = await withDb(async (tx) => {
+    const order = await lockOrder(tx, orderId, organizationId);
+    if (!order) return "not_found" as const;
+    if (!areItemsEditable(order.status)) return "locked" as const;
 
     await tx.insert(workOrderItems).values({
       workOrderId: orderId,
@@ -183,12 +246,19 @@ export async function addWorkOrderItem(
     });
 
     await recalculateOrderTotal(tx, orderId, order.discountCents);
-    return true;
+    return "ok" as const;
   });
 
-  if (!orderFound) {
+  if (outcome === "not_found") {
     log.warn("ordens.item.adicionar.ordem_nao_encontrada", { orderId });
     return { ok: false, message: "Ordem de serviço não encontrada." };
+  }
+  if (outcome === "locked") {
+    log.warn("ordens.item.adicionar.nao_editavel", { orderId });
+    return {
+      ok: false,
+      message: "Esta ordem de serviço não aceita mais itens (status mudou). Atualize a página.",
+    };
   }
 
   log.info("ordens.item.adicionar.sucesso", { orderId });
@@ -200,25 +270,30 @@ export async function removeWorkOrderItem(itemId: string, orderId: string): Prom
   const { withDb, organizationId, log } = await requireModule("ordens");
   log.info("ordens.item.remover", { itemId, orderId });
 
-  const orderFound = await withDb(async (tx) => {
-    const [order] = await tx
-      .select({ id: workOrders.id, discountCents: workOrders.discountCents })
-      .from(workOrders)
-      .where(and(eq(workOrders.id, orderId), eq(workOrders.organizationId, organizationId)))
-      .limit(1);
-    if (!order) return false;
+  const outcome = await withDb(async (tx) => {
+    const order = await lockOrder(tx, orderId, organizationId);
+    if (!order) return "not_found" as const;
+    if (!areItemsEditable(order.status)) return "locked" as const;
 
     await tx
       .delete(workOrderItems)
       .where(and(eq(workOrderItems.id, itemId), eq(workOrderItems.workOrderId, orderId)));
 
     await recalculateOrderTotal(tx, orderId, order.discountCents);
-    return true;
+    return "ok" as const;
   });
 
-  if (!orderFound) {
+  if (outcome === "not_found") {
     log.warn("ordens.item.remover.ordem_nao_encontrada", { orderId });
     return { ok: false, message: "Ordem de serviço não encontrada." };
+  }
+  if (outcome === "locked") {
+    log.warn("ordens.item.remover.nao_editavel", { orderId });
+    return {
+      ok: false,
+      message:
+        "Esta ordem de serviço não aceita mais alterações de itens (status mudou). Atualize a página.",
+    };
   }
 
   log.info("ordens.item.remover.sucesso", { itemId, orderId });
@@ -251,16 +326,15 @@ export async function transitionWorkOrderStatus(
   orderId: string,
   nextStatus: WorkOrderStatus,
 ): Promise<ActionResult> {
-  const { withDb, organizationId, log } = await requireModule("ordens");
+  const { withDb, organizationId, userId, log } = await requireModule("ordens");
   const actionName = STATUS_ACTION_LABEL[nextStatus] ?? "ordens.transicao";
   log.info(actionName, { orderId, nextStatus });
 
   const outcome = await withDb(async (tx) => {
-    const [order] = await tx
-      .select({ id: workOrders.id, status: workOrders.status })
-      .from(workOrders)
-      .where(and(eq(workOrders.id, orderId), eq(workOrders.organizationId, organizationId)))
-      .limit(1);
+    // Linha travada: se outra pessoa está mudando o status (ou mexendo em
+    // item) desta mesma OS, esperamos ela terminar e validamos a transição
+    // contra o status que ficou — nunca contra um status já velho.
+    const order = await lockOrder(tx, orderId, organizationId);
     if (!order) return { kind: "not_found" as const };
 
     if (!isValidTransition(order.status, nextStatus)) {
@@ -276,6 +350,15 @@ export async function transitionWorkOrderStatus(
         ...(timestampField && { [timestampField]: new Date() }),
       })
       .where(eq(workOrders.id, orderId));
+
+    await recordStatusChange(tx, {
+      organizationId,
+      userId,
+      entityTable: "work_orders",
+      entityId: orderId,
+      fromStatus: order.status,
+      toStatus: nextStatus,
+    });
 
     return { kind: "ok" as const };
   });

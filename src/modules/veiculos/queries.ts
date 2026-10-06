@@ -138,6 +138,8 @@ export async function getVehicleById(id: string) {
         fuel: vehicles.fuel,
         chassis: vehicles.chassis,
         currentKm: vehicles.currentKm,
+        createdBy: vehicles.createdBy,
+        updatedBy: vehicles.updatedBy,
         createdAt: vehicles.createdAt,
         updatedAt: vehicles.updatedAt,
         customerName: customers.name,

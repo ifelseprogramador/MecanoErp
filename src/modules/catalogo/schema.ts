@@ -1,12 +1,14 @@
 import { pgTable, pgEnum, uuid, text, integer, timestamp, index } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { organizations } from "@/db/schema/tenancy";
+import { auditColumns } from "@/db/schema/audit";
 
 export const catalogItemTypeEnum = pgEnum("catalog_item_type", ["servico", "peca"]);
 
 export const catalogItems = pgTable(
   "catalog_items",
   {
+    ...auditColumns,
     id: uuid("id").primaryKey().defaultRandom(),
     organizationId: uuid("organization_id")
       .notNull()

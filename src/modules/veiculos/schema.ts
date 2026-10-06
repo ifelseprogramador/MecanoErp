@@ -11,6 +11,7 @@ import {
 import { relations } from "drizzle-orm";
 import { organizations } from "@/db/schema/tenancy";
 import { customers } from "@/modules/clientes/schema";
+import { auditColumns } from "@/db/schema/audit";
 
 export const fuelTypeEnum = pgEnum("fuel_type", [
   "gasolina",
@@ -24,6 +25,7 @@ export const fuelTypeEnum = pgEnum("fuel_type", [
 export const vehicles = pgTable(
   "vehicles",
   {
+    ...auditColumns,
     id: uuid("id").primaryKey().defaultRandom(),
     organizationId: uuid("organization_id")
       .notNull()

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  areItemsEditable,
   calculateItemTotal,
   calculateOrderTotal,
+  isHeaderEditable,
   isTerminalStatus,
   isValidTransition,
 } from "@/modules/ordens/domain";
@@ -75,5 +77,24 @@ describe("calculateOrderTotal", () => {
 
   it("uma OS sem itens tem total zero", () => {
     expect(calculateOrderTotal([], 0)).toBe(0);
+  });
+});
+
+describe("isHeaderEditable / areItemsEditable", () => {
+  it("cabeçalho só edita em orçamento e aprovada", () => {
+    expect(isHeaderEditable("orcamento")).toBe(true);
+    expect(isHeaderEditable("aprovada")).toBe(true);
+    for (const status of ["em_andamento", "concluida", "entregue", "cancelada"] as const) {
+      expect(isHeaderEditable(status)).toBe(false);
+    }
+  });
+
+  it("itens editam também em andamento, nunca depois de concluída", () => {
+    expect(areItemsEditable("orcamento")).toBe(true);
+    expect(areItemsEditable("aprovada")).toBe(true);
+    expect(areItemsEditable("em_andamento")).toBe(true);
+    for (const status of ["concluida", "entregue", "cancelada"] as const) {
+      expect(areItemsEditable(status)).toBe(false);
+    }
   });
 });

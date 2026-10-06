@@ -24,6 +24,28 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.17.0",
+    date: "2026-10-06",
+    changes: [
+      {
+        type: "novo",
+        text: 'Em oficinas com vários usuários, a ficha da OS, do cliente e do veículo mostra "Histórico": quem criou, quem alterou por último e, na OS, quem mudou cada status e quando.',
+      },
+      {
+        type: "melhoria",
+        text: "Duas pessoas mexendo na mesma OS ao mesmo tempo não se atrapalham mais: itens e total ficam certos, e se alguém salvar os dados de uma OS que outra pessoa acabou de alterar, o sistema avisa para atualizar a página em vez de sobrescrever.",
+      },
+      {
+        type: "correcao",
+        text: "Uma OS já concluída, entregue ou cancelada não aceita mais edição nem novos itens mesmo que a tela tenha ficado aberta desde antes.",
+      },
+      {
+        type: "correcao",
+        text: "Cadastros feitos sem internet agora ficam guardados por pessoa: dois funcionários no mesmo computador não veem nem enviam os cadastros pendentes um do outro.",
+      },
+    ],
+  },
+  {
     version: "0.16.0",
     date: "2026-10-06",
     changes: [

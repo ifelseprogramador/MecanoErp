@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { CreatedBanner } from "@/components/created-banner";
 import { BackButton } from "@/components/back-button";
+import { HistoryCard } from "@/components/history-card";
 import { Badge } from "@/components/ui/badge";
 import { EntityHeader } from "@/components/entity-header";
 import { EmailBadge, PhoneBadge } from "@/components/contact-badges";
@@ -130,6 +131,12 @@ export default async function CustomerDetailPage({
           )}
         </CardContent>
       </Card>
+      <HistoryCard
+        createdBy={customer.createdBy}
+        createdAt={customer.createdAt}
+        updatedBy={customer.updatedBy}
+        updatedAt={customer.updatedAt}
+      />
     </div>
   );
 }

@@ -27,6 +27,19 @@ export function isTerminalStatus(status: WorkOrderStatus): boolean {
   return VALID_TRANSITIONS[status].length === 0;
 }
 
+/** Cabeçalho (cliente, veículo, relato, diagnóstico, desconto) só edita
+ * enquanto a OS é orçamento ou aprovada. Antes só a tela respeitava isso;
+ * agora `actions.ts` também recusa — outra pessoa pode ter mudado o status
+ * depois que esta abriu a ficha. */
+export function isHeaderEditable(status: WorkOrderStatus): boolean {
+  return status === "orcamento" || status === "aprovada";
+}
+
+/** Itens editam também com a OS em andamento (peça extra, serviço extra). */
+export function areItemsEditable(status: WorkOrderStatus): boolean {
+  return isHeaderEditable(status) || status === "em_andamento";
+}
+
 export interface WorkOrderItemLike {
   quantity: number;
   unitPriceCents: Cents;

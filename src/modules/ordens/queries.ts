@@ -150,6 +150,9 @@ export async function getWorkOrderById(id: string) {
         completedAt: workOrders.completedAt,
         deliveredAt: workOrders.deliveredAt,
         cancelledAt: workOrders.cancelledAt,
+        headerVersion: workOrders.headerVersion,
+        createdBy: workOrders.createdBy,
+        updatedBy: workOrders.updatedBy,
         createdAt: workOrders.createdAt,
         updatedAt: workOrders.updatedAt,
         customerName: customers.name,
@@ -185,6 +188,8 @@ export async function listWorkOrderItems(workOrderId: string) {
         quantity: workOrderItems.quantity,
         unitPriceCents: workOrderItems.unitPriceCents,
         totalCents: workOrderItems.totalCents,
+        createdBy: workOrderItems.createdBy,
+        updatedBy: workOrderItems.updatedBy,
         createdAt: workOrderItems.createdAt,
       })
       .from(workOrderItems)

@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Hint } from "@/components/hint";
 import { CreatedBanner } from "@/components/created-banner";
+import { HistoryCard } from "@/components/history-card";
 import { BackButton } from "@/components/back-button";
 import { formatCents } from "@/core/money";
 import { getWorkOrderById, listWorkOrderItems } from "@/modules/ordens/queries";
@@ -19,8 +20,11 @@ import {
 import { WorkOrderForm } from "@/modules/ordens/components/work-order-form";
 import { WorkOrderItemsEditor } from "@/modules/ordens/components/work-order-items-editor";
 import { WorkOrderStatusActions } from "@/modules/ordens/components/work-order-status-actions";
-import { WorkOrderStatusBadge } from "@/modules/ordens/components/work-order-status-badge";
-import { isTerminalStatus } from "@/modules/ordens/domain";
+import {
+  WORK_ORDER_STATUS_LABELS,
+  WorkOrderStatusBadge,
+} from "@/modules/ordens/components/work-order-status-badge";
+import { areItemsEditable, isHeaderEditable, isTerminalStatus } from "@/modules/ordens/domain";
 import { listCustomersForSelect } from "@/modules/clientes";
 import { listVehiclesForSelect } from "@/modules/veiculos";
 import { listCatalogItemsForSelect } from "@/modules/catalogo";
@@ -46,8 +50,8 @@ export default async function WorkOrderDetailPage({
   // A OS só pode ser editada (cabeçalho e itens) enquanto ainda é
   // orçamento ou já foi aprovada mas não terminou — depois de concluída
   // ou cancelada, o histórico fica congelado.
-  const editable = order.status === "orcamento" || order.status === "aprovada";
-  const itemsEditable = editable || order.status === "em_andamento";
+  const editable = isHeaderEditable(order.status);
+  const itemsEditable = areItemsEditable(order.status);
   const updateHeaderWithId = updateWorkOrderHeader.bind(null, order.id);
   const addItemWithId = addWorkOrderItem.bind(null, order.id);
 
@@ -148,6 +152,16 @@ export default async function WorkOrderDetailPage({
           </div>
         </CardContent>
       </Card>
+
+      <HistoryCard
+        entityTable="work_orders"
+        entityId={order.id}
+        labels={WORK_ORDER_STATUS_LABELS}
+        createdBy={order.createdBy}
+        createdAt={order.createdAt}
+        updatedBy={order.updatedBy}
+        updatedAt={order.updatedAt}
+      />
 
       {isTerminalStatus(order.status) && (
         <p className="text-muted-foreground text-center text-sm">

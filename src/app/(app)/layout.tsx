@@ -86,7 +86,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           está numa sessão real dele, não da oficina — não faz sentido
           ele acumular uma fila offline em nome de outra pessoa (mesmo
           raciocínio do LiveSupportWidget logo abaixo). */}
-      {!org.impersonating && <SyncProvider />}
+      {!org.impersonating && (
+        <>
+          {/* Escopo da fila offline (por pessoa e oficina) — lido por
+              `core/offline/db.ts`. */}
+          <div id="offline-scope" data-scope={`${org.organizationId}:${org.userId}`} hidden />
+          <SyncProvider />
+        </>
+      )}
       {org.impersonating && (
         <div className="flex items-center justify-between bg-amber-500 px-4 py-2 text-sm font-medium text-amber-950 print:hidden">
           <span className="flex items-center gap-2">

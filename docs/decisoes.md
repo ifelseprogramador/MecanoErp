@@ -1849,3 +1849,31 @@ Específico do Mecano:
   chamam `recordAudit({...})`.
 - Fila offline (`core/offline`) ainda é um IndexedDB único por navegador — ver
   seção de concorrência abaixo/depois (separar por usuário e organização).
+
+## 2026-10-06 — Auditoria de negócio e concorrência nas OS (portado do BaseERP)
+
+Infra igual à do BaseERP (ver `docs/decisoes.md` de lá): `auditColumns` +
+gatilho `set_audit_columns` nas tabelas `customers`, `customer_addresses`,
+`vehicles`, `catalog_items`, `work_orders`, `work_order_items`; `status_history`
+genérica; cartão "Histórico" nas fichas de OS, cliente e veículo. Migrations:
+drizzle `0017_audit_status_history`, custom `0017_audit_columns_and_status_history`.
+Validado no Postgres em memória (autoria, histórico imutável, transição
+condicional e versão do cabeçalho).
+
+Concorrência em `modules/ordens/actions.ts`:
+
+- Toda mutação da OS (cabeçalho, item, status) começa por `lockOrder()`:
+  `SELECT ... FOR UPDATE` da linha. Duas pessoas se enfileiram; a segunda lê o
+  estado já confirmado, então o total recalculado nunca perde um item gravado ao
+  mesmo tempo (era corrida real: read-modify-write do total em READ COMMITTED).
+- `work_orders.header_version`: o formulário envia a versão que viu; versão
+  velha = recusa com "atualize a página". Coluna própria (não `updated_at`)
+  para um item adicionado por um colega não derrubar quem edita o cabeçalho.
+- Transição de status valida contra o status travado e grava
+  `status_history` na mesma transação.
+- `domain.ts#isHeaderEditable/areItemsEditable`: a regra "só edita enquanto
+  orçamento/aprovada (itens: também em andamento)" estava só na tela; agora o
+  servidor também a aplica.
+- Fila offline (IndexedDB) por pessoa e oficina (`core/offline/db.ts`,
+  `<div id="offline-scope">` do layout); pendentes do banco antigo migram para o
+  primeiro usuário que abrir o app.

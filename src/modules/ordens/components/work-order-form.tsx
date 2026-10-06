@@ -75,6 +75,7 @@ export function WorkOrderForm({
 
   return (
     <form key={order?.updatedAt?.toString()} action={formAction} className="flex flex-col gap-4">
+      {order && <input type="hidden" name="headerVersion" value={order.headerVersion} />}
       <div className="flex flex-col gap-2">
         <Label htmlFor="customerId">Cliente</Label>
         <Select

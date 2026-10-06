@@ -7,6 +7,7 @@
  */
 
 export * from "./schema/tenancy";
+export * from "./schema/audit";
 export * from "./schema/live-support";
 export * from "./schema/backup";
 export * from "./schema/notifications";

@@ -1,6 +1,7 @@
 import { pgTable, pgEnum, uuid, text, timestamp, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 import { organizations } from "@/db/schema/tenancy";
+import { auditColumns } from "@/db/schema/audit";
 
 export const customerTypeEnum = pgEnum("customer_type", ["pf", "pj"]);
 export const customerIeIndicatorEnum = pgEnum("customer_ie_indicator", [
@@ -17,6 +18,7 @@ export const customerAddressKindEnum = pgEnum("customer_address_kind", [
 export const customers = pgTable(
   "customers",
   {
+    ...auditColumns,
     id: uuid("id").primaryKey().defaultRandom(),
     organizationId: uuid("organization_id")
       .notNull()
@@ -49,6 +51,7 @@ export const customers = pgTable(
 export const customerAddresses = pgTable(
   "customer_addresses",
   {
+    ...auditColumns,
     id: uuid("id").primaryKey().defaultRandom(),
     organizationId: uuid("organization_id")
       .notNull()

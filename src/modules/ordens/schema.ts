@@ -14,6 +14,7 @@ import { organizations } from "@/db/schema/tenancy";
 import { customers } from "@/modules/clientes/schema";
 import { vehicles } from "@/modules/veiculos/schema";
 import { catalogItemTypeEnum } from "@/modules/catalogo/schema";
+import { auditColumns } from "@/db/schema/audit";
 
 /**
  * Orçamento não é uma entidade separada: é uma `work_order` com
@@ -52,6 +53,7 @@ export const workOrderCounters = pgTable("work_order_counters", {
 export const workOrders = pgTable(
   "work_orders",
   {
+    ...auditColumns,
     id: uuid("id").primaryKey().defaultRandom(),
     organizationId: uuid("organization_id")
       .notNull()
@@ -79,6 +81,13 @@ export const workOrders = pgTable(
     completedAt: timestamp("completed_at", { withTimezone: true }),
     deliveredAt: timestamp("delivered_at", { withTimezone: true }),
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    // Controle otimista do CABEÇALHO (dados da OS que o formulário edita):
+    // cada gravação do cabeçalho exige a versão que a pessoa viu e soma 1 —
+    // duas pessoas editando ao mesmo tempo não se sobrescrevem em silêncio.
+    // Separado de `updatedAt` de propósito: adicionar um item (que mexe no
+    // total) não deve derrubar a edição do cabeçalho de quem está com a
+    // tela aberta.
+    headerVersion: integer("header_version").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -94,6 +103,7 @@ export const workOrders = pgTable(
 export const workOrderItems = pgTable(
   "work_order_items",
   {
+    ...auditColumns,
     id: uuid("id").primaryKey().defaultRandom(),
     workOrderId: uuid("work_order_id")
       .notNull()
