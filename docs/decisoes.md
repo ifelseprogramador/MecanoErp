@@ -1892,3 +1892,12 @@ Postgres em memória (28 cenários, papel `mecano_erp_app`).
 Específico do Mecano: `recordAudit` não recebe `db` (abre a própria transação),
 então `live-support/actions.ts` chama `recordAudit({...})`; textos dizem
 "oficina".
+
+## 2026-10-06 — Espelho do suporte: segundo quadro, "Atualizar tela" e caixa arrastável (portado do BaseERP)
+
+Mesma correção do BaseERP (ver `docs/decisoes.md` de lá): o primeiro quadro da
+gravação saía com o aviso de permissão ainda saindo da tela e o viewer descarta os
+eventos anteriores ao quadro buscado, então o aviso ficava preso no espelho do
+suporte. Agora o widget tira um segundo quadro completo após 1,5 s e avisa o viewer
+(`resync`); o botão "Atualizar tela" do admin faz o mesmo sob demanda. A caixa de
+conversa é arrastável (`draggable-panel.tsx`).
