@@ -12,3 +12,5 @@ deixada para o fim do projeto.
 Para o plano original do projeto (contexto, fases, modelo de dados
 completo), ver
 `/home/eduardo/.claude/plans/quero-fazer-um-erp-modular-teacup.md`.
+
+- [Checklist de deploy](deploy.md) — passos e verificações para subir para produção.
