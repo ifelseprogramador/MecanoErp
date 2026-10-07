@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { BackButton } from "@/components/back-button";
 import { Badge } from "@/components/ui/badge";
-import { getOrganizationForAdmin } from "@/core/admin/queries";
+import { getOrganizationForAdmin, listLoginEvents } from "@/core/admin/queries";
 import {
   hardDeleteOrganization,
   updateBilling,
@@ -18,6 +18,7 @@ import { ModuleToggleList } from "@/core/admin/components/module-toggle-list";
 import { HardDeleteForm } from "@/core/admin/components/hard-delete-form";
 import { ResetMemberPasswordButton } from "@/core/admin/components/reset-member-password-button";
 import { CollapsibleCard } from "@/core/admin/components/collapsible-card";
+import { LoginHistoryCard } from "@/core/admin/components/login-history-card";
 import { AuditLogCard } from "@/core/admin/components/audit-log-card";
 import { LiveSupportCard } from "@/core/admin/components/live-support-card";
 import { getAllModules } from "@/core/registry";
@@ -27,10 +28,11 @@ export default async function AdminOrganizationDetailPage({
   params,
 }: PageProps<"/admin/organizacoes/[id]">) {
   const { id } = await params;
-  const [data, openSession, supportTargets] = await Promise.all([
+  const [data, openSession, supportTargets, loginEvents] = await Promise.all([
     getOrganizationForAdmin(id),
     getOpenSessionForOrgAdmin(id),
     listSupportTargetsForOrg(id),
+    listLoginEvents({ organizationId: id }),
   ]);
 
   if (!data) {
@@ -156,6 +158,8 @@ export default async function AdminOrganizationDetailPage({
           </ul>
         )}
       </CollapsibleCard>
+
+      <LoginHistoryCard entries={loginEvents} organizationId={org.id} />
 
       <AuditLogCard organizationId={org.id} entries={audit} />
 
