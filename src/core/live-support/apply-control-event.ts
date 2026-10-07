@@ -5,9 +5,7 @@ import type { ControlEvent } from "./control-events";
 /**
  * Aplica um evento de controle remoto recebido do admin na página REAL do
  * usuário (não é uma simulação numa iframe — é a página de verdade). Só
- * chamado quando `controlGranted` é true para a sessão. Ver
- * docs/decisoes.md (2026-09-22, "Controle remoto") para o porquê de cada
- * escolha e as limitações conhecidas.
+ * chamado quando `controlGranted` é true para a sessão.
  */
 export function applyControlEvent(event: ControlEvent, cursorEl: HTMLElement | null) {
   const hasFrac = event.type === "move" || event.type === "click";
@@ -38,9 +36,21 @@ export function applyControlEvent(event: ControlEvent, cursorEl: HTMLElement | n
     applyKey(event.key);
   }
 
+  if (event.type === "text") {
+    applyText(event.text, event.deleteCount);
+  }
+
   if (event.type === "scroll") {
     window.scrollBy(event.deltaX, event.deltaY);
   }
+}
+
+/** Texto vindo do campo de digitação do admin (celular): edita o campo focado. */
+function applyText(text: string, deleteCount: number) {
+  const el = document.activeElement;
+  if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) return;
+  const keep = Math.max(0, el.value.length - Math.max(0, deleteCount));
+  setNativeValue(el, el.value.slice(0, keep) + text);
 }
 
 function applyKey(key: string) {
