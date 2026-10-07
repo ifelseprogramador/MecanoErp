@@ -134,6 +134,13 @@
       "when": 1791320264086,
       "tag": "0018_live_support_per_user",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791338431071,
+      "tag": "0019_support_telegram_chat",
+      "breakpoints": true
     }
   ]
 }
