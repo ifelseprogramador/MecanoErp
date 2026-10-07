@@ -52,7 +52,12 @@ export function VehicleForm({
   return (
     // Ver o comentário equivalente em
     // modules/clientes/components/customer-form.tsx.
-    <form key={vehicle?.updatedAt?.toString()} action={formAction} className="flex flex-col gap-4">
+    <form
+      data-unsaved-guard
+      key={vehicle?.updatedAt?.toString()}
+      action={formAction}
+      className="flex flex-col gap-4"
+    >
       <div className="flex flex-col gap-2">
         <Label htmlFor="customerId">Cliente</Label>
         <Select

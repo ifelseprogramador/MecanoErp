@@ -35,7 +35,12 @@ export function CatalogItemForm({
   }, [state]);
 
   return (
-    <form key={item?.updatedAt?.toString()} action={formAction} className="flex flex-col gap-4">
+    <form
+      data-unsaved-guard
+      key={item?.updatedAt?.toString()}
+      action={formAction}
+      className="flex flex-col gap-4"
+    >
       <div className="flex flex-col gap-2">
         <Label htmlFor="type">Tipo</Label>
         <Select
