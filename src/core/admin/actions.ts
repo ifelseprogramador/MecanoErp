@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { requireAdmin } from "@/core/admin-auth";
 import { createSupabaseAdminClient } from "@/core/supabase/admin";
 import { recordAudit } from "./audit";
@@ -13,6 +13,7 @@ import { generateTemporaryPassword } from "@/core/temp-password";
 import {
   auditLog,
   customers,
+  loginEvents,
   memberships,
   organizationModuleSettings,
   organizations,
@@ -435,6 +436,37 @@ export async function hardDeleteOrganization(
 
   revalidatePath("/admin");
   redirect("/admin");
+}
+
+/** Apaga uma única linha do histórico de acessos (logins). */
+export async function deleteLoginEvent(eventId: string): Promise<ActionResult> {
+  const { log, withDb } = await requireAdmin();
+
+  try {
+    await withDb((tx) => tx.delete(loginEvents).where(eq(loginEvents.id, eventId)));
+    log.info("admin.acessos.apagar_entrada", { eventId });
+    revalidatePath("/admin");
+    return { ok: true };
+  } catch (err) {
+    log.error("admin.acessos.apagar_entrada.falhou", { eventId, err });
+    return { ok: false, message: "Não foi possível apagar. Tente novamente." };
+  }
+}
+
+/** Apaga todo o histórico de acessos. */
+export async function clearLoginEvents(): Promise<ActionResult> {
+  const { log, withDb } = await requireAdmin();
+
+  try {
+    // `where true`: o drizzle exige uma condição explícita em delete em massa.
+    await withDb((tx) => tx.delete(loginEvents).where(sql`true`));
+    log.info("admin.acessos.limpar");
+    revalidatePath("/admin");
+    return { ok: true };
+  } catch (err) {
+    log.error("admin.acessos.limpar.falhou", { err });
+    return { ok: false, message: "Não foi possível limpar o histórico. Tente novamente." };
+  }
 }
 
 /** Apaga uma única linha do histórico de auditoria da oficina. */

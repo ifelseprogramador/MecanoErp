@@ -5,6 +5,7 @@ import { getAuditLogForOrg } from "@/core/admin/audit";
 import { getUserDisplayInfoByIds } from "@/core/user-lookup";
 import {
   customers,
+  loginEvents,
   memberships,
   organizationModuleSettings,
   organizations,
@@ -88,4 +89,12 @@ export async function getOrganizationForAdmin(organizationId: string) {
       })),
     };
   });
+}
+
+/** Últimos acessos (logins) de toda a plataforma, do mais recente ao mais antigo. */
+export async function listLoginEvents(limit = 200) {
+  const { withDb } = await requireAdmin();
+  return withDb((tx) =>
+    tx.select().from(loginEvents).orderBy(desc(loginEvents.createdAt)).limit(limit),
+  );
 }

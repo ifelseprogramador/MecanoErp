@@ -17,3 +17,4 @@ export * from "@/modules/veiculos/schema";
 export * from "@/modules/catalogo/schema";
 export * from "@/modules/ordens/schema";
 export * from "./schema/sharing";
+export * from "./schema/login-history";
