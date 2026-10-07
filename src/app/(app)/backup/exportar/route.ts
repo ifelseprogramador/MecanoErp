@@ -1,5 +1,6 @@
+import "@/core/load-modules"; // Sem o layout (Route Handler / Server Action), é isto que registra as tabelas de cada módulo em `registerBackupTable` — sem isso o backup sai VAZIO.
 import { ModuleAccessDeniedError, getActiveOrg, requireOwner } from "@/core/auth";
-import { buildOrgBackup } from "@/core/backup";
+import { buildOrgBackup, markBackupDownloaded } from "@/core/backup";
 
 /**
  * Backup completo da organização em JSON — estrutura (colunas + tipos,
@@ -16,7 +17,13 @@ export async function GET() {
   const [{ withDb, log }, org] = access;
   log.info("backup.exportar");
 
-  const backup = await withDb((tx) => buildOrgBackup(tx, org.organizationId, org.organizationName));
+  const backup = await withDb(async (tx) => {
+    const built = await buildOrgBackup(tx, org.organizationId, org.organizationName);
+    // Zera o lembrete — mas não quando é o dono da plataforma no modo suporte: o
+    // backup que ele baixa não é o do responsável da oficina.
+    if (!org.impersonating) await markBackupDownloaded(tx, org.organizationId);
+    return built;
+  });
   const filename = `mecanoerp-backup-${org.organizationName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${new Date().toISOString().slice(0, 10)}.json`;
 
   return new Response(JSON.stringify(backup, null, 2), {

@@ -1,6 +1,7 @@
 import { registerModule } from "@/core/registry";
 import { registerBackupTable } from "@/core/backup";
-import { workOrderCounters, workOrders } from "./schema";
+import { sql } from "drizzle-orm";
+import { workOrderCounters, workOrderItems, workOrders } from "./schema";
 
 registerModule({
   slug: "ordens",
@@ -12,16 +13,8 @@ registerModule({
   dependsOn: ["clientes", "veiculos", "catalogo"],
 });
 
-registerBackupTable({
-  key: "work_order_counters",
-  table: workOrderCounters,
-});
-
-// `work_order_items` fica de fora do backup por organização — não tem
-// `organization_id` próprio (é filtrado via `work_order_id`), e o motor
-// genérico de `core/backup.ts` só sabe filtrar tabelas com essa coluna
-// direta. Mesma limitação já aceita em prisma/pedido_itens (ver
-// docs/decisoes.md).
+// Contador de numeração das ordens: registrado DEPOIS de `work_orders` (abaixo) para
+// o `afterRestore` enxergar os números já restaurados.
 registerBackupTable({
   key: "work_orders",
   table: workOrders,
@@ -34,4 +27,28 @@ registerBackupTable({
     "createdAt",
     "updatedAt",
   ],
+});
+
+// `work_order_items` não tem `organization_id` próprio (é da organização pela OS) —
+// entra no backup pela tabela-pai (`parent`). Registrado DEPOIS de `work_orders`:
+// a restauração segue esta ordem.
+registerBackupTable({
+  key: "work_order_items",
+  table: workOrderItems,
+  parent: { table: workOrders, foreignKey: "workOrderId" },
+  dateColumns: ["createdAt"],
+});
+
+registerBackupTable({
+  key: "work_order_counters",
+  table: workOrderCounters,
+  afterRestore: async (db, organizationId) => {
+    await db.execute(sql`
+      insert into work_order_counters (organization_id, last_number)
+      select ${organizationId}::uuid, coalesce(max(number), 0)
+      from work_orders where organization_id = ${organizationId}::uuid
+      on conflict (organization_id)
+      do update set last_number = greatest(work_order_counters.last_number, excluded.last_number)
+    `);
+  },
 });
