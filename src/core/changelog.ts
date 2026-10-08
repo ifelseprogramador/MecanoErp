@@ -24,6 +24,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.27.1",
+    date: "2026-10-08",
+    changes: [
+      {
+        type: "correcao",
+        text: "Backup: o cartão de lembrete de backup aparecia duas vezes na tela; agora aparece uma só.",
+      },
+    ],
+  },
+  {
     version: "0.27.0",
     date: "2026-10-07",
     changes: [

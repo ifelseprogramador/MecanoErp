@@ -44,7 +44,6 @@ export default async function BackupPage() {
           <BackupDownloadButton />
           <AutoBackupToggle initialEnabled={autoBackupEnabled} />
           <BackupReminderSettings initialHours={reminder.reminderHours} />
-          <BackupReminderSettings initialHours={reminder.reminderHours} />
         </CardContent>
       </Card>
 
