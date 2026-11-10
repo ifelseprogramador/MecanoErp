@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, ilike, isNotNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, isNotNull, sql } from "drizzle-orm";
 import { requireModule } from "@/core/auth";
 import { customers } from "@/modules/clientes/schema";
 import { vehicles } from "./schema";
@@ -26,6 +26,8 @@ const VEHICLE_ORDER_BY = {
 export async function listVehicles(options?: {
   search?: string;
   year?: number;
+  /** Só cadastrados a partir desta data (filtro "Período"). */
+  since?: Date;
   sort?: VehicleSort;
 }) {
   const { withDb, organizationId } = await requireModule("veiculos");
@@ -37,6 +39,9 @@ export async function listVehicles(options?: {
   }
   if (options?.year) {
     conditions.push(eq(vehicles.year, options.year));
+  }
+  if (options?.since) {
+    conditions.push(gte(vehicles.createdAt, options.since));
   }
 
   return withDb((tx) =>

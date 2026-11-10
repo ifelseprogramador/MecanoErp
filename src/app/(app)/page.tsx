@@ -6,14 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Hint } from "@/components/hint";
 import { formatCents } from "@/core/money";
 import { formatPlate } from "@/core/format";
-import { getActiveOrg, getSession } from "@/core/auth";
-import { canAccessModule } from "@/core/module-access";
-import { getCustomerDashboardSummary } from "@/modules/clientes";
-import { getVehicleDashboardSummary } from "@/modules/veiculos";
+import { getActiveOrg, getSession, withOrg } from "@/core/auth";
+import { getEnabledModulesForOrg } from "@/core/module-settings";
+import { filterModulesByAccess } from "@/core/module-access";
+import { getUiMode } from "@/core/profile/ui-mode";
+import { loadPainelData } from "./painel-data";
+import { InicioFacil } from "./inicio-facil";
 import {
   WORK_ORDER_STATUS_LABELS,
   WorkOrderStatusBadge,
-  getWorkOrderDashboardSummary,
   type WorkOrderStatusFilter,
 } from "@/modules/ordens";
 
@@ -29,18 +30,21 @@ const STATUS_BAR_COLORS: Record<WorkOrderStatusFilter, string> = {
 export default async function DashboardPage() {
   const [org, user] = await Promise.all([getActiveOrg(), getSession()]);
 
-  // Oficina multiusuário: cada pessoa só vê os blocos dos módulos liberados
-  // pelo responsável da conta (ver `core/module-access.ts`). O que não tem
-  // acesso nem é consultado — `requireModule()` nas queries lançaria erro.
-  const temOrdens = canAccessModule(org.moduleAccess, "ordens");
-  const temClientes = canAccessModule(org.moduleAccess, "clientes");
-  const temVeiculos = canAccessModule(org.moduleAccess, "veiculos");
+  const { userId, withDb } = await withOrg();
+  const uiMode = await withDb((tx) => getUiMode(tx, userId));
+  if (uiMode === "facil") {
+    // Mesmo filtro do menu: só o que esta pessoa pode abrir.
+    const modules = filterModulesByAccess(
+      await withDb((tx) => getEnabledModulesForOrg(tx, org.organizationId)),
+      org.moduleAccess,
+    );
+    return <InicioFacil org={org} modules={modules} />;
+  }
 
-  const [customerSummary, vehicleSummary, orderSummary] = await Promise.all([
-    temClientes ? getCustomerDashboardSummary() : null,
-    temVeiculos ? getVehicleDashboardSummary() : null,
-    temOrdens ? getWorkOrderDashboardSummary() : null,
-  ]);
+  // Oficina multiusuário: cada pessoa só vê os blocos dos módulos liberados
+  // (ver `loadPainelData`). Os mesmos dados alimentam o layout Fácil.
+  const { temOrdens, temClientes, temVeiculos, customerSummary, vehicleSummary, orderSummary } =
+    await loadPainelData(org);
 
   const displayName =
     (user?.user_metadata?.display_name as string | undefined) ?? org.organizationName;

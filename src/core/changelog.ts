@@ -24,6 +24,122 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.33.0",
+    date: "2026-11-09",
+    changes: [
+      {
+        type: "melhoria",
+        text: "Os modos de tela agora se chamam Clássico (menu ao lado e tabelas) e Simples (botões grandes e passo a passo). No topo de toda tela há atalhos para trocar entre tema claro e escuro e entre os dois modos, sem precisar abrir o Perfil.",
+      },
+      {
+        type: "melhoria",
+        text: "Listas (clientes, veículos, catálogo e ordens de serviço) agora têm filtros e ordenação nos dois modos de tela: por tipo, ano, situação e período de cadastro, além da busca. Perfil, equipe e backup também ganharam o visual do modo Simples.",
+      },
+      {
+        type: "melhoria",
+        text: "O painel inicial do modo Simples agora mostra tudo que o painel clássico mostra: ordens por status e ordens de serviço recentes, além dos números que já tinha.",
+      },
+      {
+        type: "melhoria",
+        text: 'Cadastros rápidos dentro do orçamento (modo Simples): cliente, veículo e peça/serviço novos ganharam "Mais dados (opcional)" com TODOS os campos do cadastro completo. Cliente: pessoa ou empresa, CPF/CNPJ, e-mail, razão social, nome fantasia, inscrições, endereço completo e observações. Veículo: ano, cor, combustível, quilometragem e chassi. Peça ou serviço: unidade. Dá para cadastrar tudo sem sair do orçamento; quem não precisa nem vê.',
+      },
+    ],
+  },
+  {
+    version: "0.32.0",
+    date: "2026-11-09",
+    changes: [
+      {
+        type: "melhoria",
+        text: 'Cadastro de veículo dentro do orçamento (modo Simples): agora dá para informar também ano, cor e combustível, se você quiser. Fica atrás do botão "Mais dados (opcional)" — quem não precisa nem vê, e o cadastro continua pedindo só a placa.',
+      },
+    ],
+  },
+  {
+    version: "0.31.2",
+    date: "2026-11-09",
+    changes: [
+      {
+        type: "correcao",
+        text: 'Cadastro de veículo: quando a placa já está cadastrada, o sistema agora avisa — e diz de qual cliente ela é — em vez de mostrar um erro genérico que parecia "faltar campo". No cadastro rápido do orçamento (modo Simples), se a placa já é do mesmo cliente, o veículo que já existe é usado direto.',
+      },
+      {
+        type: "correcao",
+        text: "Remover cliente, veículo ou item do catálogo que ainda está em uso agora explica o motivo (tem veículos, ordens de serviço ou itens vinculados), em vez de um erro genérico.",
+      },
+    ],
+  },
+  {
+    version: "0.31.1",
+    date: "2026-11-09",
+    changes: [
+      {
+        type: "correcao",
+        text: "Novo orçamento e novo veículo (modo Simples): cadastrar um veículo na hora, ou criar o orçamento, não salvava quando faltavam dados opcionais (cor, chassi, diagnóstico) — e a tela nem dizia por quê. Agora salva normalmente.",
+      },
+      {
+        type: "correcao",
+        text: "Cadastro rápido dentro do orçamento (modo Simples): se algo impedir de salvar, o motivo agora aparece na tela, em vez de parecer que salvou.",
+      },
+    ],
+  },
+  {
+    version: "0.31.0",
+    date: "2026-11-09",
+    changes: [
+      {
+        type: "novo",
+        text: "Novo orçamento (modo Simples): para escolher o cliente é só digitar o nome ou o telefone — a busca continua rápida mesmo com milhares de clientes. Cliente novo, carro novo e peça ou serviço novo podem ser cadastrados ali mesmo, sem sair do orçamento.",
+      },
+      {
+        type: "novo",
+        text: "Novo orçamento (modo Simples): as peças e os serviços já entram no orçamento, com quantidade e preço, e a ordem é criada com tudo de uma vez. Sem internet, o orçamento só é guardado sem itens: o sistema avisa antes de perder alguma coisa.",
+      },
+      {
+        type: "melhoria",
+        text: "Novo veículo (modo Simples): a escolha do cliente também ganhou busca rápida e cadastro de cliente na hora.",
+      },
+    ],
+  },
+  {
+    version: "0.30.0",
+    date: "2026-11-09",
+    changes: [
+      {
+        type: "novo",
+        text: 'Modo "Simples" agora cobre Veículos, Catálogo e Ordens de serviço: tudo em botões grandes com desenho, com o resumo no topo (OS abertas, em andamento, faturamento) e atalhos que já filtram a lista (aguardando aprovação, em andamento, concluídas).',
+      },
+      {
+        type: "novo",
+        text: "Novo veículo e novo orçamento viraram passo a passo: escolhe o cliente, o carro (só aparecem os veículos daquele cliente) e anota o que o cliente relatou. Na ficha da OS, um botão grande avança a etapa (aprovar, iniciar, concluir, entregar). Continua funcionando sem internet.",
+      },
+      {
+        type: "correcao",
+        text: 'Modo "Simples": o cadastro passo a passo não salva mais antes de você conferir. Agora ele só salva quando você toca em "Salvar", na tela "Está tudo certo?".',
+      },
+    ],
+  },
+  {
+    version: "0.29.0",
+    date: "2026-11-09",
+    changes: [
+      {
+        type: "novo",
+        text: 'Modo "Simples" redesenhado: sem menu lateral, só botões grandes com desenho e movimento leve. O botão "Todos os módulos", no topo, leva a qualquer lugar; o Início mostra OS abertas, em andamento, faturamento do mês, clientes e veículos. Clientes ganhou o visual em cards e o cadastro virou um passo a passo, uma pergunta por tela, que ainda funciona sem internet.',
+      },
+    ],
+  },
+  {
+    version: "0.28.0",
+    date: "2026-10-30",
+    changes: [
+      {
+        type: "novo",
+        text: 'Modo "Simples": em Perfil → Modo de tela, escolha entre o visual clássico de sempre e um visual com botões grandes e coloridos, com desenhos (clientes, veículos, ordens de serviço) e movimento leve, mais simples para quem não está acostumado com sistema. A escolha fica salva na sua conta e vale em qualquer aparelho, inclusive no celular da oficina.',
+      },
+    ],
+  },
+  {
     version: "0.27.1",
     date: "2026-10-08",
     changes: [

@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, or, sql } from "drizzle-orm";
 import { requireModule } from "@/core/auth";
 import { customers } from "@/modules/clientes/schema";
 import { vehicles } from "@/modules/veiculos/schema";
@@ -89,6 +89,8 @@ export async function getWorkOrderDashboardSummary() {
 export async function listWorkOrders(options?: {
   search?: string;
   status?: WorkOrderStatusFilter;
+  /** Só criadas a partir desta data (filtro "Período"). */
+  since?: Date;
   sort?: WorkOrderSort;
 }) {
   const { withDb, organizationId } = await requireModule("ordens");
@@ -107,6 +109,9 @@ export async function listWorkOrders(options?: {
   }
   if (options?.status) {
     conditions.push(eq(workOrders.status, options.status));
+  }
+  if (options?.since) {
+    conditions.push(gte(workOrders.createdAt, options.since));
   }
 
   return withDb((tx) =>

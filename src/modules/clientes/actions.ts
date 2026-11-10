@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { requireModule } from "@/core/auth";
+import { isForeignKeyViolation } from "@/core/db-errors";
 import type { ActionResult } from "@/core/action-result";
 import { lookupCep, type CepResult } from "@/core/cep";
 import { customers, customerAddresses } from "./schema";
@@ -173,10 +174,7 @@ export async function deleteCustomer(customerId: string): Promise<ActionResult> 
     return { ok: true };
   } catch (err) {
     // Violação de FK (23503): cliente tem veículos/OS vinculados.
-    const isForeignKeyViolation =
-      typeof err === "object" && err !== null && "code" in err && err.code === "23503";
-
-    if (isForeignKeyViolation) {
+    if (isForeignKeyViolation(err)) {
       log.warn("clientes.remover.bloqueado_por_vinculo", { customerId });
       return {
         ok: false,

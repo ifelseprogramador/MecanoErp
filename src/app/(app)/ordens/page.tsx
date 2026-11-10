@@ -4,28 +4,26 @@ import { Button } from "@/components/ui/button";
 import { PageIcon } from "@/components/page-icon";
 import { SearchBox } from "@/components/search-box";
 import { ListFilterBar } from "@/components/list-filter-bar";
+import { listWorkOrders } from "@/modules/ordens/queries";
 import {
-  WORK_ORDER_SORT_OPTIONS,
-  type WorkOrderSort,
-  type WorkOrderStatusFilter,
-  listWorkOrders,
-} from "@/modules/ordens/queries";
-import { WORK_ORDER_STATUS_LABELS } from "@/modules/ordens/components/work-order-status-badge";
+  WORK_ORDER_DEFAULT_SORT,
+  WORK_ORDER_FILTERS,
+  WORK_ORDER_SORT_CHOICES,
+  parseWorkOrderListParams,
+} from "@/modules/ordens/list-config";
 import { WorkOrderTable } from "@/modules/ordens/components/work-order-table";
 import { PendingWorkOrders } from "@/modules/ordens/components/pending-work-orders";
+import { getCurrentUiMode } from "@/core/profile/current-ui-mode";
+import { OrdensFacilHome } from "@/modules/ordens/components/ordens-facil";
 
 export default async function WorkOrdersPage({ searchParams }: PageProps<"/ordens">) {
-  const { q, status, sort } = await searchParams;
-  const search = typeof q === "string" ? q : undefined;
-  const statusFilter =
-    typeof status === "string" && status in WORK_ORDER_STATUS_LABELS
-      ? (status as WorkOrderStatusFilter)
-      : undefined;
-  const orderSort =
-    typeof sort === "string" && sort in WORK_ORDER_SORT_OPTIONS
-      ? (sort as WorkOrderSort)
-      : undefined;
-  const orders = await listWorkOrders({ search, status: statusFilter, sort: orderSort });
+  const sp = await searchParams;
+  const options = parseWorkOrderListParams(sp);
+  if ((await getCurrentUiMode()) === "facil") {
+    return <OrdensFacilHome options={options} showAll={sp.ver === "todos"} />;
+  }
+
+  const orders = await listWorkOrders(options);
 
   return (
     <div className="flex flex-col gap-6">
@@ -54,21 +52,9 @@ export default async function WorkOrdersPage({ searchParams }: PageProps<"/orden
       <div className="flex flex-wrap items-center gap-2">
         <SearchBox placeholder="Buscar por cliente, placa ou nº..." />
         <ListFilterBar
-          filters={[
-            {
-              param: "status",
-              allLabel: "Todos os status",
-              options: Object.entries(WORK_ORDER_STATUS_LABELS).map(([value, label]) => ({
-                value,
-                label,
-              })),
-            },
-          ]}
-          sortOptions={Object.entries(WORK_ORDER_SORT_OPTIONS).map(([value, label]) => ({
-            value,
-            label,
-          }))}
-          defaultSort="number_desc"
+          filters={WORK_ORDER_FILTERS}
+          sortOptions={WORK_ORDER_SORT_CHOICES}
+          defaultSort={WORK_ORDER_DEFAULT_SORT}
         />
       </div>
       <PendingWorkOrders />

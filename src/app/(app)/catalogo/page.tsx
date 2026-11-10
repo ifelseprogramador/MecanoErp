@@ -4,22 +4,27 @@ import { Button } from "@/components/ui/button";
 import { PageIcon } from "@/components/page-icon";
 import { SearchBox } from "@/components/search-box";
 import { ListFilterBar } from "@/components/list-filter-bar";
+import { listCatalogItems } from "@/modules/catalogo/queries";
 import {
-  CATALOG_SORT_OPTIONS,
-  type CatalogSort,
-  listCatalogItems,
-} from "@/modules/catalogo/queries";
+  CATALOG_DEFAULT_SORT,
+  CATALOG_FILTERS,
+  CATALOG_SORT_CHOICES,
+  parseCatalogListParams,
+} from "@/modules/catalogo/list-config";
 import { CatalogItemTable } from "@/modules/catalogo/components/catalog-item-table";
 import { PendingCatalogItems } from "@/modules/catalogo/components/pending-catalog-items";
 import { ImportExportButtons } from "@/components/import-export-buttons";
+import { getCurrentUiMode } from "@/core/profile/current-ui-mode";
+import { CatalogoFacilHome } from "@/modules/catalogo/components/catalogo-facil";
 
 export default async function CatalogPage({ searchParams }: PageProps<"/catalogo">) {
-  const { q, type, sort } = await searchParams;
-  const search = typeof q === "string" ? q : undefined;
-  const itemType = type === "servico" || type === "peca" ? type : undefined;
-  const itemSort =
-    typeof sort === "string" && sort in CATALOG_SORT_OPTIONS ? (sort as CatalogSort) : undefined;
-  const items = await listCatalogItems({ search, type: itemType, sort: itemSort });
+  const sp = await searchParams;
+  const options = parseCatalogListParams(sp);
+  if ((await getCurrentUiMode()) === "facil") {
+    return <CatalogoFacilHome options={options} showAll={sp.ver === "todos"} />;
+  }
+
+  const items = await listCatalogItems(options);
 
   return (
     <div className="flex flex-col gap-6">
@@ -40,21 +45,9 @@ export default async function CatalogPage({ searchParams }: PageProps<"/catalogo
       <div className="flex flex-wrap items-center gap-2">
         <SearchBox placeholder="Buscar por nome..." />
         <ListFilterBar
-          filters={[
-            {
-              param: "type",
-              allLabel: "Todos os tipos",
-              options: [
-                { value: "servico", label: "Serviço" },
-                { value: "peca", label: "Peça" },
-              ],
-            },
-          ]}
-          sortOptions={Object.entries(CATALOG_SORT_OPTIONS).map(([value, label]) => ({
-            value,
-            label,
-          }))}
-          defaultSort="name_asc"
+          filters={CATALOG_FILTERS}
+          sortOptions={CATALOG_SORT_CHOICES}
+          defaultSort={CATALOG_DEFAULT_SORT}
         />
       </div>
       <PendingCatalogItems />

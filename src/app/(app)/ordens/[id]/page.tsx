@@ -28,13 +28,15 @@ import { areItemsEditable, isHeaderEditable, isTerminalStatus } from "@/modules/
 import { listCustomersForSelect } from "@/modules/clientes";
 import { listVehiclesForSelect } from "@/modules/veiculos";
 import { listCatalogItemsForSelect } from "@/modules/catalogo";
+import { WorkOrderFacilDetail } from "@/modules/ordens/components/work-order-facil-detail";
+import { getCurrentUiMode } from "@/core/profile/current-ui-mode";
 
 export default async function WorkOrderDetailPage({
   params,
   searchParams,
 }: PageProps<"/ordens/[id]">) {
   const { id } = await params;
-  const { criado } = await searchParams;
+  const { criado, acao } = await searchParams;
   const [order, items, customers, vehicles, catalogItems] = await Promise.all([
     getWorkOrderById(id),
     listWorkOrderItems(id),
@@ -45,6 +47,21 @@ export default async function WorkOrderDetailPage({
 
   if (!order) {
     notFound();
+  }
+
+  if ((await getCurrentUiMode()) === "facil") {
+    return (
+      <WorkOrderFacilDetail
+        order={order}
+        items={items}
+        customers={customers}
+        vehicles={vehicles}
+        catalogItems={catalogItems}
+        shareAction={compartilharOrdem.bind(null, order.id)}
+        created={criado === "1"}
+        acao={typeof acao === "string" ? acao : undefined}
+      />
+    );
   }
 
   // A OS só pode ser editada (cabeçalho e itens) enquanto ainda é

@@ -20,8 +20,12 @@ export const workOrderHeaderSchema = z.object({
 
 export type WorkOrderHeaderInput = z.infer<typeof workOrderHeaderSchema>;
 
+// `FormData.get` devolve `null` para campo que não foi enviado (ex.: cadastro
+// rápido do modo Fácil, que só manda alguns campos). Ausente = vazio = opcional;
+// sem isso o `null` chegava ao `z.coerce`/`z.enum` e virava erro num campo que
+// a tela nem mostra.
 function emptyToUndefined(value: FormDataEntryValue | null) {
-  return value === "" ? undefined : value;
+  return value === "" || value === null ? undefined : value;
 }
 
 export function parseWorkOrderHeaderFormData(formData: FormData) {
@@ -30,8 +34,8 @@ export function parseWorkOrderHeaderFormData(formData: FormData) {
     customerId: formData.get("customerId"),
     vehicleId: formData.get("vehicleId"),
     kmEntrada: emptyToUndefined(formData.get("kmEntrada")),
-    relatoCliente: formData.get("relatoCliente"),
-    diagnostico: formData.get("diagnostico"),
+    relatoCliente: emptyToUndefined(formData.get("relatoCliente")),
+    diagnostico: emptyToUndefined(formData.get("diagnostico")),
     discountCents,
   });
 }
@@ -44,6 +48,44 @@ export const workOrderItemSchema = z.object({
 });
 
 export type WorkOrderItemInput = z.infer<typeof workOrderItemSchema>;
+
+/**
+ * Itens enviados de uma vez pelo assistente do modo Fácil (campo `itemsJson`,
+ * ver `components/facil/facil-search.tsx#serializeLines`). Cada item passa
+ * pela MESMA regra do item avulso (`workOrderItemSchema`).
+ */
+export function parseWorkOrderItemsPayload(raw: FormDataEntryValue | null) {
+  const text = typeof raw === "string" ? raw.trim() : "";
+  if (!text) return { success: true as const, data: [] as WorkOrderItemInput[] };
+  let json: unknown;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    return { success: false as const, error: "Não consegui ler os itens. Tente de novo." };
+  }
+  if (!Array.isArray(json) || json.length > 100) {
+    return { success: false as const, error: "Itens inválidos (máximo de 100 por ordem)." };
+  }
+  const items: WorkOrderItemInput[] = [];
+  for (const entry of json) {
+    const row = (entry ?? {}) as Record<string, unknown>;
+    const parsed = workOrderItemSchema.safeParse({
+      type: row.type,
+      description: row.label,
+      quantity: row.quantity,
+      unitPriceCents: row.unitPriceCents,
+    });
+    if (!parsed.success) {
+      const name = typeof row.label === "string" && row.label ? `“${row.label}”` : "um item";
+      return {
+        success: false as const,
+        error: `Confira ${name}: ${parsed.error.issues[0]?.message ?? "dados inválidos"}`,
+      };
+    }
+    items.push(parsed.data);
+  }
+  return { success: true as const, data: items };
+}
 
 export function parseWorkOrderItemFormData(formData: FormData) {
   const unitPriceCents = parseReaisInput(String(formData.get("unitPrice") ?? ""));

@@ -12,17 +12,30 @@ import { getVehicleById } from "@/modules/veiculos/queries";
 import { deleteVehicle, updateVehicle } from "@/modules/veiculos/actions";
 import { VehicleForm } from "@/modules/veiculos/components/vehicle-form";
 import { listCustomersForSelect } from "@/modules/clientes";
+import { VehicleFacilDetail } from "@/modules/veiculos/components/vehicle-facil-detail";
+import { getCurrentUiMode } from "@/core/profile/current-ui-mode";
 
 export default async function VehicleDetailPage({
   params,
   searchParams,
 }: PageProps<"/veiculos/[id]">) {
   const { id } = await params;
-  const { criado } = await searchParams;
+  const { criado, editar } = await searchParams;
   const [vehicle, customers] = await Promise.all([getVehicleById(id), listCustomersForSelect()]);
 
   if (!vehicle) {
     notFound();
+  }
+
+  if ((await getCurrentUiMode()) === "facil") {
+    return (
+      <VehicleFacilDetail
+        vehicle={vehicle}
+        customers={customers}
+        created={criado === "1"}
+        editing={editar === "1"}
+      />
+    );
   }
 
   const updateVehicleWithId = updateVehicle.bind(null, vehicle.id);

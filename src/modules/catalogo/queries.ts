@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, ilike } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike } from "drizzle-orm";
 import { requireModule } from "@/core/auth";
 import { catalogItems } from "./schema";
 
@@ -21,6 +21,8 @@ const CATALOG_ORDER_BY = {
 export async function listCatalogItems(options?: {
   search?: string;
   type?: "servico" | "peca";
+  /** Só cadastrados a partir desta data (filtro "Período"). */
+  since?: Date;
   sort?: CatalogSort;
 }) {
   const { withDb, organizationId } = await requireModule("catalogo");
@@ -32,6 +34,9 @@ export async function listCatalogItems(options?: {
   }
   if (options?.type) {
     conditions.push(eq(catalogItems.type, options.type));
+  }
+  if (options?.since) {
+    conditions.push(gte(catalogItems.createdAt, options.since));
   }
 
   return withDb((tx) =>

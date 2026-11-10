@@ -20,13 +20,15 @@ import { CustomerForm } from "@/modules/clientes/components/customer-form";
 // dentro dele — é a composição permitida na camada de rotas: uma página
 // pode juntar dois módulos, um módulo nunca importa outro diretamente.
 import { listVehiclesByCustomer } from "@/modules/veiculos";
+import { getCurrentUiMode } from "@/core/profile/current-ui-mode";
+import { CustomerFacilDetail } from "@/modules/clientes/components/customer-facil-detail";
 
 export default async function CustomerDetailPage({
   params,
   searchParams,
 }: PageProps<"/clientes/[id]">) {
   const { id } = await params;
-  const { criado } = await searchParams;
+  const { criado, editar } = await searchParams;
   const customer = await getCustomerById(id);
 
   if (!customer) {
@@ -34,6 +36,17 @@ export default async function CustomerDetailPage({
   }
 
   const vehicles = await listVehiclesByCustomer(customer.id);
+  if ((await getCurrentUiMode()) === "facil") {
+    return (
+      <CustomerFacilDetail
+        customer={customer}
+        vehicles={vehicles}
+        created={criado === "1"}
+        editing={editar === "1"}
+      />
+    );
+  }
+
   const updateCustomerWithId = updateCustomer.bind(null, customer.id);
 
   return (

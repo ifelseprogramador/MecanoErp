@@ -4,26 +4,27 @@ import { Button } from "@/components/ui/button";
 import { PageIcon } from "@/components/page-icon";
 import { SearchBox } from "@/components/search-box";
 import { ListFilterBar } from "@/components/list-filter-bar";
+import { listVehicleYears, listVehicles } from "@/modules/veiculos/queries";
 import {
-  VEHICLE_SORT_OPTIONS,
-  type VehicleSort,
-  listVehicleYears,
-  listVehicles,
-} from "@/modules/veiculos/queries";
+  VEHICLE_DEFAULT_SORT,
+  VEHICLE_SORT_CHOICES,
+  parseVehicleListParams,
+  vehicleFilters,
+} from "@/modules/veiculos/list-config";
 import { VehicleTable } from "@/modules/veiculos/components/vehicle-table";
 import { PendingVehicles } from "@/modules/veiculos/components/pending-vehicles";
 import { ImportExportButtons } from "@/components/import-export-buttons";
+import { getCurrentUiMode } from "@/core/profile/current-ui-mode";
+import { VeiculosFacilHome } from "@/modules/veiculos/components/veiculos-facil";
 
 export default async function VehiclesPage({ searchParams }: PageProps<"/veiculos">) {
-  const { q, year, sort } = await searchParams;
-  const search = typeof q === "string" ? q : undefined;
-  const vehicleYear = typeof year === "string" && /^\d+$/.test(year) ? Number(year) : undefined;
-  const vehicleSort =
-    typeof sort === "string" && sort in VEHICLE_SORT_OPTIONS ? (sort as VehicleSort) : undefined;
-  const [vehicles, years] = await Promise.all([
-    listVehicles({ search, year: vehicleYear, sort: vehicleSort }),
-    listVehicleYears(),
-  ]);
+  const sp = await searchParams;
+  const options = parseVehicleListParams(sp);
+  if ((await getCurrentUiMode()) === "facil") {
+    return <VeiculosFacilHome options={options} showAll={sp.ver === "todos"} />;
+  }
+
+  const [vehicles, years] = await Promise.all([listVehicles(options), listVehicleYears()]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -44,18 +45,9 @@ export default async function VehiclesPage({ searchParams }: PageProps<"/veiculo
       <div className="flex flex-wrap items-center gap-2">
         <SearchBox placeholder="Buscar por placa..." />
         <ListFilterBar
-          filters={[
-            {
-              param: "year",
-              allLabel: "Todos os anos",
-              options: years.map((y) => ({ value: String(y), label: String(y) })),
-            },
-          ]}
-          sortOptions={Object.entries(VEHICLE_SORT_OPTIONS).map(([value, label]) => ({
-            value,
-            label,
-          }))}
-          defaultSort="created_desc"
+          filters={vehicleFilters(years)}
+          sortOptions={VEHICLE_SORT_CHOICES}
+          defaultSort={VEHICLE_DEFAULT_SORT}
         />
       </div>
       <PendingVehicles />

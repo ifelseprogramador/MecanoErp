@@ -77,3 +77,22 @@ describe("workOrderItemSchema", () => {
     expect(result.success).toBe(false);
   });
 });
+
+describe("parseWorkOrderHeaderFormData com campos ausentes (assistente do modo Fácil)", () => {
+  it("aceita só cliente + veículo: relato, diagnóstico, km e desconto são opcionais", async () => {
+    const { parseWorkOrderHeaderFormData } = await import("../validation");
+    const formData = new FormData();
+    formData.set("customerId", "3f2b1c4e-5a6d-4e7f-8a9b-0c1d2e3f4a5b");
+    formData.set("vehicleId", "7a8b9c0d-1e2f-4a3b-8c4d-5e6f7a8b9c0d");
+    // relatoCliente, diagnostico, kmEntrada e discount NÃO foram enviados.
+
+    const result = parseWorkOrderHeaderFormData(formData);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.relatoCliente).toBeUndefined();
+      expect(result.data.diagnostico).toBeUndefined();
+      expect(result.data.kmEntrada).toBeUndefined();
+      expect(result.data.discountCents).toBe(0);
+    }
+  });
+});

@@ -9,17 +9,23 @@ import { BackButton } from "@/components/back-button";
 import { getCatalogItemById } from "@/modules/catalogo/queries";
 import { deleteCatalogItem, updateCatalogItem } from "@/modules/catalogo/actions";
 import { CatalogItemForm } from "@/modules/catalogo/components/catalog-item-form";
+import { CatalogItemFacilDetail } from "@/modules/catalogo/components/catalog-item-facil-detail";
+import { getCurrentUiMode } from "@/core/profile/current-ui-mode";
 
 export default async function CatalogItemDetailPage({
   params,
   searchParams,
 }: PageProps<"/catalogo/[id]">) {
   const { id } = await params;
-  const { criado } = await searchParams;
+  const { criado, editar } = await searchParams;
   const item = await getCatalogItemById(id);
 
   if (!item) {
     notFound();
+  }
+
+  if ((await getCurrentUiMode()) === "facil") {
+    return <CatalogItemFacilDetail item={item} created={criado === "1"} editing={editar === "1"} />;
   }
 
   const updateItemWithId = updateCatalogItem.bind(null, item.id);

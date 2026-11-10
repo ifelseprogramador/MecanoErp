@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { requireModule } from "@/core/auth";
+import { isForeignKeyViolation } from "@/core/db-errors";
 import type { ActionResult } from "@/core/action-result";
 import { importCsvRows, type CsvImportState } from "@/core/csv-import";
 import { parseReaisInput } from "@/core/money";
@@ -12,10 +13,6 @@ import { catalogItemSchema, parseCatalogItemFormData, type CatalogItemInput } fr
 
 interface InsertResult extends ActionResult {
   id?: string;
-}
-
-function isForeignKeyViolation(err: unknown): boolean {
-  return typeof err === "object" && err !== null && "code" in err && err.code === "23503";
 }
 
 /**

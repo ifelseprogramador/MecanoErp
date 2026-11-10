@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, ilike, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, or, sql } from "drizzle-orm";
 import { requireModule } from "@/core/auth";
 import { customers, customerAddresses } from "./schema";
 
@@ -21,6 +21,8 @@ const CUSTOMER_ORDER_BY = {
 export async function listCustomers(options?: {
   search?: string;
   type?: "pf" | "pj";
+  /** Só cadastrados a partir desta data (filtro "Período"). */
+  since?: Date;
   sort?: CustomerSort;
 }) {
   const { withDb, organizationId } = await requireModule("clientes");
@@ -34,6 +36,9 @@ export async function listCustomers(options?: {
   }
   if (options?.type) {
     conditions.push(eq(customers.type, options.type));
+  }
+  if (options?.since) {
+    conditions.push(gte(customers.createdAt, options.since));
   }
 
   return withDb((tx) =>

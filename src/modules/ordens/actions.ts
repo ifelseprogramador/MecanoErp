@@ -18,7 +18,9 @@ import { workOrderCounters, workOrderItems, workOrders } from "./schema";
 import {
   parseWorkOrderHeaderFormData,
   parseWorkOrderItemFormData,
+  parseWorkOrderItemsPayload,
   type WorkOrderHeaderInput,
+  type WorkOrderItemInput,
 } from "./validation";
 
 interface InsertResult extends ActionResult {
@@ -90,6 +92,7 @@ async function recalculateOrderTotal(tx: Database, workOrderId: string, discount
 export async function createWorkOrderRecord(
   data: WorkOrderHeaderInput,
   id?: string,
+  items: WorkOrderItemInput[] = [],
 ): Promise<InsertResult> {
   const { withDb, organizationId, userId, log } = await requireModule("ordens");
   log.info("ordens.criar", { offline: Boolean(id) });
@@ -121,6 +124,21 @@ export async function createWorkOrderRecord(
       toStatus: "orcamento",
     });
 
+    // Itens do assistente do modo Fácil: entram na MESMA transação da OS (ou
+    // a OS inteira existe, ou nada) e o total é recalculado no servidor.
+    if (items.length > 0) {
+      await tx.insert(workOrderItems).values(
+        items.map((item) => ({
+          workOrderId: order.id,
+          type: item.type,
+          description: item.description,
+          quantity: String(item.quantity),
+          unitPriceCents: item.unitPriceCents,
+        })),
+      );
+      await recalculateOrderTotal(tx, order.id, data.discountCents);
+    }
+
     return { order, lastNumber };
   });
   log.info("ordens.criar.sucesso", { orderId: order.id, number: lastNumber });
@@ -148,6 +166,32 @@ export async function createWorkOrder(
 
   // `redirect()` fica fora do try/catch pelo mesmo motivo documentado em
   // modules/clientes/actions.ts#createCustomer.
+  redirect(`/ordens/${result.id}?criado=1`);
+}
+
+/**
+ * Novo orçamento do modo Fácil: cabeçalho + itens de uma vez (campo
+ * `itemsJson`). Mesmas regras de `createWorkOrder`; o que muda é só levar os
+ * itens junto na criação, para não obrigar a pessoa a abrir a OS depois.
+ */
+export async function createWorkOrderWithItems(
+  _prevState: ActionResult,
+  formData: FormData,
+): Promise<ActionResult> {
+  const { log } = await requireModule("ordens");
+  const parsed = parseWorkOrderHeaderFormData(formData);
+  if (!parsed.success) {
+    log.warn("ordens.criar.validacao_falhou", {
+      fields: Object.keys(parsed.error.flatten().fieldErrors),
+    });
+    return { ok: false, errors: parsed.error.flatten().fieldErrors };
+  }
+  const items = parseWorkOrderItemsPayload(formData.get("itemsJson"));
+  if (!items.success) {
+    return { ok: false, errors: { itemsJson: [items.error] } };
+  }
+
+  const result = await createWorkOrderRecord(parsed.data, undefined, items.data);
   redirect(`/ordens/${result.id}?criado=1`);
 }
 
